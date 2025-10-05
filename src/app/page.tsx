@@ -1,103 +1,79 @@
-import Image from "next/image";
+import Link from "next/link";
+import HeroCarousel from "@/components/HeroCarousel";
 
-export default function Home() {
+export default function LandingPage() {
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <section>
+      <HeroCarousel
+        slides={[
+          {
+            img: '/hero-1.jpg',
+            heading: 'PRIVATE FITNESS\nMEMBERSHIPS',
+            sub: 'เทรนเนอร์ส่วนตัว โปรแกรมเฉพาะคุณ เข้าถึงได้ทุกที่ ทุกเวลา',
+            ctaPrimary: { href: '/signup', label: 'เริ่มต้นเลย' },
+            ctaSecondary: { href: '/plans', label: 'ดูแพ็กเกจ' },
+          },
+          {
+            img: '/hero-2.jpg',
+            heading: 'COACHING แบบ PERSONAL',
+            sub: 'ติดตามผลและปรับโปรแกรมรายสัปดาห์',
+            ctaPrimary: { href: '/trainers', label: 'เลือกเทรนเนอร์' },
+            ctaSecondary: { href: '/trial', label: 'ทดลองฟรี' },
+          },
+          {
+            img: '/hero-3.jpg',
+            heading: 'CLASS & PROGRAMS',
+            sub: 'คาร์ดิโอ เวท โภชนาการ — ครบในที่เดียว',
+            ctaPrimary: { href: '/classes', label: 'จองคลาส' },
+            ctaSecondary: { href: '/blog', label: 'อ่านบทความ' },
+          },
+        ]}
+        interval={5500}
+      />
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      <section className="container section">
+        <h2 className="section-title">สิทธิประโยชน์สมาชิก Private Fitness</h2>
+
+        <div className="benefit-grid">
+          <article className="benefit">
+            <div className="benefit-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                <path d="M4 15l3-2 2 1 3-3 2 1 3-4"/><path d="M18 16l2 3"/><circle cx="6" cy="6" r="2"/>
+              </svg>
+            </div>
+            <h3 className="benefit-title">เหมาะกับทุกไลฟ์สไตล์</h3>
+            <p className="benefit-desc">ปรับแผนให้เข้ากับตารางชีวิตและเป้าหมายของคุณ</p>
+          </article>
+
+          <article className="benefit">
+            <div className="benefit-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 010 18M12 3a15 15 0 000 18"/>
+              </svg>
+            </div>
+            <h3 className="benefit-title">สมาชิกใบเดียว</h3>
+            <p className="benefit-desc">เข้าได้หลายสาขา/หลายอุปกรณ์อย่างยืดหยุ่น</p>
+          </article>
+
+          <article className="benefit">
+            <div className="benefit-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/>
+              </svg>
+            </div>
+            <h3 className="benefit-title">ยืดหยุ่น ไม่ผูกมัด</h3>
+            <p className="benefit-desc">เลือกต่ออายุเป็นรอบ ๆ ปรับเปลี่ยนแพ็กเกจได้ตลอด</p>
+          </article>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      </section>
+
+      <section className="container cta">
+        <h3>พร้อมเริ่มเส้นทางสุขภาพของคุณแล้วหรือยัง?</h3>
+        <div className="hero-actions">
+          <Link href="/signup" className="button">สมัครสมาชิกวันนี้</Link>
+          <Link href="/contact" className="button-outline">คุยกับเรา</Link>
+        </div>
+      </section>
+    </section>
   );
 }
