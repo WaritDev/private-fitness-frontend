@@ -1,4 +1,4 @@
-type UserRole = "admin" | "sales" | "trainer" | "customer" | "guest";
+type UserRole = "ADMIN" | "SALES" | "TRAINER" | "CUSTOMER" | "MANAGER" | "GUEST";
 
 interface User {
   id: string;
@@ -8,16 +8,15 @@ interface User {
   profileUrl?: string;
 }
 
+type AuthUser = { sub: string; role: UserRole; name?: string; email?: string };
 
-interface AuthContextType {
-  user: User | null;
-  userRole: UserRole;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  login: () => void;
-  logout: () => void;
-  checkPermission: (requiredRoles: UserRole[]) => boolean;
-}
+type AuthContextValue = {
+  user: AuthUser | null;
+  loading: boolean;
+  isAdmin: boolean;
+  isManager: boolean;
+  hasAnyRole: (...roles: UserRole[]) => boolean;
+};
 
 
-export type { User, UserRole, AuthContextType };
+export type { User, UserRole, AuthContextValue, AuthUser };

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { defaultPathForRole } from '@/lib/roleRedirect';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -9,6 +10,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const router = useRouter();
+  let role = 'MANAGER'; // Default role for login page
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -18,6 +20,7 @@ export default function LoginPage() {
       method: 'POST',
       body: JSON.stringify({ username, password }),
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
     });
     setLoading(false);
     if (!res.ok) {
@@ -25,7 +28,10 @@ export default function LoginPage() {
       setErr(j.error || 'Login failed');
       return;
     }
-    router.push('/');
+    const j = await res.json().catch(() => ({}));
+    const role = j?.user?.role;
+    const to = role ? defaultPathForRole(role) : '/';
+    router.replace(to);
   }
 
   return (

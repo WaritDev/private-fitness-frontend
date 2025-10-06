@@ -10,20 +10,18 @@ export default function LandingPage() {
             img: '/hero-1.jpg',
             heading: 'PRIVATE FITNESS\nMEMBERSHIPS',
             sub: 'เทรนเนอร์ส่วนตัว โปรแกรมเฉพาะคุณ เข้าถึงได้ทุกที่ ทุกเวลา',
-            ctaPrimary: { href: '/signup', label: 'เริ่มต้นเลย' },
             ctaSecondary: { href: '/plans', label: 'ดูแพ็กเกจ' },
           },
           {
             img: '/hero-2.jpg',
             heading: 'COACHING แบบ PERSONAL',
             sub: 'ติดตามผลและปรับโปรแกรมรายสัปดาห์',
-            ctaPrimary: { href: '/trainers', label: 'เลือกเทรนเนอร์' },
           },
           {
             img: '/hero-3.jpg',
             heading: 'CLASS & PROGRAMS',
             sub: 'คาร์ดิโอ เวท โภชนาการ — ครบในที่เดียว',
-            ctaPrimary: { href: '/courses', label: 'จองคอร์ส' },
+            ctaPrimary: { href: '/courses', label: 'ดูคอร์ส' },
             ctaSecondary: { href: '/login', label: 'เข้าสู่ระบบ' },
           },
         ]}

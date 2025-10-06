@@ -14,18 +14,12 @@ function MainNavbar() {
           <Link href="/plans" className="nav-link">
             แพ็กเกจ
           </Link>
-          <Link href="/trainers" className="nav-link">
-            ผู้ฝึกสอนส่วนตัว
-          </Link>
           <Link href="/courses" className="nav-link">
             คอร์ส
           </Link>
         </nav>
 
         <div className="top-actions">
-          <Link href="/registration" className="button">
-            สมัครสมาชิก
-          </Link>
           <Link href="/login" className="button-outline">
             เข้าสู่ระบบ
           </Link>

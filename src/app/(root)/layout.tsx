@@ -1,5 +1,5 @@
 import MainNavbar from "@/components/ui/MainNavbar";
-import "./globals.css";
+import "../globals.css";
 
 
 export const metadata = {
