@@ -18,14 +18,13 @@ export default function LandingPage() {
             heading: 'COACHING แบบ PERSONAL',
             sub: 'ติดตามผลและปรับโปรแกรมรายสัปดาห์',
             ctaPrimary: { href: '/trainers', label: 'เลือกเทรนเนอร์' },
-            ctaSecondary: { href: '/trial', label: 'ทดลองฟรี' },
           },
           {
             img: '/hero-3.jpg',
             heading: 'CLASS & PROGRAMS',
             sub: 'คาร์ดิโอ เวท โภชนาการ — ครบในที่เดียว',
-            ctaPrimary: { href: '/classes', label: 'จองคลาส' },
-            ctaSecondary: { href: '/blog', label: 'อ่านบทความ' },
+            ctaPrimary: { href: '/courses', label: 'จองคอร์ส' },
+            ctaSecondary: { href: '/login', label: 'เข้าสู่ระบบ' },
           },
         ]}
         interval={5500}
