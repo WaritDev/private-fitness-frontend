@@ -1,19 +1,27 @@
 {
   "name": "private-fitness-frontend",
   "version": "0.1.0",
+  "type": "module",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:migrate": "node --loader ts-node/esm db/migrate.ts",
+    "db:seed": "node --loader ts-node/esm db/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.16.3",
+    "@emotion/cache": "^11.14.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/material": "^7.3.4",
+    "@mui/material-nextjs": "^7.3.3",
     "axios": "^1.12.2",
     "bcryptjs": "^3.0.2",
     "jose": "^6.1.0",
     "lucide-react": "^0.544.0",
+    "mysql2": "^3.15.2",
     "next": "15.5.4",
     "prisma": "^6.16.3",
     "react": "19.1.0",
@@ -31,8 +39,5 @@
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
     "typescript": "^5"
-  },
-  "prisma": {
-    "seed": "ts-node --transpile-only prisma/seed.ts"
   }
 }

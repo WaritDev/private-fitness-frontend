@@ -1,6 +1,7 @@
-import { prisma } from '@/lib/prisma';
+import { query } from '@/lib/db';
 import { signAuthJWT } from '@/lib/jwt';
 import { verifyPassword } from '@/lib/hash';
+import type { DbUser } from '@/types/users';
 
 export async function POST(req: Request) {
   try {
@@ -9,15 +10,12 @@ export async function POST(req: Request) {
       return new Response(JSON.stringify({ error: 'username and password required' }), { status: 400 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { Username: username },
-      select: {
-        Username: true, Password: true, Role: true, First_Name: true, Last_Name: true,
-        Gmail: true, Profile_Image: true, Is_Active: true,
-      },
-    });
-
-    if (!user || !user.Is_Active) {
+    const [rows] = await query<DbUser>(
+      'SELECT Username, Password, Role, First_Name, Last_Name, Gmail, Is_Active FROM `USER` WHERE `Username` = ? LIMIT 1',
+      [username]
+    );
+    const user = rows[0];
+    if (!user || !(user.Is_Active === true || user.Is_Active === 1)) {
       return new Response(JSON.stringify({ error: 'invalid credentials' }), { status: 401 });
     }
 

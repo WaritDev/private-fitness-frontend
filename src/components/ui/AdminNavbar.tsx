@@ -77,6 +77,7 @@ function AdminNavbar() {
           <div className="brand">Private Fitness</div>
           <nav className="topnav" aria-label="main navigation">
             <Link href="/" className="nav-link is-active">หน้าแรก</Link>
+            <Link href="/products" className="nav-link">คอร์ส</Link>
             <Link href="/registration" className="nav-link">ลงทะเบียน</Link>
             <Link href={profileHref} className="text-gray-600 hover:text-gray-800 font-semibold">
               <Image src="/profile-icon.png" alt="profile icon" width={40} height={40} />

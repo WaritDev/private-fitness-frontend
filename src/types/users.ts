@@ -1,5 +1,15 @@
 type UserRole = "ADMIN" | "SALES" | "TRAINER" | "CUSTOMER" | "MANAGER" | "GUEST";
 
+type DbUser = {
+  Username: string;
+  Password: string;
+  Role: 'CUSTOMER'|'TRAINER'|'SALES'|'MANAGER'|'ADMIN';
+  First_Name: string;
+  Last_Name: string;
+  Gmail: string | null;
+  Is_Active: number | boolean;
+};
+
 interface User {
   id: string;
   name: string;
@@ -19,4 +29,4 @@ type AuthContextValue = {
 };
 
 
-export type { User, UserRole, AuthContextValue, AuthUser };
+export type { DbUser, User, UserRole, AuthContextValue, AuthUser };
