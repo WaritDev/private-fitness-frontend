@@ -16,6 +16,9 @@ import {
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 
+const USERNAME_RE = /^[A-Za-z][A-Za-z0-9]{3,29}$/;
+const PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+
 type Step1State = {
   firstName: string;
   lastName: string;
@@ -28,6 +31,7 @@ type Step1State = {
 type Step2State = {
   username: string;
   password: string;
+  confirmPassword: string;
 };
 
 export default function RegistrationPage() {
@@ -50,19 +54,50 @@ export default function RegistrationPage() {
   const [s2, setS2] = React.useState<Step2State>({
     username: '',
     password: '',
+    confirmPassword: '',
   });
 
   const [errors1, setErrors1] = React.useState<Partial<Record<keyof Step1State, string>>>({});
   const [errors2, setErrors2] = React.useState<Partial<Record<keyof Step2State, string>>>({});
 
-  // clear error ของ field ทันทีเมื่อพิมพ์
+  // Step1: clear/validate per field while typing
   function setS1Field<K extends keyof Step1State>(key: K, value: Step1State[K]) {
     setS1((p) => ({ ...p, [key]: value }));
-    setErrors1((e) => ({ ...e, [key]: undefined }));
+    setErrors1((e) => {
+      const next = { ...e };
+      if (key === 'firstName' && value) next.firstName = undefined;
+      if (key === 'lastName' && value) next.lastName = undefined;
+      if (key === 'phone' && value) next.phone = undefined;
+      if (key === 'email') {
+        if (!value) next.email = undefined;
+        else next.email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value)) ? undefined : 'Invalid email';
+      }
+      return next;
+    });
   }
+
+  // Step2: clear/validate per field while typing
   function setS2Field<K extends keyof Step2State>(key: K, value: Step2State[K]) {
     setS2((p) => ({ ...p, [key]: value }));
-    setErrors2((e) => ({ ...e, [key]: undefined }));
+    setErrors2((e) => {
+      const next = { ...e };
+      if (key === 'username') {
+        next.username = value ? (USERNAME_RE.test(value) ? undefined : 'Username must match ^[A-Za-z][A-Za-z0-9]{3,29}$') : 'Required';
+      }
+      if (key === 'password') {
+        next.password = value ? (PASSWORD_RE.test(value) ? undefined : 'Password too weak') : 'Required';
+        // also recheck confirm
+        if (s2.confirmPassword) {
+          next.confirmPassword = value === s2.confirmPassword ? undefined : 'Password does not match';
+        }
+      }
+      if (key === 'confirmPassword') {
+        next.confirmPassword = value ? (value === (key === 'confirmPassword' ? (value as string) : s2.password) && value === s2.password ? undefined : 'Password does not match') : 'Required';
+        // correct comparison with latest password
+        next.confirmPassword = value === (key === 'password' ? (value as string) : s2.password) ? undefined : 'Password does not match';
+      }
+      return next;
+    });
   }
 
   function validateStep1(): boolean {
@@ -78,9 +113,11 @@ export default function RegistrationPage() {
   function validateStep2(): boolean {
     const e: Partial<Record<keyof Step2State, string>> = {};
     if (!s2.username.trim()) e.username = 'Required';
-    else if (s2.username.length < 3) e.username = 'At least 3 characters';
+    else if (!USERNAME_RE.test(s2.username)) e.username = 'Username must match ^[A-Za-z][A-Za-z0-9]{3,29}$';
     if (!s2.password) e.password = 'Required';
-    else if (s2.password.length < 6) e.password = 'At least 6 characters';
+    else if (!PASSWORD_RE.test(s2.password)) e.password = 'Password must contain a-z, A-Z, 0-9 and special char, min 8';
+    if (!s2.confirmPassword) e.confirmPassword = 'Required';
+    else if (s2.password !== s2.confirmPassword) e.confirmPassword = 'Password does not match';
     setErrors2(e);
     return Object.keys(e).length === 0;
   }
@@ -117,6 +154,10 @@ export default function RegistrationPage() {
       });
 
       if (!res.ok) {
+        // map 409 -> duplicate username
+        if (res.status === 409) {
+          setErrors2((e) => ({ ...e, username: 'This username is already taken' }));
+        }
         const j = await res.json().catch(() => ({}));
         throw new Error(j.error || 'Failed to register');
       }
@@ -124,7 +165,7 @@ export default function RegistrationPage() {
       setSnack({ open: true, message: 'Registration success', color: 'success' });
       setActiveStep(0);
       setS1({ firstName: '', lastName: '', gender: '', dateOfBirth: '', phone: '', email: '' });
-      setS2({ username: '', password: '' });
+      setS2({ username: '', password: '', confirmPassword: '' });
       setErrors1({});
       setErrors2({});
     } catch (err: any) {
@@ -186,19 +227,11 @@ export default function RegistrationPage() {
                   SelectProps={{
                     displayEmpty: true,
                     renderValue: (selected) =>
-                      selected ? (
-                        String(selected)
-                      ) : (
-                        <span style={{ color: 'rgba(0,0,0,0.6)' }}>Select gender</span>
-                      ),
+                      selected ? String(selected) : <span style={{ color: 'rgba(0,0,0,0.6)' }}>Select gender</span>,
                   }}
                   sx={{
                     minHeight: 56,
-                    '& .MuiSelect-select': {
-                      display: 'flex',
-                      alignItems: 'center',
-                      py: 1.5,
-                    },
+                    '& .MuiSelect-select': { display: 'flex', alignItems: 'center', py: 1.5 },
                   }}
                 >
                   <MenuItem value="">
@@ -263,7 +296,7 @@ export default function RegistrationPage() {
                   value={s2.username}
                   onChange={(e) => setS2Field('username', e.target.value)}
                   error={!!errors2.username}
-                  helperText={errors2.username}
+                  helperText={errors2.username || '4-30 chars, start with letter, then letters/digits'}
                   fullWidth
                   required
                   autoFocus
@@ -276,7 +309,19 @@ export default function RegistrationPage() {
                   value={s2.password}
                   onChange={(e) => setS2Field('password', e.target.value)}
                   error={!!errors2.password}
-                  helperText={errors2.password}
+                  helperText={errors2.password || 'Min 8 with a-z, A-Z, 0-9 and special char'}
+                  fullWidth
+                  required
+                />
+              </Grid>
+              <Grid size={{ xs: 12 }}>
+                <TextField
+                  label="Confirm Password"
+                  type="password"
+                  value={s2.confirmPassword}
+                  onChange={(e) => setS2Field('confirmPassword', e.target.value)}
+                  error={!!errors2.confirmPassword}
+                  helperText={errors2.confirmPassword}
                   fullWidth
                   required
                 />
