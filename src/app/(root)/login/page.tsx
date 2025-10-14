@@ -1,16 +1,29 @@
 'use client';
 
-import { useState } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
 import { defaultPathForRole } from '@/lib/roleRedirect';
+import {
+  Box,
+  Paper,
+  TextField,
+  Button,
+  Typography,
+  Alert,
+  InputAdornment,
+  IconButton,
+  Stack,
+} from '@mui/material';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState('');
+  const [username, setUsername] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [showPw, setShowPw] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
+  const [err, setErr] = React.useState('');
   const router = useRouter();
-  let role = 'MANAGER'; // Default role for login page
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,38 +48,83 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-white">
-      <form onSubmit={onSubmit} className="w-full max-w-sm p-6 rounded-2xl shadow border bg-white">
-        <h1 className="text-2xl font-semibold mb-4 text-gray-900">Login</h1>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        bgcolor: (t) => t.palette.background.default,
+        px: 2,
+      }}
+    >
+      <Paper
+        elevation={3}
+        sx={{
+          width: '100%',
+          maxWidth: 420,
+          p: { xs: 2.5, md: 3 },
+          borderRadius: 3,
+        }}
+      >
+        <form onSubmit={onSubmit} noValidate>
+          <Stack spacing={2}>
+            <Box>
+              <Typography variant="h5" fontWeight={700}>
+                Login
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                เข้าสู่ระบบเพื่อจัดการข้อมูลของคุณ
+              </Typography>
+            </Box>
 
-        <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-        <input
-          className="w-full rounded-xl bg-[#F5F5F5] px-4 py-3 mb-3 outline-none"
-          value={username}
-          onChange={e => setUsername(e.target.value)}
-          placeholder="e.g. sophia_c"
-          required
-        />
+            {err && <Alert severity="error">{err}</Alert>}
 
-        <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-        <input
-          className="w-full rounded-xl bg-[#F5F5F5] px-4 py-3 mb-4 outline-none"
-          type="password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          placeholder="********"
-          required
-        />
+            <TextField
+              label="Username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              fullWidth
+              required
+              autoFocus
+            />
 
-        {err && <p className="text-red-600 text-sm mb-3">{err}</p>}
-        <button
-          disabled={loading}
-          className="w-full rounded-xl bg-[#00C853] text-white font-semibold py-3"
-          type="submit"
-        >
-          {loading ? 'Signing in...' : 'Sign in'}
-        </button>
-      </form>
-    </main>
+            <TextField
+              label="Password"
+              type={showPw ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              fullWidth
+              required
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label={showPw ? 'Hide password' : 'Show password'}
+                      onClick={() => setShowPw((s) => !s)}
+                      edge="end"
+                    >
+                      {showPw ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            <Button
+              type="submit"
+              variant="contained"
+              color="success"
+              size="large"
+              disabled={loading}
+              sx={{ mt: 0.5 }}
+              fullWidth
+            >
+              {loading ? 'Signing in…' : 'Sign in'}
+            </Button>
+          </Stack>
+        </form>
+      </Paper>
+    </Box>
   );
 }

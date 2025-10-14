@@ -1,5 +1,9 @@
+import { NextResponse } from 'next/server';
+
 export async function POST() {
-  const headers = new Headers();
-  headers.append('Set-Cookie', 'pf_auth=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax;');
-  return new Response(null, { status: 204, headers });
+  const res = NextResponse.json({ ok: true });
+  res.cookies.set('auth', '', { path: '/', maxAge: 0 });
+  return res;
 }
+
+export const GET = POST;
