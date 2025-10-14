@@ -23,12 +23,24 @@ type Step1State = {
   firstName: string;
   lastName: string;
   gender: '' | 'Male' | 'Female' | 'Other';
-  dateOfBirth: string; // YYYY-MM-DD
+  dateOfBirth: string;
   phone: string;
   email: string;
 };
 
 type Step2State = {
+  marketingSource: string;
+  emergencyContactPhone: string;
+  emergencyContactRelationship: string;
+  emergencyContactName: string;
+  maritalStatus: string;
+  companyPosition: string;
+  companyName: string;
+  address: string;
+  healthInfo: string;
+};
+
+type Step3State = {
   username: string;
   password: string;
   confirmPassword: string;
@@ -52,6 +64,17 @@ export default function RegistrationPage() {
     email: '',
   });
   const [s2, setS2] = React.useState<Step2State>({
+    marketingSource: '',
+    emergencyContactPhone: '',
+    emergencyContactRelationship: '',
+    emergencyContactName: '',
+    maritalStatus: '',
+    companyPosition: '',
+    companyName: '',
+    address: '',
+    healthInfo: '',
+  });
+  const [s3, setS3] = React.useState<Step3State>({
     username: '',
     password: '',
     confirmPassword: '',
@@ -59,48 +82,68 @@ export default function RegistrationPage() {
 
   const [errors1, setErrors1] = React.useState<Partial<Record<keyof Step1State, string>>>({});
   const [errors2, setErrors2] = React.useState<Partial<Record<keyof Step2State, string>>>({});
+  const [errors3, setErrors3] = React.useState<Partial<Record<keyof Step3State, string>>>({});
 
-  // Step1: clear/validate per field while typing
   function setS1Field<K extends keyof Step1State>(key: K, value: Step1State[K]) {
     setS1((p) => ({ ...p, [key]: value }));
     setErrors1((e) => {
-      const next = { ...e };
-      if (key === 'firstName' && value) next.firstName = undefined;
-      if (key === 'lastName' && value) next.lastName = undefined;
-      if (key === 'phone' && value) next.phone = undefined;
-      if (key === 'email') {
-        if (!value) next.email = undefined;
-        else next.email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value)) ? undefined : 'Invalid email';
+      const n = { ...e };
+      if (value) delete n[key];
+      if (key === 'email' && value) {
+        n.email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value)) ? undefined : 'Invalid email';
+        if (!n.email) delete n.email;
       }
-      return next;
+      return n;
     });
   }
 
-  // Step2: clear/validate per field while typing
   function setS2Field<K extends keyof Step2State>(key: K, value: Step2State[K]) {
     setS2((p) => ({ ...p, [key]: value }));
     setErrors2((e) => {
-      const next = { ...e };
-      if (key === 'username') {
-        next.username = value ? (USERNAME_RE.test(value) ? undefined : 'Username must match ^[A-Za-z][A-Za-z0-9]{3,29}$') : 'Required';
-      }
-      if (key === 'password') {
-        next.password = value ? (PASSWORD_RE.test(value) ? undefined : 'Password too weak') : 'Required';
-        // also recheck confirm
-        if (s2.confirmPassword) {
-          next.confirmPassword = value === s2.confirmPassword ? undefined : 'Password does not match';
-        }
-      }
-      if (key === 'confirmPassword') {
-        next.confirmPassword = value ? (value === (key === 'confirmPassword' ? (value as string) : s2.password) && value === s2.password ? undefined : 'Password does not match') : 'Required';
-        // correct comparison with latest password
-        next.confirmPassword = value === (key === 'password' ? (value as string) : s2.password) ? undefined : 'Password does not match';
-      }
-      return next;
+      const n = { ...e };
+      if (value) delete n[key];
+      return n;
     });
   }
 
-  function validateStep1(): boolean {
+  function setS3Field<K extends keyof Step3State>(key: K, value: Step3State[K]) {
+    setS3((p) => ({ ...p, [key]: value }));
+    setErrors3((e) => {
+      const n = { ...e };
+      if (key === 'username') {
+        n.username = value
+          ? USERNAME_RE.test(value)
+            ? undefined
+            : 'Invalid format'
+          : 'Required';
+        if (!n.username) delete n.username;
+      }
+      if (key === 'password') {
+        n.password = value
+          ? PASSWORD_RE.test(value)
+            ? undefined
+            : 'Weak password'
+          : 'Required';
+        if (s3.confirmPassword) {
+            n.confirmPassword =
+              value === s3.confirmPassword ? undefined : 'Password does not match';
+        }
+        if (!n.password) delete n.password;
+        if (!n.confirmPassword) delete n.confirmPassword;
+      }
+      if (key === 'confirmPassword') {
+        n.confirmPassword = value
+          ? value === (key === 'password' ? value : s3.password)
+            ? undefined
+            : 'Password does not match'
+          : 'Required';
+        if (!n.confirmPassword) delete n.confirmPassword;
+      }
+      return n;
+    });
+  }
+
+  function validateStep1() {
     const e: Partial<Record<keyof Step1State, string>> = {};
     if (!s1.firstName.trim()) e.firstName = 'Required';
     if (!s1.lastName.trim()) e.lastName = 'Required';
@@ -110,20 +153,31 @@ export default function RegistrationPage() {
     return Object.keys(e).length === 0;
   }
 
-  function validateStep2(): boolean {
+  function validateStep2() {
     const e: Partial<Record<keyof Step2State, string>> = {};
-    if (!s2.username.trim()) e.username = 'Required';
-    else if (!USERNAME_RE.test(s2.username)) e.username = 'Username must match ^[A-Za-z][A-Za-z0-9]{3,29}$';
-    if (!s2.password) e.password = 'Required';
-    else if (!PASSWORD_RE.test(s2.password)) e.password = 'Password must contain a-z, A-Z, 0-9 and special char, min 8';
-    if (!s2.confirmPassword) e.confirmPassword = 'Required';
-    else if (s2.password !== s2.confirmPassword) e.confirmPassword = 'Password does not match';
+    // กำหนดให้ emergency contact จำเป็น 3 ช่อง
+    if (!s2.emergencyContactName.trim()) e.emergencyContactName = 'Required';
+    if (!s2.emergencyContactRelationship.trim()) e.emergencyContactRelationship = 'Required';
+    if (!s2.emergencyContactPhone.trim()) e.emergencyContactPhone = 'Required';
     setErrors2(e);
+    return Object.keys(e).length === 0;
+  }
+
+  function validateStep3() {
+    const e: Partial<Record<keyof Step3State, string>> = {};
+    if (!s3.username.trim()) e.username = 'Required';
+    else if (!USERNAME_RE.test(s3.username)) e.username = 'Invalid format';
+    if (!s3.password) e.password = 'Required';
+    else if (!PASSWORD_RE.test(s3.password)) e.password = 'Weak password';
+    if (!s3.confirmPassword) e.confirmPassword = 'Required';
+    else if (s3.password !== s3.confirmPassword) e.confirmPassword = 'Password does not match';
+    setErrors3(e);
     return Object.keys(e).length === 0;
   }
 
   function onNext() {
     if (activeStep === 0 && !validateStep1()) return;
+    if (activeStep === 1 && !validateStep2()) return;
     setActiveStep((s) => s + 1);
   }
 
@@ -132,18 +186,27 @@ export default function RegistrationPage() {
   }
 
   async function onSubmit() {
-    if (!validateStep2()) return;
+    if (!validateStep3()) return;
     try {
       setSubmitting(true);
       const payload = {
-        username: s2.username.trim(),
-        password: s2.password,
+        username: s3.username.trim(),
+        password: s3.password,
         firstName: s1.firstName.trim(),
         lastName: s1.lastName.trim(),
         gender: s1.gender || null,
         dateOfBirth: s1.dateOfBirth || null,
         phone: s1.phone.trim(),
         email: s1.email.trim() || null,
+        marketingSource: s2.marketingSource || null,
+        emergencyContactPhone: s2.emergencyContactPhone || null,
+        emergencyContactRelationship: s2.emergencyContactRelationship || null,
+        emergencyContactName: s2.emergencyContactName || null,
+        maritalStatus: s2.maritalStatus || null,
+        companyPosition: s2.companyPosition || null,
+        companyName: s2.companyName || null,
+        address: s2.address || null,
+        healthInfo: s2.healthInfo || null,
       };
 
       const res = await fetch('/api/auth/signup', {
@@ -154,9 +217,8 @@ export default function RegistrationPage() {
       });
 
       if (!res.ok) {
-        // map 409 -> duplicate username
         if (res.status === 409) {
-          setErrors2((e) => ({ ...e, username: 'This username is already taken' }));
+          setErrors3((e) => ({ ...e, username: 'Username already taken' }));
         }
         const j = await res.json().catch(() => ({}));
         throw new Error(j.error || 'Failed to register');
@@ -165,9 +227,21 @@ export default function RegistrationPage() {
       setSnack({ open: true, message: 'Registration success', color: 'success' });
       setActiveStep(0);
       setS1({ firstName: '', lastName: '', gender: '', dateOfBirth: '', phone: '', email: '' });
-      setS2({ username: '', password: '', confirmPassword: '' });
+      setS2({
+        marketingSource: '',
+        emergencyContactPhone: '',
+        emergencyContactRelationship: '',
+        emergencyContactName: '',
+        maritalStatus: '',
+        companyPosition: '',
+        companyName: '',
+        address: '',
+        healthInfo: '',
+      });
+      setS3({ username: '', password: '', confirmPassword: '' });
       setErrors1({});
       setErrors2({});
+      setErrors3({});
     } catch (err: any) {
       setSnack({ open: true, message: err.message || 'Registration failed', color: 'error' });
     } finally {
@@ -176,22 +250,22 @@ export default function RegistrationPage() {
   }
 
   return (
-    <Box sx={{ maxWidth: 900, mx: 'auto', p: { xs: 2, md: 3 } }}>
+    <Box sx={{ maxWidth: 960, mx: 'auto', p: { xs: 2, md: 3 } }}>
       <Typography variant="h5" sx={{ mb: 2, fontWeight: 700 }}>
         Customer Registration
       </Typography>
 
       <Paper sx={{ p: { xs: 2, md: 3 } }} elevation={2}>
         <Stepper activeStep={activeStep} sx={{ mb: 3 }}>
-          {['Customer Info', 'Account Credentials'].map((label) => (
-            <Step key={label}>
-              <StepLabel>{label}</StepLabel>
-            </Step>
-          ))}
+            {['Customer Info', 'Additional Info', 'Account Credentials'].map((label) => (
+              <Step key={label}>
+                <StepLabel>{label}</StepLabel>
+              </Step>
+            ))}
         </Stepper>
 
         {activeStep === 0 && (
-          <Box component="form" noValidate>
+          <Box>
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
@@ -215,7 +289,6 @@ export default function RegistrationPage() {
                   required
                 />
               </Grid>
-
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   select
@@ -229,20 +302,13 @@ export default function RegistrationPage() {
                     renderValue: (selected) =>
                       selected ? String(selected) : <span style={{ color: 'rgba(0,0,0,0.6)' }}>Select gender</span>,
                   }}
-                  sx={{
-                    minHeight: 56,
-                    '& .MuiSelect-select': { display: 'flex', alignItems: 'center', py: 1.5 },
-                  }}
                 >
-                  <MenuItem value="">
-                    <em>Not specified</em>
-                  </MenuItem>
+                  <MenuItem value=""><em>Not specified</em></MenuItem>
                   <MenuItem value="Male">Male</MenuItem>
                   <MenuItem value="Female">Female</MenuItem>
                   <MenuItem value="Other">Other</MenuItem>
                 </TextField>
               </Grid>
-
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   label="Date of Birth"
@@ -253,7 +319,6 @@ export default function RegistrationPage() {
                   InputLabelProps={{ shrink: true }}
                 />
               </Grid>
-
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   label="Phone Number"
@@ -265,7 +330,6 @@ export default function RegistrationPage() {
                   required
                 />
               </Grid>
-
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   label="Email"
@@ -278,60 +342,169 @@ export default function RegistrationPage() {
                 />
               </Grid>
             </Grid>
-
-            <Box sx={{ mt: 3, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-              <Button variant="contained" onClick={onNext}>
-                Next
-              </Button>
+            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+              <Button variant="contained" onClick={onNext}>Next</Button>
             </Box>
           </Box>
         )}
 
         {activeStep === 1 && (
-          <Box component="form" noValidate>
+          <Box>
+            <Grid container spacing={2}>
+              {/* Emergency Contact */}
+              <Grid size={{ xs: 12 }}>
+                <Typography variant="subtitle1" fontWeight={600} sx={{ mt: 1 }}>
+                  Emergency Contact (Required)
+                </Typography>
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <TextField
+                  label="Contact Name"
+                  value={s2.emergencyContactName}
+                  onChange={(e) => setS2Field('emergencyContactName', e.target.value)}
+                  error={!!errors2.emergencyContactName}
+                  helperText={errors2.emergencyContactName}
+                  fullWidth required
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <TextField
+                  label="Relationship"
+                  value={s2.emergencyContactRelationship}
+                  onChange={(e) => setS2Field('emergencyContactRelationship', e.target.value)}
+                  error={!!errors2.emergencyContactRelationship}
+                  helperText={errors2.emergencyContactRelationship}
+                  fullWidth required
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <TextField
+                  label="Contact Phone"
+                  value={s2.emergencyContactPhone}
+                  onChange={(e) => setS2Field('emergencyContactPhone', e.target.value)}
+                  error={!!errors2.emergencyContactPhone}
+                  helperText={errors2.emergencyContactPhone}
+                  fullWidth required
+                />
+              </Grid>
+
+              {/* Personal */}
+              <Grid size={{ xs: 12 }}>
+                <Typography variant="subtitle1" fontWeight={600} sx={{ mt: 2 }}>
+                  Personal Details
+                </Typography>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label="Marital Status"
+                  value={s2.maritalStatus}
+                  onChange={(e) => setS2Field('maritalStatus', e.target.value)}
+                  fullWidth
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label="Marketing Source"
+                  value={s2.marketingSource}
+                  onChange={(e) => setS2Field('marketingSource', e.target.value)}
+                  fullWidth
+                />
+              </Grid>
+
+              {/* Company */}
+              <Grid size={{ xs: 12 }}>
+                <Typography variant="subtitle1" fontWeight={600} sx={{ mt: 2 }}>
+                  Company & Address
+                </Typography>
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <TextField
+                  label="Company Name"
+                  value={s2.companyName}
+                  onChange={(e) => setS2Field('companyName', e.target.value)}
+                  fullWidth
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <TextField
+                  label="Company Position"
+                  value={s2.companyPosition}
+                  onChange={(e) => setS2Field('companyPosition', e.target.value)}
+                  fullWidth
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <TextField
+                  label="Address"
+                  value={s2.address}
+                  onChange={(e) => setS2Field('address', e.target.value)}
+                  fullWidth
+                  multiline
+                  minRows={2}
+                />
+              </Grid>
+
+              {/* Health */}
+              <Grid size={{ xs: 12 }}>
+                <Typography variant="subtitle1" fontWeight={600} sx={{ mt: 2 }}>
+                  Health Info
+                </Typography>
+              </Grid>
+              <Grid size={{ xs: 12 }}>
+                <TextField
+                  label="Health Information"
+                  value={s2.healthInfo}
+                  onChange={(e) => setS2Field('healthInfo', e.target.value)}
+                  fullWidth
+                  multiline
+                  minRows={3}
+                />
+              </Grid>
+            </Grid>
+            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
+              <Button variant="outlined" onClick={onBack}>Back</Button>
+              <Button variant="contained" onClick={onNext}>Next</Button>
+            </Box>
+          </Box>
+        )}
+        {activeStep === 2 && (
+          <Box>
             <Grid container spacing={2}>
               <Grid size={{ xs: 12 }}>
                 <TextField
                   label="Username"
-                  value={s2.username}
-                  onChange={(e) => setS2Field('username', e.target.value)}
-                  error={!!errors2.username}
-                  helperText={errors2.username || '4-30 chars, start with letter, then letters/digits'}
-                  fullWidth
-                  required
-                  autoFocus
+                  value={s3.username}
+                  onChange={(e) => setS3Field('username', e.target.value)}
+                  error={!!errors3.username}
+                  helperText={errors3.username || '4-30 chars, start with letter'}
+                  fullWidth required autoFocus
                 />
               </Grid>
               <Grid size={{ xs: 12 }}>
                 <TextField
                   label="Password"
                   type="password"
-                  value={s2.password}
-                  onChange={(e) => setS2Field('password', e.target.value)}
-                  error={!!errors2.password}
-                  helperText={errors2.password || 'Min 8 with a-z, A-Z, 0-9 and special char'}
-                  fullWidth
-                  required
+                  value={s3.password}
+                  onChange={(e) => setS3Field('password', e.target.value)}
+                  error={!!errors3.password}
+                  helperText={errors3.password || 'Min 8 with a-z, A-Z, 0-9 & special char'}
+                  fullWidth required
                 />
               </Grid>
               <Grid size={{ xs: 12 }}>
                 <TextField
                   label="Confirm Password"
                   type="password"
-                  value={s2.confirmPassword}
-                  onChange={(e) => setS2Field('confirmPassword', e.target.value)}
-                  error={!!errors2.confirmPassword}
-                  helperText={errors2.confirmPassword}
-                  fullWidth
-                  required
+                  value={s3.confirmPassword}
+                  onChange={(e) => setS3Field('confirmPassword', e.target.value)}
+                  error={!!errors3.confirmPassword}
+                  helperText={errors3.confirmPassword}
+                  fullWidth required
                 />
               </Grid>
             </Grid>
-
-            <Box sx={{ mt: 3, display: 'flex', gap: 1, justifyContent: 'space-between' }}>
-              <Button variant="outlined" onClick={onBack}>
-                Back
-              </Button>
+            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
+              <Button variant="outlined" onClick={onBack}>Back</Button>
               <Button variant="contained" onClick={onSubmit} disabled={submitting}>
                 {submitting ? 'Submitting…' : 'Submit'}
               </Button>

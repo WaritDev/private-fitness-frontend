@@ -7,14 +7,25 @@ const USERNAME_RE = /^[A-Za-z][A-Za-z0-9]{3,29}$/;
 const PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
 const schema = z.object({
-  username: z.string().regex(USERNAME_RE, 'invalid username'),
-  password: z.string().regex(PASSWORD_RE, 'weak password'),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
-  gender: z.enum(['Male', 'Female', 'Other']).nullable().optional(),
-  dateOfBirth: z.string().date().nullable().optional().or(z.literal('').transform(() => null)).optional().nullable(),
+  gender: z.string().optional().nullable(),
+  dateOfBirth: z.string().optional().nullable(),
   phone: z.string().min(1),
-  email: z.string().email().nullable().optional(),
+  email: z.string().email().optional().nullable(),
+  // Step 2 fields (ทั้งหมด optional → ใส่ได้หรือเว้นว่าง)
+  marketingSource: z.string().optional().nullable(),
+  emergencyContactPhone: z.string().optional().nullable(),
+  emergencyContactRelationship: z.string().optional().nullable(),
+  emergencyContactName: z.string().optional().nullable(),
+  maritalStatus: z.string().optional().nullable(),
+  companyPosition: z.string().optional().nullable(),
+  companyName: z.string().optional().nullable(),
+  address: z.string().optional().nullable(),
+  healthInfo: z.string().optional().nullable(),
+  // Step 3
+  username: z.string().regex(USERNAME_RE, 'invalid username'),
+  password: z.string().regex(PASSWORD_RE, 'weak password'),
 });
 
 export async function POST(req: NextRequest) {
@@ -35,22 +46,29 @@ export async function POST(req: NextRequest) {
       dateOfBirth,
       phone,
       email,
+      marketingSource,
+      emergencyContactPhone,
+      emergencyContactRelationship,
+      emergencyContactName,
+      maritalStatus,
+      companyPosition,
+      companyName,
+      address,
+      healthInfo,
     } = parsed.data;
 
-    // Q1C.1: ตรวจสอบค่าซ้ำ
-    const [rows] = await conn.query(
-      'SELECT COUNT(*) AS c FROM `USER` WHERE `Username` = ?',
+    // ตรวจ username ซ้ำ
+    const [rows] = await conn.query<any[]>(
+      'SELECT 1 FROM `USER` WHERE `Username` = ? LIMIT 1',
       [username]
     );
-    const countRows = rows as { c: number }[];
-    if ((countRows[0]?.c ?? 0) > 0) {
+    if (rows.length > 0) {
       return new Response(JSON.stringify({ error: 'username already exists' }), { status: 409 });
     }
 
     const passwordHash = await hashPassword(password);
     await conn.beginTransaction();
 
-    // INSERT USER
     await conn.query(
       `INSERT INTO \`USER\`
         (Username, Password, Role, First_Name, Last_Name, Gender, Date_of_Birth, Phone_Number, Gmail, Is_Active, Created_At, Updated_At)
@@ -60,19 +78,30 @@ export async function POST(req: NextRequest) {
         passwordHash,
         firstName,
         lastName,
-        gender ?? null,
-        dateOfBirth ?? null,
+        gender || null,
+        dateOfBirth || null,
         phone || null,
-        email ?? null,
+        email || null,
       ]
     );
 
-    // INSERT CUSTOMER (ฟิลด์อื่นๆ ใส่ null ตามโจทย์)
     await conn.query(
       `INSERT INTO \`CUSTOMER\`
-        (Username, Health_Info, Address, Company_Name, Company_Position, Marital_Status, Emergency_Contact_Name, Emergency_Contact_Relationship, Emergency_Contact_Phone, Marketing_Source)
-       VALUES (?, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)`,
-      [username]
+        (Username, Health_Info, Address, Company_Name, Company_Position, Marital_Status,
+         Emergency_Contact_Name, Emergency_Contact_Relationship, Emergency_Contact_Phone, Marketing_Source)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        username,
+        healthInfo || null,
+        address || null,
+        companyName || null,
+        companyPosition || null,
+        maritalStatus || null,
+        emergencyContactName || null,
+        emergencyContactRelationship || null,
+        emergencyContactPhone || null,
+        marketingSource || null,
+      ]
     );
 
     await conn.commit();
