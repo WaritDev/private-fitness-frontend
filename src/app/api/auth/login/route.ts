@@ -1,45 +1,55 @@
-import { query } from '@/lib/db';
-import { signAuthJWT } from '@/lib/jwt';
-import { verifyPassword } from '@/lib/hash';
-import type { DbUser } from '@/types/users';
+import { NextRequest, NextResponse } from "next/server";
+import { getPool } from "@/lib/db";
+import { verifyPassword } from "@/lib/hash";
+import { signAuthJWT } from "@/lib/jwt";
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const body = await req.json().catch(() => ({}));
+  const { username, password } = body ?? {};
+  if (!username || !password) {
+    return NextResponse.json({ error: "missing credentials" }, { status: 400 });
+  }
+
+  const pool = getPool();
+  const conn = await pool.getConnection();
   try {
-    const { username, password } = await req.json();
-    if (!username || !password) {
-      return new Response(JSON.stringify({ error: 'username and password required' }), { status: 400 });
-    }
-
-    const [rows] = await query<DbUser>(
-      'SELECT Username, Password, Role, First_Name, Last_Name, Gmail, Is_Active FROM `USER` WHERE `Username` = ? LIMIT 1',
+    const [rows] = await conn.query<any[]>(
+      "SELECT Username, Password, Role, First_Name, Last_Name FROM `USER` WHERE Username = ? LIMIT 1",
       [username]
     );
-    const user = rows[0];
-    if (!user || !(user.Is_Active === true || user.Is_Active === 1)) {
-      return new Response(JSON.stringify({ error: 'invalid credentials' }), { status: 401 });
-    }
+    const u = Array.isArray(rows) ? rows[0] : null;
+    if (!u)
+      return NextResponse.json(
+        { error: "invalid credentials" },
+        { status: 401 }
+      );
 
-    const ok = await verifyPassword(password, user.Password);
-    if (!ok) {
-      return new Response(JSON.stringify({ error: 'invalid credentials' }), { status: 401 });
-    }
+    const ok = await verifyPassword(password, u.Password);
+    if (!ok)
+      return NextResponse.json(
+        { error: "invalid credentials" },
+        { status: 401 }
+      );
 
-    const token = await signAuthJWT({
-      sub: user.Username,
-      role: user.Role,
-      name: `${user.First_Name} ${user.Last_Name}`,
-      email: user.Gmail ?? null,
+    const token = await signAuthJWT({ sub: u.Username, role: u.Role });
+
+    const res = NextResponse.json({
+      user: {
+        sub: u.Username,
+        role: u.Role,
+        firstName: u.First_Name,
+        lastName: u.Last_Name,
+      },
     });
-
-    const headers = new Headers();
-    headers.append(
-      'Set-Cookie',
-      `pf_auth=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${7 * 24 * 3600}; ${process.env.NODE_ENV === 'production' ? 'Secure;' : ''}`
-    );
-
-    return new Response(JSON.stringify({ user: { username: user.Username, role: user.Role } }), { status: 200, headers });
-  } catch (e) {
-    console.error(e);
-    return new Response(JSON.stringify({ error: 'server error' }), { status: 500 });
+    res.cookies.set("pf_auth", token, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
+    return res;
+  } finally {
+    conn.release();
   }
 }

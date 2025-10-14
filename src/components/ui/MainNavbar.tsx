@@ -1,3 +1,4 @@
+import Button from "@mui/material/Button";
 import Link from "next/link";
 import React from "react";
 
@@ -7,22 +8,16 @@ function MainNavbar() {
       <div className="container topbar">
         <div className="brand">Private Fitness</div>
 
-        <nav className="topnav" aria-label="main navigation">
+        <nav className="topnav">
           <Link href="/" className="nav-link is-active">
             หน้าแรก
-          </Link>
-          <Link href="/plans" className="nav-link">
-            แพ็กเกจ
-          </Link>
-          <Link href="/courses" className="nav-link">
-            คอร์ส
           </Link>
         </nav>
 
         <div className="top-actions">
-          <Link href="/login" className="button-outline">
+          <Button variant="contained" href="/login" color="success">
             เข้าสู่ระบบ
-          </Link>
+          </Button>
         </div>
       </div>
     </header>

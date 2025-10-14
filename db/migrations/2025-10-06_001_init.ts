@@ -1,7 +1,7 @@
-import type { PoolConnection } from 'mysql2/promise';
+import type { PoolConnection } from "mysql2/promise";
 
 export async function up(conn: PoolConnection) {
-  await conn.query("SET NAMES utf8mb4");
+  await conn.query(`SET NAMES utf8mb4`);
 
   await conn.query(`
     CREATE TABLE IF NOT EXISTS \`USER\` (
@@ -103,6 +103,7 @@ export async function up(conn: PoolConnection) {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
   `);
 
+  // ตารางตารางเวลาฝั่งเทรนเนอร์
   await conn.query(`
     CREATE TABLE IF NOT EXISTS \`TRAINING_SCHEDULE\` (
       \`Schedule_Id\` INT AUTO_INCREMENT PRIMARY KEY,
@@ -116,22 +117,18 @@ export async function up(conn: PoolConnection) {
       \`Updated_At\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       INDEX (\`Trainer_Username\`, \`Start_Time\`),
       INDEX (\`Customer_Username\`),
-      INDEX (\`Session_Id\`),
-      CONSTRAINT \`fk_ts_trainer\` FOREIGN KEY (\`Trainer_Username\`) REFERENCES \`USER\`(\`Username\`) ON DELETE CASCADE ON UPDATE CASCADE,
-      CONSTRAINT \`fk_ts_customer\` FOREIGN KEY (\`Customer_Username\`) REFERENCES \`CUSTOMER\`(\`Username\`) ON DELETE SET NULL ON UPDATE CASCADE,
-      CONSTRAINT \`fk_ts_session\` FOREIGN KEY (\`Session_Id\`) REFERENCES \`CUSTOMER_SESSION\`(\`Session_Id\`) ON DELETE SET NULL ON UPDATE CASCADE
+      INDEX (\`Session_Id\`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
   `);
 
+  // Log ลูกค้า
   await conn.query(`
     CREATE TABLE IF NOT EXISTS \`CUSTOMER_LOG\` (
       \`Log_Id\` INT AUTO_INCREMENT PRIMARY KEY,
       \`Customer_Username\` VARCHAR(100) NOT NULL,
-      \`Timestamp\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      \`Log_Type\` ENUM('CHECK_IN','CHECK_OUT','BOOK_SESSION','CANCEL_SESSION') NOT NULL,
-      \`Detail\` TEXT NULL,
-      INDEX (\`Customer_Username\`, \`Timestamp\`),
-      CONSTRAINT \`fk_cl_customer\` FOREIGN KEY (\`Customer_Username\`) REFERENCES \`CUSTOMER\`(\`Username\`) ON DELETE CASCADE ON UPDATE CASCADE
+      \`Log_Type\` VARCHAR(50) NOT NULL,
+      \`Created_At\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX (\`Customer_Username\`, \`Created_At\`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
   `);
 }
