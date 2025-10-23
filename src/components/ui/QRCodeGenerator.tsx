@@ -14,7 +14,7 @@ export default function QRCodeGenerator({
   uuid, 
   size = 220, 
   mode = 'uuid', 
-  baseUrl = 'https://yourdomain.com/checkin' 
+  baseUrl = 'https://yourdomain.com/checkin'
 }: Props) {
   const value = mode === 'uuid' ? uuid : `${baseUrl}/${uuid}`;
   

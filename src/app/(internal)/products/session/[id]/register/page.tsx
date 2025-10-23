@@ -5,45 +5,19 @@ import {
   Box, Paper, Stepper, Step, StepLabel, TextField, Button, Typography, Snackbar, Alert, MenuItem,
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation'; // <-- add useRouter
 
-const USERNAME_RE = /^[A-Za-z][A-Za-z0-9]{3,29}$/;
-const PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+function money(n: number) {
+  try { return n.toLocaleString('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 0 }); }
+  catch { return `${n} THB`; }
+}
 
-// Step types
-type Step1 = {
-  firstName: string;
-  lastName: string;
-  gender: '' | 'Male' | 'Female' | 'Other';
-  dateOfBirth: string;
-  phone: string;
-  email: string;
-};
-type Step2 = {
-  marketingSource: string;
-  emergencyContactPhone: string;
-  emergencyContactRelationship: string;
-  emergencyContactName: string;
-  maritalStatus: string;
-  companyPosition: string;
-  companyName: string;
-  address: string;
-  healthInfo: string;
-};
-type Step3 = {
-  pricePaid: string;
-  discountAmount: string;
-  trainerUsername: string;
-};
-type Step4 = {
-  username: string;
-  password: string;
-  confirmPassword: string;
-};
+type Trainer = { username: string; name: string };
 
 export default function SessionRegisterPage() {
   const params = useParams<{ id: string }>();
   const productId = Number(params?.id ?? NaN);
+  const router = useRouter(); // <-- init
 
   const [activeStep, setActiveStep] = React.useState(0);
   const [submitting, setSubmitting] = React.useState(false);
@@ -66,7 +40,11 @@ export default function SessionRegisterPage() {
     address: '',
     healthInfo: '',
   });
-  const [s3, setS3] = React.useState<Step3>({ pricePaid: '', discountAmount: '', trainerUsername: '' });
+  const [s3, setS3] = React.useState<Step3>({
+    pricePaid: '',
+    discountAmount: '',
+    trainerUsername: '',         // เพิ่มค่าเริ่มต้น
+  });
   const [s4, setS4] = React.useState<Step4>({ username: '', password: '', confirmPassword: '' });
 
   // errors
@@ -77,13 +55,82 @@ export default function SessionRegisterPage() {
 
   const [trainers, setTrainers] = React.useState<{ username: string; name: string }[]>([]);
 
-  // โหลดรายชื่อเทรนเนอร์
+  // ราคาตั้งต้น + ส่วนลด
+  const [basePrice, setBasePrice] = React.useState<number>(0);
+  const [discountPercent, setDiscountPercent] = React.useState<number>(0);
+
+  // สุ่มเทรนเนอร์อัตโนมัติ
+  const [assignedTrainer, setAssignedTrainer] = React.useState<Trainer | null>(null);
+
+  // product meta for Order Summary
+  const [productName, setProductName] = React.useState<string>('');           // <-- add
+  const [sessionsCount, setSessionsCount] = React.useState<number | null>(null); // <-- add
+
+  // โหลดราคา + meta ของ product (UI only)
   React.useEffect(() => {
-    fetch('/api/trainers', { cache: 'no-store' })
-      .then((r) => r.json())
-      .then((j) => setTrainers(Array.isArray(j?.items) ? j.items : []))
-      .catch(() => setTrainers([]));
+    let cancelled = false;
+    async function load() {
+      try {
+        const res = await fetch('/api/sessions', { cache: 'no-store' });
+        const list = await res.json().catch(() => []);
+        const found = Array.isArray(list) ? list.find((p: any) => Number(p?.id) === productId) : null;
+        const price = Number(found?.price ?? found?.listPrice ?? 12000);
+        if (!cancelled) {
+          setBasePrice(price);
+          setProductName(String(found?.name ?? `Session Product #${productId}`));   // <-- set name
+          setSessionsCount(Number(found?.sessions ?? 0) || null);                   // <-- set sessions
+          setS3(prev => ({ ...prev, pricePaid: String(Math.round(price)), discountAmount: '0' }));
+        }
+      } catch {
+        if (!cancelled) {
+          const price = 12000;
+          setBasePrice(price);
+          setProductName(`Session Product #${productId}`); // fallback
+          setSessionsCount(null);
+          setS3(prev => ({ ...prev, pricePaid: String(price), discountAmount: '0' }));
+        }
+      }
+    }
+    if (Number.isFinite(productId)) load();
+    return () => { cancelled = true; };
+  }, [productId]);
+  
+  // ดึง trainer แล้วสุ่ม 1 คน (UI only)
+  React.useEffect(() => {
+    let cancelled = false;
+    async function pickTrainer() {
+      try {
+        const res = await fetch('/api/trainers', { cache: 'no-store' });
+        const list: any[] = await res.json().catch(() => []);
+        const ready = Array.isArray(list) && list.length ? list : [
+          { username: 'ethan_w', name: 'Ethan Walker' },
+          { username: 'olivia_b', name: 'Olivia Bennett' },
+          { username: 'noah_t', name: 'Noah Thompson' },
+        ];
+        const t = ready[Math.floor(Math.random() * ready.length)];
+        if (!cancelled) {
+          setAssignedTrainer({ username: t.username, name: t.name });
+          setS3(prev => ({ ...prev, trainerUsername: t.username })); // บันทึกลง s3
+        }
+      } catch {
+        if (!cancelled) {
+          const t = { username: 'ethan_w', name: 'Ethan Walker' };
+          setAssignedTrainer(t);
+          setS3(prev => ({ ...prev, trainerUsername: t.username })); // บันทึกลง s3
+        }
+      }
+    }
+    pickTrainer();
+    return () => { cancelled = true; };
   }, []);
+
+  function applyDiscountPercent(p: number) {
+    const pct = Math.max(0, Math.min(7, Number.isFinite(p) ? p : 0)); // clamp 0..7
+    setDiscountPercent(pct);
+    const paid = Math.round(basePrice * (1 - pct / 100));
+    const discountAmt = Math.max(0, basePrice - paid);
+    setS3(prev => ({ ...prev, pricePaid: String(paid), discountAmount: String(discountAmt) })); // ใช้ prev
+  }
 
   // setters
   function setS1Field<K extends keyof Step1>(k: K, v: Step1[K]) {
@@ -157,7 +204,7 @@ export default function SessionRegisterPage() {
     const e: Partial<Record<keyof Step3, string>> = {};
     if (!s3.pricePaid.trim() || Number.isNaN(Number(s3.pricePaid))) e.pricePaid = 'Required';
     if (s3.discountAmount && Number.isNaN(Number(s3.discountAmount))) e.discountAmount = 'Invalid';
-    if (!s3.trainerUsername.trim()) e.trainerUsername = 'Required';
+    if (!s3.trainerUsername?.trim()) e.trainerUsername = 'Required'; // กัน undefined
     setErrors3(e); return Object.keys(e).length === 0;
   }
   function validateStep4() {
@@ -188,7 +235,7 @@ export default function SessionRegisterPage() {
     }
     try {
       setSubmitting(true);
-      // 1) signup (บันทึก Customer Info + Additional Info ลง DB)
+      // 1) signup (คงเดิม)
       const signupRes = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -221,25 +268,18 @@ export default function SessionRegisterPage() {
         throw new Error(j.error || 'Signup failed');
       }
 
-      // 2) purchase session (Step 3)
-      const purchaseRes = await fetch('/api/sessions/purchase', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productId,
-          customerUsername: s4.username.trim(),
-          pricePaid: Number(s3.pricePaid),
-          discountAmount: Number(s3.discountAmount || 0),
-          trainerUsername: s3.trainerUsername,
-        }),
+      // 2) ไม่เรียก purchase ที่นี่แล้ว → ส่งไป flow ของ package (Order Summary → Payment)
+      const q = new URLSearchParams({
+        package_id: String(productId),
+        package_name: productName || `Session Product #${productId}`,
+        package_type: 'SESSION',
+        price: String(Number(s3.pricePaid) || 0),
+        discount: String(Number(s3.discountAmount || 0)),
+        customer_username: s4.username.trim(),
+        trainer_username: s3.trainerUsername || '',
       });
-      if (!purchaseRes.ok) {
-        const j = await purchaseRes.json().catch(() => ({}));
-        throw new Error(j.error || 'Purchase failed');
-      }
-
-      setSnack({ open: true, message: 'Registration success', color: 'success' });
-      setActiveStep(0);
+      if (sessionsCount != null) q.set('sessions', String(sessionsCount));
+      router.push(`/customer/package/order-summary?${q.toString()}`);
     } catch (err: any) {
       setSnack({ open: true, message: err.message || 'Failed', color: 'error' });
     } finally {
@@ -372,27 +412,45 @@ export default function SessionRegisterPage() {
           </Box>
         )}
 
-        {/* Step 3 */}
+        {/* Step 3 (Discount only + auto-assign trainer) */}
         {activeStep === 2 && (
           <Box>
             <Grid container spacing={2}>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField label="Price Paid" value={s3.pricePaid} onChange={(e) => setS3Field('pricePaid', e.target.value)}
-                  error={!!errors3.pricePaid} helperText={errors3.pricePaid} fullWidth required />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField label="Discount Amount" value={s3.discountAmount} onChange={(e) => setS3Field('discountAmount', e.target.value)}
-                  error={!!errors3.discountAmount} helperText={errors3.discountAmount} fullWidth />
-              </Grid>
               <Grid size={{ xs: 12 }}>
-                <TextField select label="Trainer" value={s3.trainerUsername}
-                  onChange={(e) => setS3Field('trainerUsername', e.target.value)} fullWidth required
-                  SelectProps={{ displayEmpty: true, renderValue: (v) => v ? String(v) : <span style={{ color: 'rgba(0,0,0,0.6)' }}>Select trainer</span> }}>
-                  <MenuItem value=""><em>Select trainer</em></MenuItem>
-                  {trainers.map((t) => (
-                    <MenuItem key={t.username} value={t.username}>{t.name ?? t.username}</MenuItem>
-                  ))}
-                </TextField>
+                <Typography variant="subtitle1" fontWeight={700}>Price</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Base Price: {money(basePrice)}
+                </Typography>
+              </Grid>
+
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label="Discount (%)"
+                  type="number"
+                  inputProps={{ min: 0, max: 7, step: 0.5 }}
+                  value={discountPercent}
+                  onChange={(e) => applyDiscountPercent(parseFloat(e.target.value))}
+                  helperText="Max discount is 7%"
+                  fullWidth
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label="New Price (calculated)"
+                  value={s3.pricePaid}
+                  InputProps={{ readOnly: true }}
+                  fullWidth
+                />
+              </Grid>
+
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label="Assigned Trainer"
+                  value={assignedTrainer ? `${assignedTrainer.name} (${assignedTrainer.username})` : ''}
+                  InputProps={{ readOnly: true }}
+                  helperText="Assigned automatically"
+                  fullWidth
+                />
               </Grid>
             </Grid>
             <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
@@ -437,3 +495,37 @@ export default function SessionRegisterPage() {
     </Box>
   );
 }
+
+const USERNAME_RE = /^[A-Za-z][A-Za-z0-9]{3,29}$/;
+const PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+
+// Step types
+type Step1 = {
+  firstName: string;
+  lastName: string;
+  gender: '' | 'Male' | 'Female' | 'Other';
+  dateOfBirth: string;
+  phone: string;
+  email: string;
+};
+type Step2 = {
+  marketingSource: string;
+  emergencyContactPhone: string;
+  emergencyContactRelationship: string;
+  emergencyContactName: string;
+  maritalStatus: string;
+  companyPosition: string;
+  companyName: string;
+  address: string;
+  healthInfo: string;
+};
+type Step3 = {
+  pricePaid: string;
+  discountAmount: string;
+  trainerUsername: string;
+};
+type Step4 = {
+  username: string;
+  password: string;
+  confirmPassword: string;
+};

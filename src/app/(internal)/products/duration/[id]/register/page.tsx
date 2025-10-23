@@ -5,10 +5,15 @@ import {
   Box, Paper, Stepper, Step, StepLabel, TextField, Button, Typography, Snackbar, Alert, MenuItem,
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation'; // <-- add useRouter
 
 const USERNAME_RE = /^[A-Za-z][A-Za-z0-9]{3,29}$/;
 const PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+
+function money(n: number) {
+  try { return n.toLocaleString('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 0 }); }
+  catch { return `${n} THB`; }
+}
 
 type Step1 = {
   firstName: string;
@@ -35,12 +40,21 @@ type Step4 = { username: string; password: string; confirmPassword: string };
 export default function DurationRegisterPage() {
   const params = useParams<{ id: string }>();
   const productId = Number(params?.id ?? NaN);
+  const router = useRouter(); // <-- init
 
   const [activeStep, setActiveStep] = React.useState(0);
   const [submitting, setSubmitting] = React.useState(false);
   const [snack, setSnack] = React.useState<{ open: boolean; message: string; color: 'success' | 'error' }>({
     open: false, message: '', color: 'success',
   });
+
+  // Base price + discount state
+  const [basePrice, setBasePrice] = React.useState<number>(0);
+  const [discountPercent, setDiscountPercent] = React.useState<number>(0);
+
+  // meta for Order Summary
+  const [productName, setProductName] = React.useState<string>('');     // <-- add
+  const [durationDays, setDurationDays] = React.useState<number | null>(null); // <-- add
 
   const [s1, setS1] = React.useState<Step1>({ firstName: '', lastName: '', gender: '', dateOfBirth: '', phone: '', email: '' });
   const [s2, setS2] = React.useState<Step2>({
@@ -54,6 +68,43 @@ export default function DurationRegisterPage() {
   const [errors2, setErrors2] = React.useState<Partial<Record<keyof Step2, string>>>({});
   const [errors3, setErrors3] = React.useState<Partial<Record<keyof Step3, string>>>({});
   const [errors4, setErrors4] = React.useState<Partial<Record<keyof Step4, string>>>({});
+
+  // load product price + meta
+  React.useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const res = await fetch('/api/durations', { cache: 'no-store' });
+        const list = await res.json().catch(() => []);
+        const found = Array.isArray(list) ? list.find((p: any) => Number(p?.id) === productId) : null;
+        const price = Number(found?.price ?? found?.listPrice ?? 15000);
+        if (!cancelled) {
+          setBasePrice(price);
+          setProductName(String(found?.name ?? `Duration Product #${productId}`)); // <-- set
+          setDurationDays(Number(found?.durationDays ?? found?.days ?? 0) || null); // <-- set
+          setS3((prev) => ({ ...prev, pricePaid: String(Math.round(price)), discountAmount: '0' }));
+        }
+      } catch {
+        if (!cancelled) {
+          const price = 15000;
+          setBasePrice(price);
+          setProductName(`Duration Product #${productId}`);
+          setDurationDays(null);
+          setS3((prev) => ({ ...prev, pricePaid: String(price), discountAmount: '0' }));
+        }
+      }
+    }
+    if (Number.isFinite(productId)) load();
+    return () => { cancelled = true; };
+  }, [productId]);
+
+  function applyDiscountPercent(p: number) {
+    const pct = Math.max(0, Math.min(7, Number.isFinite(p) ? p : 0));
+    setDiscountPercent(pct);
+    const paid = Math.round(basePrice * (1 - pct / 100));
+    const discountAmt = Math.max(0, basePrice - paid);
+    setS3((prev) => ({ ...prev, pricePaid: String(paid), discountAmount: String(discountAmt) }));
+  }
 
   function setS1Field<K extends keyof Step1>(k: K, v: Step1[K]) {
     setS1((p) => ({ ...p, [k]: v }));
@@ -124,7 +175,6 @@ export default function DurationRegisterPage() {
   function validateStep3() {
     const e: Partial<Record<keyof Step3, string>> = {};
     if (!s3.pricePaid.trim() || Number.isNaN(Number(s3.pricePaid))) e.pricePaid = 'Required';
-    if (s3.discountAmount && Number.isNaN(Number(s3.discountAmount))) e.discountAmount = 'Invalid';
     setErrors3(e); return Object.keys(e).length === 0;
   }
   function validateStep4() {
@@ -155,19 +205,18 @@ export default function DurationRegisterPage() {
     }
     try {
       setSubmitting(true);
-      // 1) signup (บันทึก Customer Info + Additional Info ลง DB)
+      // 1) signup (คงเดิม)
       const signupRes = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          // step 1
+          // step1 + step2 + credentials (ใช้โค้ดเดิม)
           firstName: s1.firstName.trim(),
           lastName: s1.lastName.trim(),
           gender: s1.gender || null,
           dateOfBirth: s1.dateOfBirth || null,
           phone: s1.phone.trim(),
           email: s1.email?.trim() || null,
-          // step 2
           marketingSource: s2.marketingSource || null,
           emergencyContactPhone: s2.emergencyContactPhone || null,
           emergencyContactRelationship: s2.emergencyContactRelationship || null,
@@ -177,7 +226,6 @@ export default function DurationRegisterPage() {
           companyName: s2.companyName || null,
           address: s2.address || null,
           healthInfo: s2.healthInfo || null,
-          // credentials
           username: s4.username.trim(),
           password: s4.password,
         }),
@@ -188,24 +236,17 @@ export default function DurationRegisterPage() {
         throw new Error(j.error || 'Signup failed');
       }
 
-      // 2) purchase duration (Step 3)
-      const purchaseRes = await fetch('/api/durations/purchase', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productId,
-          customerUsername: s4.username.trim(),
-          pricePaid: Number(s3.pricePaid),
-          discountAmount: Number(s3.discountAmount || 0),
-        }),
+      // 2) ไม่เรียก purchase ที่นี่แล้ว → ส่งไป flow ของ package
+      const q = new URLSearchParams({
+        package_id: String(productId),
+        package_name: productName || `Duration Product #${productId}`,
+        package_type: 'DURATION',
+        price: String(Number(s3.pricePaid) || 0),
+        discount: String(Number(s3.discountAmount || 0)),
+        customer_username: s4.username.trim(),
       });
-      if (!purchaseRes.ok) {
-        const j = await purchaseRes.json().catch(() => ({}));
-        throw new Error(j.error || 'Purchase failed');
-      }
-
-      setSnack({ open: true, message: 'Registration success', color: 'success' });
-      setActiveStep(0);
+      if (durationDays != null) q.set('duration_days', String(durationDays));
+      router.push(`/customer/package/order-summary?${q.toString()}`);
     } catch (err: any) {
       setSnack({ open: true, message: err.message || 'Failed', color: 'error' });
     } finally {
@@ -338,17 +379,34 @@ export default function DurationRegisterPage() {
           </Box>
         )}
 
-        {/* Step 3 */}
+        {/* Step 3 (Discount only + auto compute) */}
         {activeStep === 2 && (
           <Box>
             <Grid container spacing={2}>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField label="Price Paid" value={s3.pricePaid} onChange={(e) => setS3Field('pricePaid', e.target.value)}
-                  error={!!errors3.pricePaid} helperText={errors3.pricePaid} fullWidth required />
+              <Grid size={{ xs: 12 }}>
+                <Typography variant="subtitle1" fontWeight={700}>Price</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Base Price: {money(basePrice)}
+                </Typography>
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField label="Discount Amount" value={s3.discountAmount} onChange={(e) => setS3Field('discountAmount', e.target.value)}
-                  error={!!errors3.discountAmount} helperText={errors3.discountAmount} fullWidth />
+                <TextField
+                  label="Discount (%)"
+                  type="number"
+                  inputProps={{ min: 0, max: 7, step: 0.5 }}
+                  value={discountPercent}
+                  onChange={(e) => applyDiscountPercent(parseFloat(e.target.value))}
+                  helperText="Max discount is 7%"
+                  fullWidth
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label="New Price (calculated)"
+                  value={s3.pricePaid}
+                  InputProps={{ readOnly: true }}
+                  fullWidth
+                />
               </Grid>
             </Grid>
             <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
