@@ -1,5 +1,4 @@
 'use client';
-
 import React from 'react';
 import SessionCard from '@/components/ui/SessionCard';
 import DurationCard from '@/components/ui/DurationCard';

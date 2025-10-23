@@ -10,7 +10,7 @@ export function defaultPathForRole(role: UserRole) {
     case 'SALES':
       return '/registration';
     case 'CUSTOMER':
-      return '/calendar';
+      return '/customer/calendar';
     default:
       return '/';
   }
