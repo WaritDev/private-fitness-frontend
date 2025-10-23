@@ -1,7 +1,5 @@
-import MainNavbar from "@/components/ui/MainNavbar";
 import "../globals.css";
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
-
 
 export const metadata = {
   title: "Private Fitness",
@@ -11,16 +9,12 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="th">
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+      </head>
       <body>
-        <AppRouterCacheProvider >
-          <MainNavbar />
-          <main className="site-main">{children}</main>
-
-        <footer className="site-footer">
-          <div className="container">
-            <p>© {new Date().getFullYear()} Private Fitness. All rights reserved.</p>
-          </div>
-        </footer>
+        <AppRouterCacheProvider>
+          {children}
         </AppRouterCacheProvider>
       </body>
     </html>

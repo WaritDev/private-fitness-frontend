@@ -13,7 +13,8 @@ const schema = z.object({
   dateOfBirth: z.string().optional().nullable(),
   phone: z.string().min(1),
   email: z.string().email().optional().nullable(),
-  // Step 2 fields (ทั้งหมด optional → ใส่ได้หรือเว้นว่าง)
+
+  // Additional Info (Step 2)
   marketingSource: z.string().optional().nullable(),
   emergencyContactPhone: z.string().optional().nullable(),
   emergencyContactRelationship: z.string().optional().nullable(),
@@ -23,7 +24,8 @@ const schema = z.object({
   companyName: z.string().optional().nullable(),
   address: z.string().optional().nullable(),
   healthInfo: z.string().optional().nullable(),
-  // Step 3
+
+  // Credentials (Step 4)
   username: z.string().regex(USERNAME_RE, 'invalid username'),
   password: z.string().regex(PASSWORD_RE, 'weak password'),
 });
@@ -37,32 +39,17 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return new Response(JSON.stringify({ error: 'validation error', issues: parsed.error.issues }), { status: 400 });
     }
+
     const {
-      username,
-      password,
-      firstName,
-      lastName,
-      gender,
-      dateOfBirth,
-      phone,
-      email,
-      marketingSource,
-      emergencyContactPhone,
-      emergencyContactRelationship,
-      emergencyContactName,
-      maritalStatus,
-      companyPosition,
-      companyName,
-      address,
-      healthInfo,
+      username, password,
+      firstName, lastName, gender, dateOfBirth, phone, email,
+      marketingSource, emergencyContactPhone, emergencyContactRelationship, emergencyContactName,
+      maritalStatus, companyPosition, companyName, address, healthInfo,
     } = parsed.data;
 
-    // ตรวจ username ซ้ำ
-    const [rows] = await conn.query<any[]>(
-      'SELECT 1 FROM `USER` WHERE `Username` = ? LIMIT 1',
-      [username]
-    );
-    if (rows.length > 0) {
+    // check dup
+    const [dup] = await conn.query<any[]>('SELECT 1 FROM `USER` WHERE `Username` = ? LIMIT 1', [username]);
+    if ((dup as any[]).length > 0) {
       return new Response(JSON.stringify({ error: 'username already exists' }), { status: 409 });
     }
 
