@@ -1,6 +1,7 @@
 import "../globals.css";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter";
 import ClientWrapper from "./ClientWrapper";
+import MainNavbar from "@/components/ui/MainNavbar";
 
 export const metadata = {
   title: "Private Fitness",
