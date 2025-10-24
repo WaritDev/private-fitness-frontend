@@ -53,7 +53,7 @@ function MetricCard({
         <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
           {title}
         </Typography>
-        <Typography variant="h4" fontWeight={800} sx={{ mb: 1 }}>
+        <Typography variant="h4" fontWeight={400} sx={{ mb: 1 }}>
           {value}
         </Typography>
         {subtitle && (
@@ -121,7 +121,7 @@ export default function ManagerDashboardContent() {
           flexWrap: "wrap",
         }}
       >
-        <Typography variant="h4" fontWeight={900}>
+        <Typography variant="h4" fontWeight={400}>
           Dashboard
         </Typography>
         <Button
