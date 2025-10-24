@@ -1,4 +1,3 @@
-import MainNavbar from "@/components/ui/MainNavbar";
 import "../globals.css";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter";
 import ClientWrapper from "./ClientWrapper";
@@ -11,6 +10,9 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="th">
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+      </head>
       <body>
         <AppRouterCacheProvider>
           <ClientWrapper>

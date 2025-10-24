@@ -16,7 +16,7 @@ const primary = {
   dark: "#2fbb65",
 };
 
-export default function LandingPage() {
+export default function HomePage() {
   return (
     <Box>
       {/* Hero */}

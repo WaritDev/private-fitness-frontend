@@ -6,10 +6,11 @@ import React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthProvider';
 import { Button } from '@mui/material';
+import { Box } from '@mui/material';
 
 type NavItem = { href: string; label: string; tab?: boolean };
 
-function AdminNavbar() {
+export default function InternalNavbar(props: any) {
   const { user } = useAuth();
   const role = user?.role;
   const router = useRouter();
@@ -42,15 +43,14 @@ function AdminNavbar() {
     if (role === 'CUSTOMER') {
       return [
         { href: '/', label: 'หน้าแรก', tab: true },
-        { href: '/calendar', label: 'ปฏิทิน', tab: true },
-        { href: '/member', label: 'สมาชิกของฉัน', tab: true },
+        { href: '/customer/calendar', label: 'ปฏิทิน', tab: true },
+        { href: '/customer/member', label: 'สมาชิกของฉัน', tab: true },
       ];
     }
     if (role === 'SALES') {
       return [
         { href: '/', label: 'หน้าแรก', tab: true },
         { href: '/products', label: 'คอร์ส', tab: true },
-        { href: '/registration', label: 'ลงทะเบียน', tab: true },
       ];
     }
     return [];
@@ -119,66 +119,66 @@ function AdminNavbar() {
   if (!role) return null;
 
   return (
-    <header className="site-header">
-      <div className="container topbar">
-        <div className="brand">Private Fitness</div>
-        <nav
-          className="topnav"
-          aria-label="main navigation"
-          ref={navRef}
-          style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 16 }}
-        >
-          {tabs.map((t) => (
-            <Link
-              key={t.href}
-              href={t.href}
-              className={`nav-link ${isActive(t.href) ? 'is-active' : ''}`}
-              data-tab={t.tab ? 'true' : 'false'}
-              style={{
-                padding: '8px 10px',
-                borderBottom: isActive(t.href) ? '2px solid currentColor' : '2px solid transparent',
-                transition: 'color .15s ease',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {t.label}
-            </Link>
-          ))}
+    <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+      <header className="site-header">
+        <div className="container topbar">
+          <div className="brand">Private Fitness</div>
+          <nav
+            className="topnav"
+            aria-label="main navigation"
+            ref={navRef}
+            style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 16 }}
+          >
+            {tabs.map((t) => (
+              <Link
+                key={t.href}
+                href={t.href}
+                className={`nav-link ${isActive(t.href) ? 'is-active' : ''}`}
+                data-tab={t.tab ? 'true' : 'false'}
+                style={{
+                  padding: '8px 10px',
+                  borderBottom: isActive(t.href) ? '2px solid currentColor' : '2px solid transparent',
+                  transition: 'color .15s ease',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {t.label}
+              </Link>
+            ))}
 
-          {/* Underline slider (ตกแต่งเพิ่มจาก border-bottom ต่อแท็บ) */}
-          {bar.visible && (
-            <span
-              aria-hidden
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                height: 2,
-                width: bar.width,
-                transform: `translateX(${bar.left}px)`,
-                background: 'currentColor',
-                transition: 'transform .2s ease, width .2s ease',
-                pointerEvents: 'none',
-              }}
-            />
-          )}
+            {/* Underline slider (ตกแต่งเพิ่มจาก border-bottom ต่อแท็บ) */}
+            {bar.visible && (
+              <span
+                aria-hidden
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  height: 2,
+                  width: bar.width,
+                  transform: `translateX(${bar.left}px)`,
+                  background: 'currentColor',
+                  transition: 'transform .2s ease, width .2s ease',
+                  pointerEvents: 'none',
+                }}
+              />
+            )}
 
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <Link href={profileHref} className="text-gray-600 hover:text-gray-800 font-semibold" aria-label="Profile">
-              <Image src="/profile-icon.png" alt="profile icon" width={40} height={40} />
-            </Link>
-            <Button
-              variant='outlined'
-              onClick={onLogout}
-              style={{ whiteSpace: 'nowrap' }}
-            >
-              ออกจากระบบ
-            </Button>
-          </div>
-        </nav>
-      </div>
-    </header>
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <Link href={profileHref} className="text-gray-600 hover:text-gray-800 font-semibold" aria-label="Profile">
+                <Image src="/profile-icon.png" alt="profile icon" width={40} height={40} />
+              </Link>
+              <Button
+                variant='outlined'
+                onClick={onLogout}
+                style={{ whiteSpace: 'nowrap' }}
+              >
+                ออกจากระบบ
+              </Button>
+            </div>
+          </nav>
+        </div>
+      </header>
+    </Box>
   );
 }
-
-export default AdminNavbar;

@@ -1,56 +1,28 @@
-import { Product } from '@/types/product';
-import Card from '@mui/material/Card';
-import CardActions from '@mui/material/CardActions';
-import CardContent from '@mui/material/CardContent';
-import Button from '@mui/material/Button';
-import Typography from '@mui/material/Typography';
-import React from 'react';
+import * as React from 'react';
+import Link from 'next/link';
+import { Card, CardContent, CardActions, Typography, Button, Stack } from '@mui/material';
+import type { Product } from '@/types/product';
 
-function SessionCard({ session }: { session: Product }) {
+type Props = { session: Product };
+
+export default function SessionCard({ session }: Props) {
+  const hrefRegister = `/products/session/${session.Product_Id}/register`;
+
   return (
-    <Card
-      sx={{
-        width: 280,
-        height: 220,
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-      elevation={2}
-    >
-      <CardContent sx={{ flexGrow: 1 }}>
-        <Typography
-          gutterBottom
-          variant="h6"
-          component="div"
-          sx={{
-            fontWeight: 600,
-            lineHeight: 1.2,
-            minHeight: 44, // รองรับ 2 บรรทัด
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-          }}
-        >
-          {session.Name}
-        </Typography>
-
-        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
-          {session.Session_Amount} sessions
-        </Typography>
-
-        <Typography variant="subtitle1" sx={{ mt: 1, fontWeight: 700 }}>
-          {session.Price.toLocaleString()} THB
-        </Typography>
+    <Card sx={{ width: 320 }}>
+      <CardContent>
+        <Typography variant="h6" fontWeight={700}>{session.Name}</Typography>
+        <Stack spacing={0.5} sx={{ mt: 1 }}>
+          <Typography variant="body2">Category: {session.Product_Category}</Typography>
+          <Typography variant="body2">Price: {session.Price.toLocaleString()}</Typography>
+          <Typography variant="body2">Sessions: {session.Session_Amount ?? '-'}</Typography>
+        </Stack>
       </CardContent>
-
-      <CardActions sx={{ p: 2, pt: 0 }}>
-        <Button size="small" variant="contained" fullWidth href="/registration">
+      <CardActions sx={{ justifyContent: 'flex-end', px: 2, pb: 2 }}>
+        <Button component={Link} href={hrefRegister} variant="contained" color="primary">
           Register
         </Button>
       </CardActions>
     </Card>
   );
 }
-
-export default SessionCard;

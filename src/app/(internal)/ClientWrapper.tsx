@@ -6,7 +6,7 @@ import { theme } from '@/theme';
 import { AuthProvider, useAuth } from '@/contexts/AuthProvider';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import AdminNavbar from '@/components/ui/AdminNavbar';
+import InternalNavBar from '@/components/ui/InternalNavbar';
 
 function Guard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -30,7 +30,7 @@ export default function ClientWrapper({ children }: { children: React.ReactNode 
       <CssBaseline />
       <AuthProvider>
         <Guard>
-          <AdminNavbar />
+          <InternalNavBar />
           <main className="site-main">{children}</main>
         </Guard>
       </AuthProvider>
