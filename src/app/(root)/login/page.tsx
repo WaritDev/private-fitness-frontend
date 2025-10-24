@@ -13,9 +13,12 @@ import {
   InputAdornment,
   IconButton,
   Stack,
+  Divider,
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+
+const PRIMARY = { main: '#38E07A', dark: '#2fbb65' } as const;
 
 export default function LoginPage() {
   const [username, setUsername] = React.useState('');
@@ -54,27 +57,43 @@ export default function LoginPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        bgcolor: (t) => t.palette.background.default,
+        position: 'relative',
         px: 2,
+        py: 4,
       }}
     >
+      <Box
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          backgroundImage: "url('/hero-1.jpg')",
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          filter: 'blur(8px)',
+          opacity: 0.5,
+          zIndex: 0,
+        }}
+      />
+
       <Paper
-        elevation={3}
+        elevation={6}
         sx={{
           width: '100%',
           maxWidth: 420,
-          p: { xs: 2.5, md: 3 },
+          p: { xs: 3, sm: 4 },
           borderRadius: 3,
+          backgroundColor: 'rgba(255,255,255,1)',
+          zIndex: 1,
         }}
       >
         <form onSubmit={onSubmit} noValidate>
-          <Stack spacing={2}>
-            <Box>
-              <Typography variant="h5" fontWeight={700}>
-                Login
+          <Stack spacing={3}>
+            <Box textAlign="center" mb={1}>
+              <Typography variant="h5" fontWeight={600} gutterBottom>
+                เข้าสู่ระบบ
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                เข้าสู่ระบบเพื่อจัดการข้อมูลของคุณ
+                ลงชื่อเข้าใช้งานเพื่อจัดการข้อมูล Private Fitness
               </Typography>
             </Box>
 
@@ -87,6 +106,7 @@ export default function LoginPage() {
               fullWidth
               required
               autoFocus
+              variant="outlined"
             />
 
             <TextField
@@ -96,6 +116,7 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               fullWidth
               required
+              variant="outlined"
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">
@@ -114,14 +135,26 @@ export default function LoginPage() {
             <Button
               type="submit"
               variant="contained"
-              color="success"
               size="large"
               disabled={loading}
-              sx={{ mt: 0.5 }}
               fullWidth
+              sx={{
+                mt: 1,
+                py: 1.2,
+                fontWeight: 500,
+                fontSize: '1rem',
+                backgroundColor: PRIMARY.main,
+                '&:hover': { backgroundColor: PRIMARY.dark },
+              }}
             >
               {loading ? 'Signing in…' : 'Sign in'}
             </Button>
+
+            <Divider />
+
+            <Typography variant="caption" color="text.secondary" textAlign="center">
+              © {new Date().getFullYear()} Private Fitness
+            </Typography>
           </Stack>
         </form>
       </Paper>

@@ -3,10 +3,11 @@ import type { UserRole } from '@/types/users';
 export function defaultPathForRole(role: UserRole) {
   switch (role) {
     case 'ADMIN':
+      return '/admin/user-management';
     case 'MANAGER':
-      return '/dashboard';
+      return '/manager/dashboard';
     case 'TRAINER':
-      return '/calendar-management';
+      return '/trainer/calendar-management';
     case 'SALES':
       return '/registration';
     case 'CUSTOMER':
