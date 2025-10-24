@@ -21,15 +21,16 @@ export default function InternalNavbar(props: any) {
   const tabs: NavItem[] = React.useMemo(() => {
     if (role === 'ADMIN') {
       return [
-        { href: '/', label: 'หน้าแรก', tab: true },
-        { href: '/user-management', label: 'จัดการผู้ใช้', tab: true },
-        { href: '/customer-management', label: 'จัดการลูกค้า', tab: true },
-        { href: '/dashboard', label: 'แดชบอร์ด', tab: true },
+        { href: "/user-management", label: "จัดการผู้ใช้", tab: true },
+        { href: "/customer-management", label: "จัดการลูกค้า", tab: true },
+        { href: "/packages-duration", label: "แพ็กเกจ Duration", tab: true },
+        { href: "/courses-sessions", label: "คอร์ส Sessions", tab: true },
+        { href: "/products-management", label: "Products", tab: true },
+        { href: "/customer-log", label: "Customer Log", tab: true },
       ];
     }
     if (role === 'MANAGER') {
       return [
-        { href: '/', label: 'หน้าแรก', tab: true },
         { href: '/dashboard', label: 'แดชบอร์ด', tab: true },
       ];
     }
