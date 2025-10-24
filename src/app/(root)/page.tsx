@@ -1,76 +1,171 @@
+"use client";
+
 import Link from "next/link";
 import HeroCarousel from "@/components/HeroCarousel";
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  Stack,
+  Button,
+} from "@mui/material";
+
+const primary = {
+  main: "#38E07A",
+  dark: "#2fbb65",
+};
 
 export default function LandingPage() {
   return (
-    <section>
+    <Box>
+      {/* Hero */}
       <HeroCarousel
         slides={[
           {
-            img: '/hero-1.jpg',
-            heading: 'PRIVATE FITNESS\nMEMBERSHIPS',
-            sub: 'เทรนเนอร์ส่วนตัว โปรแกรมเฉพาะคุณ เข้าถึงได้ทุกที่ ทุกเวลา',
-            ctaSecondary: { href: '/plans', label: 'ดูแพ็กเกจ' },
+            img: "/hero-1.jpg",
+            heading: "PRIVATE FITNESS\nMEMBERSHIPS",
+            sub: "เทรนเนอร์ส่วนตัว โปรแกรมเฉพาะคุณ เข้าถึงได้ทุกที่ ทุกเวลา",
+            ctaSecondary: { href: "/plans", label: "ดูแพ็กเกจ" },
           },
           {
-            img: '/hero-2.jpg',
-            heading: 'COACHING แบบ PERSONAL',
-            sub: 'ติดตามผลและปรับโปรแกรมรายสัปดาห์',
+            img: "/hero-2.jpg",
+            heading: "COACHING แบบ PERSONAL",
+            sub: "ติดตามผลและปรับโปรแกรมรายสัปดาห์",
           },
           {
-            img: '/hero-3.jpg',
-            heading: 'CLASS & PROGRAMS',
-            sub: 'คาร์ดิโอ เวท โภชนาการ — ครบในที่เดียว',
-            ctaPrimary: { href: '/courses', label: 'ดูคอร์ส' },
-            ctaSecondary: { href: '/login', label: 'เข้าสู่ระบบ' },
+            img: "/hero-3.jpg",
+            heading: "CLASS & PROGRAMS",
+            sub: "คาร์ดิโอ เวท โภชนาการ — ครบในที่เดียว",
+            ctaPrimary: { href: "/courses", label: "ดูคอร์ส" },
+            ctaSecondary: { href: "/login", label: "เข้าสู่ระบบ" },
           },
         ]}
         interval={5500}
       />
 
-      <section className="container section">
-        <h2 className="section-title">สิทธิประโยชน์สมาชิก Private Fitness</h2>
+      {/* Benefits */}
+      <Box className="container" sx={{ py: 8 }}>
+        <Typography
+          variant="h4"
+          align="center"
+          fontWeight={500}
+          gutterBottom
+          sx={{ mb: 4 }}
+        >
+          สิทธิประโยชน์สมาชิก Private Fitness
+        </Typography>
 
-        <div className="benefit-grid">
-          <article className="benefit">
-            <div className="benefit-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                <path d="M4 15l3-2 2 1 3-3 2 1 3-4"/><path d="M18 16l2 3"/><circle cx="6" cy="6" r="2"/>
-              </svg>
-            </div>
-            <h3 className="benefit-title">เหมาะกับทุกไลฟ์สไตล์</h3>
-            <p className="benefit-desc">ปรับแผนให้เข้ากับตารางชีวิตและเป้าหมายของคุณ</p>
-          </article>
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={3}
+          justifyContent="center"
+        >
+          {[
+            {
+              title: "เหมาะกับทุกไลฟ์สไตล์",
+              desc: "ปรับแผนให้เข้ากับตารางชีวิตและเป้าหมายของคุณ",
+            },
+            {
+              title: "สมาชิกใบเดียว",
+              desc: "เข้าได้หลายสาขา/หลายอุปกรณ์อย่างยืดหยุ่น",
+            },
+            {
+              title: "ยืดหยุ่น ไม่ผูกมัด",
+              desc: "เลือกต่ออายุเป็นรอบ ๆ ปรับเปลี่ยนแพ็กเกจได้ตลอด",
+            },
+          ].map((item, i) => (
+            <Card
+              key={i}
+              sx={{
+                flex: 1,
+                borderRadius: 3,
+                boxShadow: 2,
+                minHeight: 160,
+              }}
+            >
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  {item.title}
+                </Typography>
+                <Typography color="text.secondary">{item.desc}</Typography>
+              </CardContent>
+            </Card>
+          ))}
+        </Stack>
+      </Box>
 
-          <article className="benefit">
-            <div className="benefit-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 010 18M12 3a15 15 0 000 18"/>
-              </svg>
-            </div>
-            <h3 className="benefit-title">สมาชิกใบเดียว</h3>
-            <p className="benefit-desc">เข้าได้หลายสาขา/หลายอุปกรณ์อย่างยืดหยุ่น</p>
-          </article>
+      {/* Stats */}
+      <Box sx={{ py: 8, backgroundColor: "#f5f5f5" }}>
+        <Box className="container">
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={6}
+            justifyContent="center"
+            alignItems="center"
+          >
+            {[
+              { value: "1,200+", label: "สมาชิกที่ไว้ใจเรา" },
+              { value: "50+", label: "คลาสรายสัปดาห์" },
+              { value: "20+", label: "โค้ชและเทรนเนอร์มืออาชีพ" },
+            ].map((s, i) => (
+              <Stack key={i} alignItems="center" spacing={1}>
+                <Typography variant="h4" fontWeight={600} color="primary">
+                  {s.value}
+                </Typography>
+                <Typography color="text.secondary">{s.label}</Typography>
+              </Stack>
+            ))}
+          </Stack>
+        </Box>
+      </Box>
 
-          <article className="benefit">
-            <div className="benefit-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/>
-              </svg>
-            </div>
-            <h3 className="benefit-title">ยืดหยุ่น ไม่ผูกมัด</h3>
-            <p className="benefit-desc">เลือกต่ออายุเป็นรอบ ๆ ปรับเปลี่ยนแพ็กเกจได้ตลอด</p>
-          </article>
-        </div>
-      </section>
-
-      <section className="container cta">
-        <h3>พร้อมเริ่มเส้นทางสุขภาพของคุณแล้วหรือยัง?</h3>
-        <div className="hero-actions">
-          <Link href="/signup" className="button">สมัครสมาชิกวันนี้</Link>
-          <Link href="/contact" className="button-outline">คุยกับเรา</Link>
-        </div>
-      </section>
-    </section>
+      {/* CTA */}
+      <Box className="container" sx={{ py: 8, textAlign: "center" }}>
+        <Typography variant="h5" gutterBottom fontWeight={500}>
+          พร้อมเริ่มเส้นทางสุขภาพของคุณแล้วหรือยัง?
+        </Typography>
+        <Stack
+          direction="row"
+          justifyContent="center"
+          spacing={2}
+          flexWrap="wrap"
+          mt={2}
+        >
+          <Button
+            component={Link}
+            href="/signup"
+            variant="contained"
+            size="large"
+            sx={{
+              backgroundColor: primary.main,
+              "&:hover": { backgroundColor: primary.dark },
+              borderRadius: 2,
+              px: 4,
+            }}
+          >
+            สมัครสมาชิกวันนี้
+          </Button>
+          <Button
+            component={Link}
+            href="/contact"
+            variant="outlined"
+            size="large"
+            sx={{
+              borderColor: primary.main,
+              color: primary.main,
+              borderRadius: 2,
+              px: 4,
+              "&:hover": {
+                backgroundColor: primary.main,
+                color: "#fff",
+              },
+            }}
+          >
+            คุยกับเรา
+          </Button>
+        </Stack>
+      </Box>
+    </Box>
   );
 }
