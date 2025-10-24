@@ -1,5 +1,8 @@
 'use client';
 
+import * as React from 'react';
+import { ThemeProvider, CssBaseline } from '@mui/material';
+import { theme } from '@/theme';
 import { AuthProvider, useAuth } from '@/contexts/AuthProvider';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -10,10 +13,8 @@ function Guard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading) {
-      if (!user) {
-        router.replace('/login');
-      }
+    if (!loading && !user) {
+      router.replace('/login');
     }
   }, [loading, user, router]);
 
@@ -25,11 +26,14 @@ function Guard({ children }: { children: React.ReactNode }) {
 
 export default function ClientWrapper({ children }: { children: React.ReactNode }) {
   return (
-    <AuthProvider>
-      <Guard>
-        <AdminNavbar />
-        <main className="site-main">{children}</main>
-      </Guard>
-    </AuthProvider>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <AuthProvider>
+        <Guard>
+          <AdminNavbar />
+          <main className="site-main">{children}</main>
+        </Guard>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
