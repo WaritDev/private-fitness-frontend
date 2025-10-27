@@ -1,5 +1,6 @@
 'use client';
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { AuthContextValue, AuthUser, UserRole } from '../types/users';
 
 const AuthContext = createContext<AuthContextValue>({
@@ -13,6 +14,7 @@ const AuthContext = createContext<AuthContextValue>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     let alive = true;

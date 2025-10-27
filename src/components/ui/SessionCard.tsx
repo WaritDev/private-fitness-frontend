@@ -6,7 +6,7 @@ import type { Product } from '@/types/product';
 type Props = { session: Product };
 
 export default function SessionCard({ session }: Props) {
-  const hrefRegister = `/products/session/${session.Product_Id}/register`;
+  const hrefRegister = `/sales/products/session/${session.Product_Id}/register`;
 
   return (
     <Card sx={{ width: 320 }}>

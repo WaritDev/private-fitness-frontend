@@ -6,7 +6,7 @@ import type { Product } from '@/types/product';
 type Props = { duration: Product };
 
 export default function DurationCard({ duration }: Props) {
-  const hrefRegister = `/products/duration/${duration.Product_Id}/register`;
+  const hrefRegister = `/sales/products/duration/${duration.Product_Id}/register`;
 
   return (
     <Card sx={{ width: 320 }}>
