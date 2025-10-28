@@ -1,6 +1,5 @@
 'use client';
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { AuthContextValue, AuthUser, UserRole } from '../types/users';
 
 const AuthContext = createContext<AuthContextValue>({
@@ -8,13 +7,15 @@ const AuthContext = createContext<AuthContextValue>({
   loading: true,
   isAdmin: false,
   isManager: false,
+  isTrainer: false,
+  isSales: false,
+  isCustomer: false,
   hasAnyRole: () => false,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
 
   useEffect(() => {
     let alive = true;
@@ -42,10 +43,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isAdmin = user?.role === 'ADMIN';
   const isManager = user?.role === 'MANAGER';
+  const isTrainer = user?.role === 'TRAINER';
+  const isSales = user?.role === 'SALES';
+  const isCustomer = user?.role === 'CUSTOMER';
   const hasAnyRole = (...roles: UserRole[]) => !!user && roles.includes(user.role);
 
   return (
-    <AuthContext.Provider value={{ user, loading, isAdmin, isManager, hasAnyRole }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      loading, 
+      isAdmin, 
+      isManager, 
+      isTrainer, 
+      isSales, 
+      isCustomer, 
+      hasAnyRole 
+    }}>
       {children}
     </AuthContext.Provider>
   );

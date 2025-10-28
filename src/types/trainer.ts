@@ -1,20 +1,8 @@
-export type Trainer = {
-  username: string;
-  name: string;
-  gender: 'Male' | 'Female' | 'Other';
-  email: string;
-  phone: string;
-  specialty: string;
-  availability: Availability[];
-};
+// Trainer Types - อัปเดตให้ใช้ types ใหม่จาก trainer-availability
+// Re-export จาก files ใหม่เพื่อ backward compatibility
 
-export type Availability = {
-  date: string; // YYYY-MM-DD format
-  slots: Slot[];
-};
-
-export type Slot = {
-  startTime: string; // ISO 8601 format
-  endTime: string;   // ISO 8601 format
-  isBooked: boolean;
-};
+export type { 
+  Trainer,
+  Availability, 
+  Slot 
+} from './trainer-availability';
