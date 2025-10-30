@@ -2,313 +2,213 @@
 
 import * as React from "react";
 import {
-    Box,
-    Stack,
-    Typography,
-    Button,
-    IconButton,
-    Tooltip,
-    TextField,
-    InputAdornment,
-    MenuItem,
-    Select,
-    FormControl,
-    InputLabel,
-    Table,
-    TableHead,
-    TableBody,
-    TableRow,
-    TableCell,
-    TableContainer,
-    Paper,
-    TableSortLabel,
-    TablePagination,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
+  Box, Paper, Stack, Typography,
+  Table, TableHead, TableBody, TableRow, TableCell, TableContainer,
+  TablePagination, IconButton, Tooltip, Chip
 } from "@mui/material";
-import { SelectChangeEvent } from "@mui/material/Select";
-import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import SearchIcon from "@mui/icons-material/Search";
+import { useRouter } from "next/navigation";
+import ConfirmDialog from "@/components/pop-up/ConfirmDialog";
+import { useSnack } from "@/components/snack/SnackProvider"; // ✅ ใช้ SnackProvider
 
-const PRIMARY = { main: "#38E07A", dark: "#2fbb65" };
+type LogType = "CHECK_IN" | "CHECK_OUT" | "BOOK_SESSION" | "CANCEL_SESSION";
 
-type Order = "asc" | "desc";
-type LogType = "Check-in" | "Purchase" | "Class Booking" | "Other";
-type FilterType = "All" | LogType;
+type CustomerLogRow = {
+  logId: number;
+  customerUsername: string;
+  customerFirstName: string;
+  customerLastName: string;
+  timestamp: string;   // ISO
+  logType: LogType;
+};
 
-interface CustomerLog {
-    id: number;
-    customer: string;
-    logType: LogType;
-    detail: string;
-    date: string; // YYYY-MM-DD
-}
-
-const MOCK: CustomerLog[] = [
-    { id: 1, customer: "Somchai Prasert", logType: "Check-in", detail: "เข้าฟิตเนส", date: "2025-10-20" },
-    { id: 2, customer: "Warunee Boonmee", logType: "Purchase", detail: "ซื้อ Protein Powder", date: "2025-10-19" },
-    { id: 3, customer: "Arthit Meechai", logType: "Class Booking", detail: "จองโยคะ", date: "2025-10-18" },
+// MOCK ตาม Q6A.1 (เรียงใหม่สุดก่อน)
+const MOCK_LOGS: CustomerLogRow[] = [
+  { logId: 104, customerUsername: "c.noon", customerFirstName: "Noon", customerLastName: "Nita", timestamp: "2025-10-30T14:25:36", logType: "CHECK_OUT" },
+  { logId: 103, customerUsername: "c.noon", customerFirstName: "Noon", customerLastName: "Nita", timestamp: "2025-10-30T12:01:00", logType: "CHECK_IN" },
+  { logId: 102, customerUsername: "c.ploy", customerFirstName: "Ploy", customerLastName: "Kawin", timestamp: "2025-10-29T18:45:00", logType: "CANCEL_SESSION" },
+  { logId: 101, customerUsername: "c.ploy", customerFirstName: "Ploy", customerLastName: "Kawin", timestamp: "2025-10-29T10:00:00", logType: "BOOK_SESSION" },
+  { logId: 100, customerUsername: "c.oak",  customerFirstName: "Oak",  customerLastName: "Rit",   timestamp: "2025-10-28T09:30:00", logType: "CHECK_IN" },
 ];
 
-export default function AdminCustomerLogs(): React.JSX.Element {
-const [rows, setRows] = React.useState<CustomerLog[]>(MOCK);
-const [search, setSearch] = React.useState<string>("");
-const [typeFilter, setTypeFilter] = React.useState<FilterType>("All");
-const [order, setOrder] = React.useState<Order>("desc");
-const [orderBy, setOrderBy] = React.useState<keyof CustomerLog>("date");
-const [page, setPage] = React.useState<number>(0);
-const [rowsPerPage, setRowsPerPage] = React.useState<number>(5);
+const COLUMNS = [
+  { key: "logId", label: "Log ID" },
+  { key: "customerUsername", label: "Username" },
+  { key: "customerFirstName", label: "ชื่อลูกค้า" },
+  { key: "customerLastName", label: "นามสกุล" },
+  { key: "timestamp", label: "เวลาบันทึก" },
+  { key: "logType", label: "ประเภท Log" },
+] as const;
 
-const [openEdit, setOpenEdit] = React.useState<CustomerLog | null>(null);
+function formatDateTimeTH(iso: string) {
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "—";
+    return d.toLocaleString("th-TH", {
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit",
+    });
+  } catch { return "—"; }
+}
 
-// --- derived data ---
-const filtered: CustomerLog[] = rows.filter((l) => {
-const q = search.toLowerCase();
-const hit =
-    l.customer.toLowerCase().includes(q) ||
-    l.detail.toLowerCase().includes(q);
-const okType = typeFilter === "All" ? true : l.logType === typeFilter;
-return hit && okType;
-});
+export default function CustomerLogPage(): React.JSX.Element {
+  const router = useRouter();
+  const { setSnack } = useSnack(); // ✅ ดึง setSnack
 
-const sorted: CustomerLog[] = [...filtered].sort((a, b) => {
-const av = String(a[orderBy] ?? "").toLowerCase();
-const bv = String(b[orderBy] ?? "").toLowerCase();
-const cmp = av.localeCompare(bv);
-return order === "asc" ? cmp : -cmp;
-});
+  const [rows, setRows] = React.useState<CustomerLogRow[]>(
+    [...MOCK_LOGS].sort((a, b) => {
+      const t = b.timestamp.localeCompare(a.timestamp);
+      return t !== 0 ? t : b.logId - a.logId;
+    })
+  );
 
-const paged: CustomerLog[] = sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  const [page, setPage] = React.useState(0);
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
 
-// --- handlers ---
-const handleRequestSort = (key: keyof CustomerLog): void => {
-const isAsc = orderBy === key && order === "asc";
-setOrder(isAsc ? "desc" : "asc");
-setOrderBy(key);
-};
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const [targetRow, setTargetRow] = React.useState<CustomerLogRow | null>(null);
 
-const handleChangePage = (_: React.MouseEvent<HTMLButtonElement> | null, newPage: number): void => {
-setPage(newPage);
-};
+  const paged = React.useMemo(
+    () => rows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [rows, page, rowsPerPage]
+  );
 
-const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLInputElement>): void => {
-setRowsPerPage(parseInt(e.target.value, 10));
-setPage(0);
-};
+  const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
+  const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(e.target.value, 10));
+    setPage(0);
+  };
 
-const onChangeTypeFilter = (e: SelectChangeEvent<FilterType>): void => {
-setTypeFilter(e.target.value as FilterType);
-setPage(0);
-};
+  // ไปหน้าแก้ไข
+  const goEdit = (r: CustomerLogRow) => {
+    router.push(`/admin/customer-log/edit?id=${encodeURIComponent(String(r.logId))}`);
+  };
 
-const softDelete = (id: number): void => {
-setRows((prev) => prev.filter((r) => r.id !== id));
-};
+  // ลบ (mock)
+  const askDelete = (r: CustomerLogRow) => {
+    setTargetRow(r);
+    setConfirmOpen(true);
+  };
 
-// --- UI ---
-return (
-<Box sx={{ p: 3 }}>
-    {/* Header */}
-    <Stack
-    direction="row"
-    alignItems="center"
-    justifyContent="space-between"
-    gap={2}
-    flexWrap="wrap"
-    sx={{ mb: 2 }}
-    >
-    <Typography variant="h5" fontWeight={400}>
-        จัดการข้อมูล Customer Log
-    </Typography>
-    <Button
-        variant="contained"
-        startIcon={<AddIcon />}
-        sx={{ backgroundColor: PRIMARY.main, "&:hover": { backgroundColor: PRIMARY.dark } }}
-        onClick={() =>
-        setOpenEdit({
-            id: 0,
-            customer: "",
-            logType: "Check-in",
-            detail: "",
-            date: new Date().toISOString().slice(0, 10),
-        })
+  const handleConfirmDelete = () => {
+    if (targetRow) {
+      setRows((prev) => prev.filter((x) => x.logId !== targetRow.logId));
+      // ✅ แจ้งเตือนผ่าน SnackProvider (มาตรฐานทั้งโปรเจ็กต์)
+      setSnack({
+        open: true,
+        msg: `Log: ${targetRow.logId} deleted successfully`,
+        severity: "success",
+      });
+    }
+    setConfirmOpen(false);
+    setTargetRow(null);
+  };
+
+  return (
+    <Box sx={{ p: { xs: 2, md: 3 } }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" gap={2} flexWrap="wrap" sx={{ mb: 2 }}>
+        <Typography variant="h5" fontWeight={400}>Customer Log</Typography>
+      </Stack>
+
+      <TableContainer component={Paper} sx={{ borderRadius: 3, position: "relative" }}>
+        <Box sx={{ overflowX: "auto" }}>
+          <Table stickyHeader>
+            <TableHead>
+              <TableRow>
+                {COLUMNS.map((c) => (
+                  <TableCell key={c.key as string} sx={{ fontWeight: 600, whiteSpace: "nowrap" }}>
+                    {c.label}
+                  </TableCell>
+                ))}
+                <TableCell sx={{ fontWeight: 600, whiteSpace: "nowrap", width: 140 }}>การจัดการ</TableCell>
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+              {paged.map((r) => (
+                <TableRow key={r.logId} hover>
+                  <TableCell>{r.logId}</TableCell>
+                  <TableCell>{r.customerUsername}</TableCell>
+                  <TableCell>{r.customerFirstName}</TableCell>
+                  <TableCell>{r.customerLastName}</TableCell>
+                  <TableCell>{formatDateTimeTH(r.timestamp)}</TableCell>
+                  <TableCell>
+                    <Chip
+                      size="small"
+                      label={r.logType}
+                      color={
+                        r.logType === "CHECK_IN" ? "success" :
+                        r.logType === "CHECK_OUT" ? "default" :
+                        r.logType === "BOOK_SESSION" ? "primary" :
+                        "warning"
+                      }
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Stack direction="row" spacing={1}>
+                      <Tooltip title="แก้ไข">
+                        <IconButton size="small" color="primary" onClick={() => goEdit(r)}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="ลบ">
+                        <IconButton size="small" color="error" onClick={() => askDelete(r)}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))}
+
+              {paged.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={COLUMNS.length + 1} align="center" sx={{ py: 6, color: "text.secondary" }}>
+                    ไม่พบข้อมูล
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </Box>
+
+        <Box
+          sx={{
+            position: "sticky",
+            bottom: 0, right: 0, left: 0,
+            background: (theme) => theme.palette.background.paper,
+            borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+            display: "flex",
+            justifyContent: "flex-end",
+          }}
+        >
+          <TablePagination
+            component="div"
+            count={rows.length}
+            page={page}
+            onPageChange={handleChangePage}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+            rowsPerPageOptions={[10]}
+          />
+        </Box>
+      </TableContainer>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        title="ยืนยันการลบ Log"
+        message={
+          targetRow
+            ? `Warning: Deleting this log (ID: ${targetRow.logId}) for customer ${targetRow.customerUsername} is permanent. Continue?`
+            : ""
         }
-    >
-        เพิ่ม Log
-    </Button>
-    </Stack>
-
-    {/* Filters */}
-    <Stack direction={{ xs: "column", sm: "row" }} gap={2} sx={{ mb: 2 }}>
-    <TextField
-        placeholder="ค้นหาชื่อลูกค้า / รายละเอียด"
-        size="small"
-        fullWidth
-        value={search}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-        setSearch(e.target.value);
-        setPage(0);
-        }}
-        InputProps={{
-        startAdornment: (
-            <InputAdornment position="start">
-            <SearchIcon />
-            </InputAdornment>
-        ),
-        }}
-    />
-    <FormControl size="small" sx={{ minWidth: 180 }}>
-        <InputLabel id="typeFilterLabel">ประเภท</InputLabel>
-        <Select<FilterType>
-        labelId="typeFilterLabel"
-        label="ประเภท"
-        value={typeFilter}
-        onChange={onChangeTypeFilter}
-        >
-        <MenuItem value="All">ทั้งหมด</MenuItem>
-        <MenuItem value="Check-in">Check-in</MenuItem>
-        <MenuItem value="Purchase">Purchase</MenuItem>
-        <MenuItem value="Class Booking">Class Booking</MenuItem>
-        <MenuItem value="Other">Other</MenuItem>
-        </Select>
-    </FormControl>
-    </Stack>
-
-    {/* Table */}
-    <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
-    <Table>
-        <TableHead>
-        <TableRow>
-            {(
-            [
-                { key: "customer", label: "ลูกค้า" },
-                { key: "logType", label: "ประเภท" },
-                { key: "detail", label: "รายละเอียด" },
-                { key: "date", label: "วันที่" },
-            ] as const
-            ).map((col) => (
-            <TableCell key={col.key} sx={{ fontWeight: 500 }}>
-                <TableSortLabel
-                active={orderBy === (col.key as keyof CustomerLog)}
-                direction={orderBy === (col.key as keyof CustomerLog) ? order : "asc"}
-                onClick={() => handleRequestSort(col.key as keyof CustomerLog)}
-                >
-                {col.label}
-                </TableSortLabel>
-            </TableCell>
-            ))}
-            <TableCell sx={{ fontWeight: 500, width: 100 }}>การจัดการ</TableCell>
-        </TableRow>
-        </TableHead>
-
-        <TableBody>
-        {paged.map((l) => (
-            <TableRow key={l.id} hover>
-            <TableCell>{l.customer}</TableCell>
-            <TableCell>{l.logType}</TableCell>
-            <TableCell>{l.detail}</TableCell>
-            <TableCell>{l.date}</TableCell>
-            <TableCell>
-                <Tooltip title="ลบ">
-                <IconButton size="small" color="error" onClick={() => softDelete(l.id)}>
-                    <DeleteIcon fontSize="small" />
-                </IconButton>
-                </Tooltip>
-            </TableCell>
-            </TableRow>
-        ))}
-
-        {paged.length === 0 && (
-            <TableRow>
-            <TableCell colSpan={5} align="center" sx={{ py: 6, color: "text.secondary" }}>
-                ไม่พบข้อมูล
-            </TableCell>
-            </TableRow>
-        )}
-        </TableBody>
-    </Table>
-
-    <TablePagination
-        component="div"
-        count={sorted.length}
-        page={page}
-        onPageChange={handleChangePage}
-        rowsPerPage={rowsPerPage}
-        onRowsPerPageChange={handleChangeRowsPerPage}
-        rowsPerPageOptions={[5, 10, 25]}
-    />
-    </TableContainer>
-
-    {/* Add/Edit Dialog */}
-    <Dialog open={openEdit !== null} onClose={() => setOpenEdit(null)} maxWidth="sm" fullWidth>
-    <DialogTitle>{openEdit && openEdit.id ? "แก้ไข Log" : "เพิ่ม Log"}</DialogTitle>
-    <DialogContent>
-        <Stack gap={2} sx={{ mt: 1 }}>
-        <TextField
-            label="ชื่อลูกค้า"
-            value={openEdit?.customer ?? ""}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            setOpenEdit((v) => (v ? { ...v, customer: e.target.value } : v))
-            }
-            fullWidth
-        />
-        <FormControl fullWidth>
-            <InputLabel id="logTypeLabel">ประเภท</InputLabel>
-            <Select<LogType>
-            labelId="logTypeLabel"
-            label="ประเภท"
-            value={openEdit?.logType ?? "Check-in"}
-            onChange={(e: SelectChangeEvent<LogType>) =>
-                setOpenEdit((v) => (v ? { ...v, logType: e.target.value as LogType } : v))
-            }
-            >
-            <MenuItem value="Check-in">Check-in</MenuItem>
-            <MenuItem value="Purchase">Purchase</MenuItem>
-            <MenuItem value="Class Booking">Class Booking</MenuItem>
-            <MenuItem value="Other">Other</MenuItem>
-            </Select>
-        </FormControl>
-        <TextField
-            label="รายละเอียด"
-            value={openEdit?.detail ?? ""}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            setOpenEdit((v) => (v ? { ...v, detail: e.target.value } : v))
-            }
-            fullWidth
-        />
-        <TextField
-            label="วันที่ (YYYY-MM-DD)"
-            value={openEdit?.date ?? ""}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            setOpenEdit((v) => (v ? { ...v, date: e.target.value } : v))
-            }
-            fullWidth
-        />
-        </Stack>
-    </DialogContent>
-    <DialogActions>
-        <Button onClick={() => setOpenEdit(null)}>ยกเลิก</Button>
-        <Button
-        variant="contained"
-        sx={{ backgroundColor: PRIMARY.main, "&:hover": { backgroundColor: PRIMARY.dark } }}
-        onClick={() => {
-            if (!openEdit) return;
-            if (openEdit.id === 0) {
-            const nextId = Math.max(0, ...rows.map((r) => r.id)) + 1;
-            setRows((prev) => [{ ...openEdit, id: nextId }, ...prev]);
-            } else {
-            setRows((prev) => prev.map((r) => (r.id === openEdit.id ? openEdit : r)));
-            }
-            setOpenEdit(null);
-        }}
-        >
-        บันทึก
-        </Button>
-    </DialogActions>
-    </Dialog>
-</Box>
-);
+        confirmText="Confirm"
+        cancelText="Cancel"
+        onConfirm={handleConfirmDelete}
+      />
+    </Box>
+  );
 }
