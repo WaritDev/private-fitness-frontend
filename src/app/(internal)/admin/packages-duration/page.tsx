@@ -4,65 +4,75 @@ import * as React from "react";
 import {
   Box, Paper, Stack, Typography,
   Table, TableHead, TableBody, TableRow, TableCell, TableContainer,
-  IconButton, Tooltip, Chip, TablePagination
+  IconButton, Tooltip, Chip, TablePagination, CircularProgress
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import ConfirmDialog from "@/components/pop-up/ConfirmDialog";
 import { useSnack } from "@/components/snack/SnackProvider";
 
-type Status = "ACTIVE" | "EXPIRED" | "SUSPENDED" | "REFUNDED";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+const PAGE_SIZE = 10;
 
-type Row = {
-  Duration_Id: number;
-  Customer_Username: string;
-  Customer_First_Name: string;
-  Customer_Last_Name: string;
-  Product_Id: string;
-  Product_Name: string;
-  Product_Type: string;
-  Product_Category: string;
-  Duration_Days: number;
-  Sales_Username: string;
-  Purchase_Date: string; // ISO
-  Start_Date: string;    // ISO
-  End_Date: string;      // ISO
-  Price_Paid: number;
-  Discount_Amount: number;
-  Status: Status;
-  Created_At: string;    // ISO
+// -------- Types from API --------
+type NullString = { String: string; Valid: boolean };
+type NullInt32  = { Int32: number; Valid: boolean };
+
+type Status =
+  | "ACTIVE"
+  | "EXPIRED"
+  | "SUSPENDED"
+  | "REFUNDED"
+  | "CANCELLED"; // มีในตัวอย่าง API
+
+type ApiRow = {
+  id: number;
+  customerUsername: NullString;
+  customerFirstName: string;
+  customerLastName: string;
+  productId: NullInt32;
+  productName: string;
+  type: "DURATION" | "SESSION";
+  category: string;
+  durationDays: NullInt32;
+  salesUsername: NullString;
+  purchaseDate: string; // ISO
+  startDate: string;    // ISO
+  endDate: string;      // ISO
+  pricePaid: string;    // "1800.00"
+  discountAmount: NullString; // "0.00"
+  status: Status;
 };
 
-// ---------- MOCK DATA (แทน Q3A.1 / Q3A.2) ----------
-const MOCK: Row[] = Array.from({ length: 37 }).map((_, i) => {
-  const id = 2000 + (36 - i);
-  const start = new Date(2025, 9, 1 + (i % 10), 10, 0, 0);
-  const end = new Date(start); end.setDate(start.getDate() + 30);
-  const purch = new Date(start); purch.setDate(start.getDate() - 1);
-  return {
-    Duration_Id: id,
-    Customer_Username: ["c.ploy", "c.noon", "c.oak"][i % 3],
-    Customer_First_Name: ["Ploy", "Noon", "Oak"][i % 3],
-    Customer_Last_Name: ["Kawin", "Nita", "Rit"][i % 3],
-    Product_Id: `P${(i % 5) + 1}`,
-    Product_Name: ["Monthly Gym", "Yoga 30d", "PT 12 Sessions", "Sauna 30d", "All Access 30d"][i % 5],
-    Product_Type: ["DURATION", "SESSION"][i % 2],
-    Product_Category: ["GYM", "YOGA", "PT", "SAUNA"][i % 4],
-    Duration_Days: [30, 60, 90][i % 3],
-    Sales_Username: ["bob.c", "pam.s", "mike.t"][i % 3],
-    Purchase_Date: purch.toISOString(),
-    Start_Date: start.toISOString(),
-    End_Date: end.toISOString(),
-    Price_Paid: 1990 + (i % 7) * 100,
-    Discount_Amount: (i % 4) * 50,
-    Status: (["ACTIVE", "EXPIRED", "SUSPENDED", "REFUNDED"] as Status[])[i % 4],
-    Created_At: new Date(2025, 9, 1, 9, 0, 0 - i).toISOString(),
-  };
-});
+type ApiResp = {
+  data: ApiRow[];
+  meta: { page: number; limit: number; total_items: number; total_pages: number };
+  message?: string;
+};
 
-// ---------- Utils ----------
-const PAGE_SIZE = 10; // fixed ตาม requirement
+// -------- UI Row --------
+type Row = {
+  id: number;
+  customerUsername: string;
+  customerName: string;
+  productId?: number | null;
+  productName: string;
+  productType: string;
+  productCategory: string;
+  durationDays?: number | null;
+  salesUsername: string;
+  purchaseDate: string;
+  startDate: string;
+  endDate: string;
+  pricePaid: number;        // THB
+  discountAmount: number;   // THB
+  status: Status;
+};
+
+const ns = (v?: NullString | null) => (v && v.Valid ? v.String : "");
+const ni32 = (v?: NullInt32 | null) => (v && v.Valid ? v.Int32 : null);
+
 const fmtTH = (iso?: string) => {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -73,61 +83,110 @@ const fmtTH = (iso?: string) => {
         hour: "2-digit", minute: "2-digit",
       });
 };
-const money = (n: number) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", maximumFractionDigits: 0 }).format(n);
 
-// ---------- Page ----------
+const money = (n?: number | null) =>
+  typeof n === "number" && !Number.isNaN(n)
+    ? new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", maximumFractionDigits: 0 }).format(n)
+    : "—";
+
+const parseDecimal = (s?: string | null) => {
+  if (!s) return 0;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : 0;
+};
+
 export default function CustomerDurationPackagesPage(): React.JSX.Element {
   const router = useRouter();
-  const sp = useSearchParams();
   const { setSnack } = useSnack();
 
-  React.useEffect(() => {
-    const toast = sp.get("toast");
-    if (toast) setSnack({ open: true, msg: toast, severity: "success" });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sp]);
+  const [rows, setRows] = React.useState<Row[]>([]);
+  const [totalItems, setTotalItems] = React.useState(0);
+  const [page, setPage] = React.useState(0); // zero-based
+  const rowsPerPage = PAGE_SIZE;
+  const [loading, setLoading] = React.useState(false);
 
-  // ORDER BY Created_At DESC, Duration_Id DESC (Q3A.1)
-  const ordered = React.useMemo(
-    () =>
-      [...MOCK].sort((a, b) => {
-        const t = b.Created_At.localeCompare(a.Created_At);
-        return t !== 0 ? t : b.Duration_Id - a.Duration_Id;
-      }),
-    []
-  );
-
-  // Q3A.2 — COUNT(*)
-  const totalItems = ordered.length;
-
-  // state สำหรับ TablePagination
-  const [page, setPage] = React.useState(0); // PageIndex เริ่ม 0
-  const rowsPerPage = PAGE_SIZE; // fix 10
-
-  const pageRows = React.useMemo(() => {
-    const offset = page * rowsPerPage;
-    return ordered.slice(offset, offset + rowsPerPage);
-  }, [ordered, page, rowsPerPage]);
-
-  const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
-  const handleChangeRowsPerPage = () => {
-    // rowsPerPage fixed = 10 ตามสเปค ไม่ต้องทำอะไร
-    setPage(0);
-  };
-
-  // Confirm ลบ
   const [confirm, setConfirm] = React.useState<{ open: boolean; target?: Row }>({ open: false });
 
-  const goEdit = (r: Row) => {
-    router.push(`/admin/packages-duration/edit?id=${r.Duration_Id}`);
-  };
+  const mapRow = (a: ApiRow): Row => ({
+    id: a.id,
+    customerUsername: ns(a.customerUsername),
+    customerName: `${a.customerFirstName} ${a.customerLastName}`.trim(),
+    productId: ni32(a.productId),
+    productName: a.productName,
+    productType: a.type,
+    productCategory: a.category,
+    durationDays: ni32(a.durationDays),
+    salesUsername: ns(a.salesUsername),
+    purchaseDate: a.purchaseDate,
+    startDate: a.startDate,
+    endDate: a.endDate,
+    pricePaid: parseDecimal(a.pricePaid),
+    discountAmount: parseDecimal(ns(a.discountAmount)),
+    status: a.status,
+  });
+
+  const fetchPage = React.useCallback(async () => {
+    setLoading(true);
+    const currentPage = page + 1; // API is 1-based
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/customer-durations?page=${currentPage}&limit=${rowsPerPage}`,
+        { method: "GET", credentials: "include", headers: { "Content-Type": "application/json" } }
+      );
+      const body = (await res.json().catch(() => ({}))) as Partial<ApiResp>;
+      if (!res.ok) {
+        throw new Error(body?.message || `โหลดข้อมูลล้มเหลว (HTTP ${res.status})`);
+      }
+      const items = Array.isArray(body?.data) ? body!.data : [];
+      setRows(items.map(mapRow));
+      setTotalItems(body?.meta?.total_items ?? items.length);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setSnack({ open: true, msg, severity: "error" });
+      setRows([]);
+      setTotalItems(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, rowsPerPage, setSnack]);
+
+  React.useEffect(() => {
+    fetchPage();
+  }, [fetchPage]);
+
+  const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
+  const handleChangeRowsPerPage = () => setPage(0); // fixed 10
+
+  const goEdit = (r: Row) => router.push(`/admin/packages-duration/edit/${r.id}`);
+
   const onDeleteClick = (r: Row) => setConfirm({ open: true, target: r });
+
   const doDelete = async () => {
-    const id = confirm.target?.Duration_Id;
+    const id = confirm.target?.id;
     setConfirm({ open: false });
-    setSnack({ open: true, msg: `Duration_Id: ${id} deleted successfully`, severity: "success" });
-    // หมายเหตุ: ในโปรดักชันควร refetch Q3A.1 / Q3A.2 แล้วอัปเดตตาราง
+    if (!id) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/customer-durations/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.message || `Delete failed (HTTP ${res.status})`);
+      }
+      setSnack({ open: true, msg: `Duration_Id: ${id} deleted successfully`, severity: "success" });
+
+      // ถ้าลบแถวสุดท้ายของหน้า (และไม่ใช่หน้าแรก) → ถอยหน้าก่อน
+      if (rows.length === 1 && page > 0) {
+        setPage((p) => p - 1);
+      } else {
+        fetchPage();
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setSnack({ open: true, msg, severity: "error" });
+    }
   };
 
   return (
@@ -160,34 +219,44 @@ export default function CustomerDurationPackagesPage(): React.JSX.Element {
           </TableHead>
 
           <TableBody>
-            {pageRows.map((r) => (
-              <TableRow key={r.Duration_Id} hover>
-                <TableCell>{r.Duration_Id}</TableCell>
-                <TableCell>{r.Customer_Username}</TableCell>
-                <TableCell>{r.Customer_First_Name} {r.Customer_Last_Name}</TableCell>
-                <TableCell>{r.Product_Id}</TableCell>
-                <TableCell>{r.Product_Name}</TableCell>
-                <TableCell>{r.Product_Type}</TableCell>
-                <TableCell>{r.Product_Category}</TableCell>
-                <TableCell align="right">{r.Duration_Days}</TableCell>
-                <TableCell>{r.Sales_Username}</TableCell>
-                <TableCell>{fmtTH(r.Purchase_Date)}</TableCell>
-                <TableCell>{fmtTH(r.Start_Date)}</TableCell>
-                <TableCell>{fmtTH(r.End_Date)}</TableCell>
-                <TableCell align="right">{money(r.Price_Paid)}</TableCell>
-                <TableCell align="right">{money(r.Discount_Amount)}</TableCell>
+            {loading && (
+              <TableRow>
+                <TableCell colSpan={16} align="center" sx={{ py: 6 }}>
+                  <CircularProgress size={28} />
+                </TableCell>
+              </TableRow>
+            )}
+
+            {!loading && rows.map((r) => (
+              <TableRow key={r.id} hover>
+                <TableCell>{r.id}</TableCell>
+                <TableCell>{r.customerUsername || "—"}</TableCell>
+                <TableCell>{r.customerName || "—"}</TableCell>
+                <TableCell>{r.productId ?? "—"}</TableCell>
+                <TableCell>{r.productName || "—"}</TableCell>
+                <TableCell>{r.productType}</TableCell>
+                <TableCell>{r.productCategory}</TableCell>
+                <TableCell align="right">{r.durationDays ?? "—"}</TableCell>
+                <TableCell>{r.salesUsername || "—"}</TableCell>
+                <TableCell>{fmtTH(r.purchaseDate)}</TableCell>
+                <TableCell>{fmtTH(r.startDate)}</TableCell>
+                <TableCell>{fmtTH(r.endDate)}</TableCell>
+                <TableCell align="right">{money(r.pricePaid)}</TableCell>
+                <TableCell align="right">{money(r.discountAmount)}</TableCell>
                 <TableCell>
                   <Chip
                     size="small"
-                    label={r.Status}
+                    label={r.status}
                     color={
-                      r.Status === "ACTIVE"
+                      r.status === "ACTIVE"
                         ? "success"
-                        : r.Status === "EXPIRED"
+                        : r.status === "EXPIRED"
                         ? "default"
-                        : r.Status === "SUSPENDED"
+                        : r.status === "SUSPENDED"
                         ? "warning"
-                        : "error"
+                        : r.status === "REFUNDED"
+                        ? "info"
+                        : "error" // CANCELLED
                     }
                     variant="outlined"
                   />
@@ -209,7 +278,7 @@ export default function CustomerDurationPackagesPage(): React.JSX.Element {
               </TableRow>
             ))}
 
-            {pageRows.length === 0 && (
+            {!loading && rows.length === 0 && (
               <TableRow>
                 <TableCell colSpan={16} align="center" sx={{ py: 6, color: "text.secondary" }}>
                   ไม่พบข้อมูล
@@ -219,15 +288,14 @@ export default function CustomerDurationPackagesPage(): React.JSX.Element {
           </TableBody>
         </Table>
 
-        {/* ✅ TablePagination แบบเดียวกับหน้าอื่น */}
         <TablePagination
           component="div"
-          count={totalItems}             // Q3A.2 COUNT(*)
-          page={page}                    // PageIndex เริ่ม 0
+          count={totalItems}
+          page={page}
           onPageChange={handleChangePage}
-          rowsPerPage={rowsPerPage}      // fixed 10
+          rowsPerPage={rowsPerPage}
           onRowsPerPageChange={handleChangeRowsPerPage}
-          rowsPerPageOptions={[10]}      // fixed ตาม requirement
+          rowsPerPageOptions={[10]}
         />
       </TableContainer>
 
@@ -237,7 +305,7 @@ export default function CustomerDurationPackagesPage(): React.JSX.Element {
         title="ยืนยันการลบแพ็กเกจ Duration"
         message={
           confirm.target
-            ? `ลบ Duration_Id: ${confirm.target.Duration_Id} ของลูกค้า ${confirm.target.Customer_Username} ?`
+            ? `ลบ Duration_Id: ${confirm.target.id} ของลูกค้า ${confirm.target.customerUsername} ?`
             : ""
         }
         confirmText="Confirm"

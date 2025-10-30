@@ -4,7 +4,7 @@ import * as React from "react";
 import {
   Box, Stack, Typography,
   Table, TableHead, TableBody, TableRow, TableCell, TableContainer, Paper,
-  TableSortLabel, TablePagination, Chip, IconButton, Tooltip
+  TableSortLabel, TablePagination, Chip, IconButton, Tooltip, CircularProgress
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -12,15 +12,45 @@ import { useRouter } from "next/navigation";
 import ConfirmDialog from "@/components/pop-up/ConfirmDialog";
 import { useSnack } from "@/components/snack/SnackProvider";
 
-type Gender = "M" | "F" | "OTHER";
 type Order = "asc" | "desc";
+type GenderAPI = "MALE" | "FEMALE" | "OTHER";
 type MaritalStatus = "SINGLE" | "MARRIED" | "DIVORCED" | "WIDOWED";
+
+type ApiCustomer = {
+  username: string;
+  firstName: string;
+  lastName: string;
+  gender: "MALE" | "FEMALE" | "OTHER";
+  dateOfBirth: string;            // ISO with TZ หรือ YYYY-MM-DD
+  phoneNumber: string;
+  gmail: string;
+
+  // ⬇️ จาก ApiNullString → string ปกติ
+  healthInfo: string;
+  address: string;
+  companyName: string;
+  companyPosition: string;
+  maritalStatus: "SINGLE" | "MARRIED" | "DIVORCED" | "WIDOWED";
+  emergencyContactName: string;
+  emergencyContactRelationship: string;
+  emergencyContactPhone: string;
+  marketingSource: string;
+
+  // อันนี้ยังคงเป็น NullBool ตาม BE
+  isActive: { Bool: boolean; Valid: boolean };
+};
+
+type ApiResponse = {
+  data: ApiCustomer[];
+  meta: { page: number; limit: number; total_items: number; total_pages: number };
+  message?: string;
+};
 
 type Customer = {
   username: string;
   firstName: string;
   lastName: string;
-  gender?: Gender | null;
+  gender?: GenderAPI | null;
   dateOfBirth?: string | null;
   phoneNumber: string;
   gmail: string;
@@ -35,12 +65,6 @@ type Customer = {
   marketingSource?: string | null;
   isActive: boolean;
 };
-
-const MOCK: Customer[] = [
-  { username: "c.ploy", firstName: "Ploy", lastName: "Kawin", gender: "F", dateOfBirth: "1998-05-01", phoneNumber: "0811111111", gmail: "c.ploy@example.com", address: "Bangkok", maritalStatus: "SINGLE", marketingSource: "Facebook", isActive: true },
-  { username: "c.noon", firstName: "Noon", lastName: "Nita", gender: "F", dateOfBirth: "1996-03-03", phoneNumber: "0822222222", gmail: "c.noon@example.com", address: "Nonthaburi", maritalStatus: "MARRIED", marketingSource: "Walk-in", isActive: true },
-  { username: "c.oak", firstName: "Oak", lastName: "Rit", gender: "M", dateOfBirth: "1990-10-10", phoneNumber: "0833333333", gmail: "c.oak@example.com", companyName: "ACME", companyPosition: "Engineer", isActive: false },
-];
 
 const COLUMNS = [
   { key: "firstName", label: "ชื่อ", sortable: true },
@@ -62,14 +86,19 @@ const COLUMNS = [
   { key: "isActive", label: "สถานะ", sortable: false },
 ] as const;
 
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+
 export default function CustomersListPage() {
   const router = useRouter();
   const { setSnack } = useSnack();
 
-  const [rows, setRows] = React.useState<Customer[]>(MOCK);
+  const [rows, setRows] = React.useState<Customer[]>([]);
+  const [totalItems, setTotalItems] = React.useState(0);
+
   const [order, setOrder] = React.useState<Order>("asc");
-  const [page, setPage] = React.useState(0);
+  const [page, setPage] = React.useState(0);         // zero-based
   const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const [loading, setLoading] = React.useState(false);
 
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [targetUser, setTargetUser] = React.useState<Customer | null>(null);
@@ -77,15 +106,71 @@ export default function CustomersListPage() {
   const fmt = (v?: string | null) => (v && v.trim() !== "" ? v : "—");
   const fmtDate = (iso?: string | null) => {
     if (!iso) return "—";
-    try { return new Date(iso).toLocaleDateString("th-TH"); } catch { return "—"; }
+    const d = /\d{4}-\d{2}-\d{2}$/.test(iso) ? new Date(`${iso}T00:00:00`) : new Date(iso);
+    if (isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("th-TH");
   };
-  const fmtGender = (g?: Gender | null) => g === "M" ? "ชาย" : g === "F" ? "หญิง" : g ? "อื่น ๆ" : "—";
+  const fmtGender = (g?: GenderAPI | null) => g === "MALE" ? "ชาย" : g === "FEMALE" ? "หญิง" : g ? "อื่น ๆ" : "—";
   const fmtMarital = (m?: MaritalStatus | null) =>
     m === "SINGLE" ? "โสด" :
     m === "MARRIED" ? "สมรส" :
     m === "DIVORCED" ? "หย่า" :
     m === "WIDOWED" ? "หม้าย" : "—";
 
+const mapCustomer = (c: ApiCustomer): Customer => ({
+  username: c.username,
+  firstName: c.firstName,
+  lastName: c.lastName,
+  gender: c.gender ?? null,
+  dateOfBirth: c.dateOfBirth ?? null,
+  phoneNumber: c.phoneNumber,
+  gmail: c.gmail,
+
+  healthInfo: c.healthInfo || null,
+  address: c.address || null,
+  companyName: c.companyName || null,
+  companyPosition: c.companyPosition || null,
+  maritalStatus: (c.maritalStatus ?? null) as MaritalStatus | null,
+  emergencyContactName: c.emergencyContactName || null,
+  emergencyContactRelationship: c.emergencyContactRelationship || null,
+  emergencyContactPhone: c.emergencyContactPhone || null,
+  marketingSource: c.marketingSource || null,
+
+  isActive: c.isActive?.Valid ? c.isActive.Bool : false,
+});
+  // โหลดข้อมูลจาก BE
+  const fetchPage = React.useCallback(async () => {
+    setLoading(true);
+    const currentPage = page + 1; // API 1-based
+    try {
+      const res = await fetch(`${API_BASE}/api/customers?page=${currentPage}&limit=${rowsPerPage}`, {
+        method: "GET",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const body = (await res.json().catch(() => ({}))) as Partial<ApiResponse>;
+      if (!res.ok) {
+        throw new Error(body?.message || `โหลดข้อมูลล้มเหลว (HTTP ${res.status})`);
+      }
+
+      const items = Array.isArray(body?.data) ? body!.data : [];
+      setRows(items.map(mapCustomer));
+      setTotalItems(body?.meta?.total_items ?? items.length);
+    } catch (e: unknown) {
+      setSnack({ open: true, msg: errorMessage(e) || "Network error", severity: "error" });
+      setRows([]);
+      setTotalItems(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, rowsPerPage, setSnack]);
+
+  React.useEffect(() => {
+    fetchPage();
+  }, [fetchPage]);
+
+  // sort ชื่อภายในหน้า
   const sorted = React.useMemo(() => {
     const arr = [...rows];
     arr.sort((a, b) => {
@@ -95,39 +180,55 @@ export default function CustomersListPage() {
     return arr;
   }, [rows, order]);
 
-  const paged = React.useMemo(
-    () => sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-    [sorted, page, rowsPerPage]
-  );
-
   const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
   const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLInputElement>) => {
     setRowsPerPage(parseInt(e.target.value, 10));
     setPage(0);
   };
 
+  // ไปหน้าแก้ไขแบบ dynamic segment: /admin/customer-management/edit/[u]
   const goEdit = (u: Customer) =>
-    router.push(`/admin/customer-management/edit?u=${encodeURIComponent(u.username)}`);
+    router.push(`/admin/customer-management/edit/${encodeURIComponent(u.username)}`);
 
-  const askDelete = (u: Customer) => {
-    setTargetUser(u);
-    setConfirmOpen(true);
-  };
+  const askDelete = (u: Customer) => { setTargetUser(u); setConfirmOpen(true); };
 
-  const handleConfirmDelete = () => {
-    if (targetUser) {
-      setRows((prev) => prev.filter((r) => r.username !== targetUser.username));
-      // ✅ แจ้งผ่าน SnackProvider ตามมาตรฐานโปรเจ็กต์
-      setSnack({
-        open: true,
-        msg: `Username: ${targetUser.username} deleted successfully`,
-        severity: "success",
+  // DELETE /api/customers/:username
+  const handleConfirmDelete = async () => {
+    if (!targetUser) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/customers/${encodeURIComponent(targetUser.username)}`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
       });
+
+      let msg = `Username: ${targetUser.username} deleted successfully`;
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        throw new Error(err?.message || `Delete failed (HTTP ${res.status})`);
+      } else if (res.status !== 204) {
+        const body = (await res.json().catch(() => ({}))) as { message?: string };
+        if (body?.message) msg = body.message;
+      }
+
+      setSnack({ open: true, msg, severity: "success" });
+      setConfirmOpen(false);
+      setTargetUser(null);
+
+      // ถ้าลบแถวสุดท้ายของหน้าและไม่ใช่หน้าแรก → ถอยหน้าลง 1 ก่อนค่อยรีเฟช
+      if (rows.length === 1 && page > 0) {
+        setPage((p) => p - 1);
+      } else {
+        await fetchPage();
+      }
+    } catch (e: unknown) {
+      setSnack({ open: true, msg: errorMessage(e) || "Delete failed", severity: "error" });
+      setConfirmOpen(false);
+      setTargetUser(null);
     }
-    setConfirmOpen(false);
-    setTargetUser(null);
   };
 
+  // --- UI ---
   return (
     <Box sx={{ p: { xs: 2, md: 3 } }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }} gap={2} flexWrap="wrap">
@@ -156,7 +257,15 @@ export default function CustomersListPage() {
           </TableHead>
 
           <TableBody>
-            {paged.map((u) => (
+            {loading && (
+              <TableRow>
+                <TableCell colSpan={COLUMNS.length + 1} align="center" sx={{ py: 6 }}>
+                  <CircularProgress size={28} />
+                </TableCell>
+              </TableRow>
+            )}
+
+            {!loading && sorted.map((u) => (
               <TableRow key={u.username} hover>
                 <TableCell>{fmt(u.firstName)}</TableCell>
                 <TableCell>{fmt(u.lastName)}</TableCell>
@@ -199,13 +308,12 @@ export default function CustomersListPage() {
               </TableRow>
             ))}
 
-            {paged.length === 0 && (
+            {!loading && sorted.length === 0 && (
               <TableRow>
                 <TableCell colSpan={COLUMNS.length + 1} align="center" sx={{ py: 6, color: "text.secondary" }}>
                   ไม่พบข้อมูล
                 </TableCell>
-              </TableRow>
-            )}
+              </TableRow>)}
           </TableBody>
         </Table>
       </TableContainer>
@@ -213,7 +321,7 @@ export default function CustomersListPage() {
       <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
         <TablePagination
           component="div"
-          count={sorted.length}
+          count={totalItems}
           page={page}
           onPageChange={handleChangePage}
           rowsPerPage={rowsPerPage}
@@ -228,7 +336,7 @@ export default function CustomersListPage() {
         title="ยืนยันการลบลูกค้า"
         message={
           targetUser
-            ? `Warning: Deleting this customer will permanently remove all associated data (memberships, sessions, logs, etc.). Are you sure you want to delete customer: ${targetUser.username}?`
+            ? <>Warning: การลบจะลบข้อมูลที่เกี่ยวข้องทั้งหมดด้วย<br/>ยืนยันลบลูกค้า: <b>{targetUser.username}</b> ?</>
             : ""
         }
         confirmText="Confirm"
@@ -237,4 +345,10 @@ export default function CustomersListPage() {
       />
     </Box>
   );
+}
+
+// ---------- utils (UI-only) ----------
+function errorMessage(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  try { return JSON.stringify(e); } catch { return String(e); }
 }
