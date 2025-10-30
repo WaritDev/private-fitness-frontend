@@ -62,15 +62,12 @@ function roleTabs(role: Role): NavItem[] {
   }
   if (role === 'SALES') {
     return [
-      { href: '/', label: 'หน้าแรก', tab: true },
-      { href: '/products', label: 'คอร์ส', tab: true },
+      { href: '/sales/products', label: 'Packages', tab: true },
     ];
   }
   // ยังไม่ล็อกอิน
   return [
-    { href: '/', label: 'หน้าแรก', tab: true },
-    { href: '/courses', label: 'คอร์ส', tab: true },
-    { href: '/plans', label: 'แพ็กเกจ', tab: true },
+    { href: '/', label: 'Home', tab: true },
   ];
 }
 
@@ -265,7 +262,7 @@ export default function InternalNavbar(): React.JSX.Element {
         <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Avatar src="/profile-icon.png" alt="profile" sx={{ width: 40, height: 40 }} />
           <Box>
-            <Typography fontWeight={600}>{user?.name ?? 'ผู้เยี่ยมชม'}</Typography>
+            <Typography fontWeight={600}>{user?.firstName ?? 'ผู้เยี่ยมชม'}</Typography>
             <Typography variant="caption" color="text.secondary">
               {role ?? 'GUEST'}
             </Typography>

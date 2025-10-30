@@ -80,27 +80,36 @@ export default function LoginPage() {
 
       const data = await response.json();
 
-      if (response.ok && data.status === 'success') {
-        // Login สำเร็จ - Backend อัปเดต Updated_At (Q0S.2) แล้ว
-        const user = data.result.user;
+      // Golang Backend ใช้ status: "OK"
+      if (response.ok && data.status === 'OK') {
+        // Login สำเร็จ - Backend อัปเดต Updated_At แล้ว
+        const user = data.result?.user;
+        
+        if (!user || !user.role) {
+          console.error('User data not found in response:', data);
+          setErrors({ form: 'Invalid response from server' });
+          return;
+        }
+
+        // Step 9: Redirect ไปยัง Landing Page ตาม Role
+        const targetPath = defaultPathForRole(user.role);
+        console.log('Redirecting to:', targetPath);
 
         // แสดง Pop-up ข้อความสำเร็จ
         setSnack({
           open: true,
-          msg: `เข้าสู่ระบบสำเร็จ ✅ ยินดีต้อนรับ คุณ ${user.firstName}!`,
+          msg: `เข้าสู่ระบบสำเร็จ ✅ ยินดีต้อนรับ คุณ ${user.firstName || user.first_name || username}!`,
           severity: 'success',
         });
 
-        // Step 9: Redirect ไปยัง Landing Page ตาม Role
-        const targetPath = defaultPathForRole(user.role);
-        
-        // Delay เล็กน้อยเพื่อให้เห็น Snackbar
+        // Redirect ทันที (Snackbar จะแสดงในหน้าใหม่)
         setTimeout(() => {
-          router.replace(targetPath);
-        }, 500);
+          window.location.href = targetPath;
+        }, 1500);
 
       } else {
         // Step 6-7: Database Validation Failed
+        console.error('Login failed:', data);
         handleLoginError(data.message || 'Login failed');
       }
 

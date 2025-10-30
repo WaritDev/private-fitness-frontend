@@ -2,6 +2,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AuthContextValue, AuthUser, UserRole } from '../types/users';
 
+// Backend API Base URL
+const API_BASE_URL = 'http://localhost:8000';
+
 const AuthContext = createContext<AuthContextValue>({
   user: null,
   loading: true,
@@ -21,18 +24,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let alive = true;
     (async () => {
       try {
-        const res = await fetch('/api/auth/me', { credentials: 'include' });
+        // เรียก Golang Backend API แทน Next.js API
+        const res = await fetch(`${API_BASE_URL}/api/auth/me`, { 
+          credentials: 'include', // ส่ง cookie pf_auth ไปด้วย
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
         if (res.ok) {
           const data = await res.json();
-          if (alive && data?.authenticated && data?.user?.role) {
-            setUser(data.user as AuthUser);
+          
+          // รองรับ response structure จาก Golang
+          if (alive && data?.result?.authenticated && data?.result?.user) {
+            const backendUser = data.result.user;
+            
+            // แปลง field names จาก backend → AuthUser type
+            const authUser: AuthUser = {
+              sub: backendUser.sub || backendUser.username,
+              role: backendUser.role as UserRole,
+              firstName: backendUser.firstName || backendUser.first_name,
+              lastName: backendUser.lastName || backendUser.last_name,
+              email: backendUser.email || backendUser.gmail,
+            };
+            
+            setUser(authUser);
           } else {
             setUser(null);
           }
         } else {
           setUser(null);
         }
-      } catch {
+      } catch (error) {
+        console.error('Auth check error:', error);
         setUser(null);
       } finally {
         if (alive) setLoading(false);

@@ -33,14 +33,24 @@ export const SnackProvider: React.FC<React.PropsWithChildren> = ({ children }) =
       {children}
       <Snackbar
         open={snack.open}
-        autoHideDuration={2500}
+        autoHideDuration={3000}
         onClose={() => setSnack((s) => ({ ...s, open: false }))}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        sx={{ mt: 2 }}
       >
         <Alert
           severity={snack.severity}
           variant="filled"
           onClose={() => setSnack((s) => ({ ...s, open: false }))}
+          sx={{
+            minWidth: 400,
+            fontSize: '1rem',
+            fontWeight: 500,
+            boxShadow: 3,
+            '& .MuiAlert-icon': {
+              fontSize: '1.5rem',
+            },
+          }}
         >
           {snack.msg}
         </Alert>
