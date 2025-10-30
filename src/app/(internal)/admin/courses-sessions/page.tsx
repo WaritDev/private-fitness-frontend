@@ -2,346 +2,291 @@
 
 import * as React from "react";
 import {
-    Box,
-    Stack,
-    Typography,
-    Button,
-    IconButton,
-    Tooltip,
-    TextField,
-    InputAdornment,
-    MenuItem,
-    Select,
-    FormControl,
-    InputLabel,
-    Table,
-    TableHead,
-    TableBody,
-    TableRow,
-    TableCell,
-    TableContainer,
-    Paper,
-    TableSortLabel,
-    TablePagination,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
+  Box, Paper, Stack, Typography,
+  Table, TableHead, TableBody, TableRow, TableCell, TableContainer,
+  TablePagination, IconButton, Tooltip, Chip
 } from "@mui/material";
-import { SelectChangeEvent } from "@mui/material/Select";
-import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import SearchIcon from "@mui/icons-material/Search";
+import { useRouter } from "next/navigation";
+import ConfirmDialog from "@/components/pop-up/ConfirmDialog";
+import { useSnack } from "@/components/snack/SnackProvider";
 
-const PRIMARY = { main: "#38E07A", dark: "#2fbb65" };
+type Status = "ACTIVE" | "EXPIRED" | "FROZEN" | "CANCELLED";
 
-type Order = "asc" | "desc";
-type Status = "Active" | "Completed" | "Cancelled";
-type FilterStatus = "All" | Status;
+type SessionCourseRow = {
+  Session_Id: number;
+  Customer_Username: string;
+  Customer_First_Name: string;
+  Customer_Last_Name: string;
+  Trainer_Username: string;
+  Trainer_First_Name: string;
+  Trainer_Last_Name: string;
+  Product_Id: string;
+  Product_Name: string;
+  Product_Type: "SESSION" | "DURATION";
+  Product_Category: string;
+  Session_Amount: number;            // จำนวน Session ในสินค้า
+  Sales_Username: string;
+  Purchase_Date: string;             // YYYY-MM-DD
+  Total_Sessions: number;            // รวม Session สิทธิ์
+  Used_Sessions: number;             // ใช้ไปแล้ว
+  Price_Paid: number;                // หน่วยเป็นสกุลเงินย่อย/บาทก็ได้ตามที่เก็บ
+  Discount_Amount: number;
+  Status: Status;
+};
 
-interface Session {
-    id: number;
-    customer: string;
-    trainer: string;
-    sessionType: string;   // เช่น "Yoga", "Weight Training"
-    date: string;          // ISO date YYYY-MM-DD
-    time: string;          // HH:mm
-    status: Status;
-}
-
-const MOCK: Session[] = [
-    { id: 1, customer: "Somchai Prasert", trainer: "Trainer A", sessionType: "Yoga", date: "2025-10-20", time: "09:00", status: "Active" },
-    { id: 2, customer: "Warunee Boonmee", trainer: "Trainer B", sessionType: "HIIT", date: "2025-10-21", time: "14:00", status: "Completed" },
-    { id: 3, customer: "Arthit Meechai", trainer: "Trainer C", sessionType: "Weight Training", date: "2025-10-22", time: "16:00", status: "Cancelled" },
+const MOCK_ROWS: SessionCourseRow[] = [
+  {
+    Session_Id: 5012,
+    Customer_Username: "c.noon",
+    Customer_First_Name: "Noon",
+    Customer_Last_Name: "Nita",
+    Trainer_Username: "krit.t",
+    Trainer_First_Name: "Krit",
+    Trainer_Last_Name: "Tana",
+    Product_Id: "PT12",
+    Product_Name: "PT 12 Sessions",
+    Product_Type: "SESSION",
+    Product_Category: "PT",
+    Session_Amount: 12,
+    Sales_Username: "pam.s",
+    Purchase_Date: "2025-10-20",
+    Total_Sessions: 12,
+    Used_Sessions: 3,
+    Price_Paid: 8900,
+    Discount_Amount: 500,
+    Status: "ACTIVE",
+  },
+  {
+    Session_Id: 5011,
+    Customer_Username: "c.ploy",
+    Customer_First_Name: "Ploy",
+    Customer_Last_Name: "Kawin",
+    Trainer_Username: "alice.b",
+    Trainer_First_Name: "Alice",
+    Trainer_Last_Name: "Brown",
+    Product_Id: "YOGA8",
+    Product_Name: "Yoga 8 Sessions",
+    Product_Type: "SESSION",
+    Product_Category: "YOGA",
+    Session_Amount: 8,
+    Sales_Username: "bob.c",
+    Purchase_Date: "2025-10-15",
+    Total_Sessions: 8,
+    Used_Sessions: 8,
+    Price_Paid: 4200,
+    Discount_Amount: 0,
+    Status: "EXPIRED",
+  },
+  {
+    Session_Id: 5010,
+    Customer_Username: "c.oak",
+    Customer_First_Name: "Oak",
+    Customer_Last_Name: "Rit",
+    Trainer_Username: "mark.l",
+    Trainer_First_Name: "Mark",
+    Trainer_Last_Name: "Lee",
+    Product_Id: "HIIT6",
+    Product_Name: "HIIT 6 Sessions",
+    Product_Type: "SESSION",
+    Product_Category: "HIIT",
+    Session_Amount: 6,
+    Sales_Username: "fon.w",
+    Purchase_Date: "2025-10-10",
+    Total_Sessions: 6,
+    Used_Sessions: 2,
+    Price_Paid: 3000,
+    Discount_Amount: 100,
+    Status: "FROZEN",
+  },
 ];
 
-export default function AdminSessions(): React.JSX.Element {
-    const [rows, setRows] = React.useState<Session[]>(MOCK);
-    const [search, setSearch] = React.useState<string>("");
-    const [statusFilter, setStatusFilter] = React.useState<FilterStatus>("All");
-    const [order, setOrder] = React.useState<Order>("asc");
-    const [orderBy, setOrderBy] = React.useState<keyof Session>("date");
-    const [page, setPage] = React.useState<number>(0);
-    const [rowsPerPage, setRowsPerPage] = React.useState<number>(5);
+const COLUMNS = [
+  { key: "Session_Id", label: "Session ID" },
+  { key: "Customer_Username", label: "Customer" },
+  { key: "Trainer_Username", label: "Trainer" },
+  { key: "Product_Name", label: "Product" },
+  { key: "Session_Amount", label: "Session/Pack" },
+  { key: "Total_Sessions", label: "Total" },
+  { key: "Used_Sessions", label: "Used" },
+  { key: "Remaining_Sessions", label: "Remaining" },
+  { key: "Price_Paid", label: "Paid" },
+  { key: "Discount_Amount", label: "Discount" },
+  { key: "Status", label: "Status" },
+] as const;
 
-    const [openEdit, setOpenEdit] = React.useState<Session | null>(null);
+export default function CustomerSessionCoursesPage(): React.JSX.Element {
+  const router = useRouter();
+  const { setSnack } = useSnack();
 
-    // --- derived data ---
-    const filtered: Session[] = rows.filter((s) => {
-        const q = search.toLowerCase();
-        const hit =
-        s.customer.toLowerCase().includes(q) ||
-        s.trainer.toLowerCase().includes(q) ||
-        s.sessionType.toLowerCase().includes(q);
-        const okStatus = statusFilter === "All" ? true : s.status === statusFilter;
-        return hit && okStatus;
-    });
+  const [rows, setRows] = React.useState<SessionCourseRow[]>(
+    [...MOCK_ROWS].sort((a, b) => b.Session_Id - a.Session_Id) // แทน ORDER BY Created_At DESC, Session_Id DESC (mock)
+  );
+  const [page, setPage] = React.useState(0);             // PageIndex เริ่ม 0
+  const [rowsPerPage, setRowsPerPage] = React.useState(10); // PageSize = 10
 
-    const sorted: Session[] = [...filtered].sort((a, b) => {
-        const av = String(a[orderBy] ?? "").toLowerCase();
-        const bv = String(b[orderBy] ?? "").toLowerCase();
-        const cmp = av.localeCompare(bv);
-        return order === "asc" ? cmp : -cmp;
-    });
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const [target, setTarget] = React.useState<SessionCourseRow | null>(null);
 
-    const paged: Session[] = sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  const fmtBaht = (n: number) =>
+    new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", maximumFractionDigits: 0 }).format(n);
 
-    // --- handlers ---
-    const handleRequestSort = (key: keyof Session): void => {
-        const isAsc = orderBy === key && order === "asc";
-        setOrder(isAsc ? "desc" : "asc");
-        setOrderBy(key);
-    };
+  const paged = React.useMemo(
+    () => rows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [rows, page, rowsPerPage]
+  );
 
-    const handleChangePage = (_: React.MouseEvent<HTMLButtonElement> | null, newPage: number): void => {
-        setPage(newPage);
-    };
+  const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
+  const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(e.target.value, 10));
+    setPage(0);
+  };
 
-    const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLInputElement>): void => {
-        setRowsPerPage(parseInt(e.target.value, 10));
-        setPage(0);
-    };
+  const remaining = (r: SessionCourseRow) => r.Total_Sessions - r.Used_Sessions;
 
-    const onChangeStatusFilter = (e: SelectChangeEvent<FilterStatus>): void => {
-        setStatusFilter(e.target.value as FilterStatus);
-        setPage(0);
-    };
+  const goEdit = (r: SessionCourseRow) => {
+    router.push(`/admin/courses-sessions/edit?id=${encodeURIComponent(String(r.Session_Id))}`);
+  };
 
-    const softDelete = (id: number): void => {
-        setRows((prev) => prev.filter((r) => r.id !== id));
-    };
+  const askDelete = (r: SessionCourseRow) => {
+    setTarget(r);
+    setConfirmOpen(true);
+  };
 
-    // --- UI ---
-    return (
-        <Box sx={{ p: 3 }}>
-        {/* Header */}
-        <Stack
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-            gap={2}
-            flexWrap="wrap"
-            sx={{ mb: 2 }}
-        >
-            <Typography variant="h5" fontWeight={400}>
-            จัดการข้อมูลคอร์ส Sessions ของลูกค้า
-            </Typography>
-            <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            sx={{ backgroundColor: PRIMARY.main, "&:hover": { backgroundColor: PRIMARY.dark } }}
-            onClick={() =>
-                setOpenEdit({
-                id: 0,
-                customer: "",
-                trainer: "",
-                sessionType: "",
-                date: new Date().toISOString().slice(0, 10),
-                time: "09:00",
-                status: "Active",
-                })
-            }
-            >
-            เพิ่ม Session
-            </Button>
-        </Stack>
+  const handleConfirmDelete = () => {
+    if (target) {
+      setRows(prev => prev.filter(x => x.Session_Id !== target.Session_Id));
+      setSnack({
+        open: true,
+        msg: `Session: ${target.Session_Id} deleted successfully`,
+        severity: "success",
+      });
+    }
+    setConfirmOpen(false);
+    setTarget(null);
+  };
 
-        {/* Filters */}
-        <Stack direction={{ xs: "column", sm: "row" }} gap={2} sx={{ mb: 2 }}>
-            <TextField
-            placeholder="ค้นหาลูกค้า / เทรนเนอร์ / ประเภทคอร์ส"
-            size="small"
-            fullWidth
-            value={search}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                setSearch(e.target.value);
-                setPage(0);
-            }}
-            InputProps={{
-                startAdornment: (
-                <InputAdornment position="start">
-                    <SearchIcon />
-                </InputAdornment>
-                ),
-            }}
-            />
-            <FormControl size="small" sx={{ minWidth: 180 }}>
-            <InputLabel id="statusFilterLabel">สถานะ</InputLabel>
-            <Select<FilterStatus>
-                labelId="statusFilterLabel"
-                label="สถานะ"
-                value={statusFilter}
-                onChange={onChangeStatusFilter}
-            >
-                <MenuItem value="All">ทั้งหมด</MenuItem>
-                <MenuItem value="Active">Active</MenuItem>
-                <MenuItem value="Completed">Completed</MenuItem>
-                <MenuItem value="Cancelled">Cancelled</MenuItem>
-            </Select>
-            </FormControl>
-        </Stack>
+  return (
+    <Box sx={{ p: { xs: 2, md: 3 } }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }} gap={2} flexWrap="wrap">
+        <Typography variant="h5" fontWeight={400}>Customer Session Courses</Typography>
+      </Stack>
 
-        {/* Table */}
-        <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
-            <Table>
-            <TableHead>
-                <TableRow>
-                {(
-                    [
-                    { key: "customer", label: "ลูกค้า" },
-                    { key: "trainer", label: "เทรนเนอร์" },
-                    { key: "sessionType", label: "ประเภทคอร์ส" },
-                    { key: "date", label: "วันที่" },
-                    { key: "time", label: "เวลา" },
-                    { key: "status", label: "สถานะ" },
-                    ] as const
-                ).map((col) => (
-                    <TableCell key={col.key} sx={{ fontWeight: 500 }}>
-                    <TableSortLabel
-                        active={orderBy === (col.key as keyof Session)}
-                        direction={orderBy === (col.key as keyof Session) ? order : "asc"}
-                        onClick={() => handleRequestSort(col.key as keyof Session)}
-                    >
-                        {col.label}
-                    </TableSortLabel>
-                    </TableCell>
-                ))}
-                <TableCell sx={{ fontWeight: 500, width: 160 }}>การจัดการ</TableCell>
-                </TableRow>
-            </TableHead>
+      <TableContainer component={Paper} sx={{ borderRadius: 3, overflowX: "auto" }}>
+        <Table stickyHeader>
+          <TableHead>
+            <TableRow>
+              {COLUMNS.map((c) => (
+                <TableCell key={c.key as string} sx={{ fontWeight: 600, whiteSpace: "nowrap" }}>
+                  {c.label}
+                </TableCell>
+              ))}
+              <TableCell sx={{ fontWeight: 600, whiteSpace: "nowrap", width: 140 }}>การจัดการ</TableCell>
+            </TableRow>
+          </TableHead>
 
-            <TableBody>
-                {paged.map((s) => (
-                <TableRow key={s.id} hover>
-                    <TableCell>{s.customer}</TableCell>
-                    <TableCell>{s.trainer}</TableCell>
-                    <TableCell>{s.sessionType}</TableCell>
-                    <TableCell>{s.date}</TableCell>
-                    <TableCell>{s.time}</TableCell>
-                    <TableCell>{s.status}</TableCell>
-                    <TableCell>
-                    <Stack direction="row" spacing={1}>
-                        <Tooltip title="แก้ไข">
-                        <IconButton size="small" color="primary" onClick={() => setOpenEdit(s)}>
-                            <EditIcon fontSize="small" />
-                        </IconButton>
-                        </Tooltip>
-                        <Tooltip title="ลบ">
-                        <IconButton size="small" color="error" onClick={() => softDelete(s.id)}>
-                            <DeleteIcon fontSize="small" />
-                        </IconButton>
-                        </Tooltip>
-                    </Stack>
-                    </TableCell>
-                </TableRow>
-                ))}
-
-                {paged.length === 0 && (
-                <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 6, color: "text.secondary" }}>
-                    ไม่พบข้อมูล
-                    </TableCell>
-                </TableRow>
-                )}
-            </TableBody>
-            </Table>
-
-            <TablePagination
-            component="div"
-            count={sorted.length}
-            page={page}
-            onPageChange={handleChangePage}
-            rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-            rowsPerPageOptions={[5, 10, 25]}
-            />
-        </TableContainer>
-
-        {/* Add/Edit Dialog */}
-        <Dialog open={openEdit !== null} onClose={() => setOpenEdit(null)} maxWidth="sm" fullWidth>
-            <DialogTitle>{openEdit && openEdit.id ? "แก้ไข Session" : "เพิ่ม Session"}</DialogTitle>
-            <DialogContent>
-            <Stack gap={2} sx={{ mt: 1 }}>
-                <TextField
-                label="ชื่อลูกค้า"
-                value={openEdit?.customer ?? ""}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setOpenEdit((v) => (v ? { ...v, customer: e.target.value } : v))
-                }
-                fullWidth
-                />
-                <TextField
-                label="เทรนเนอร์"
-                value={openEdit?.trainer ?? ""}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setOpenEdit((v) => (v ? { ...v, trainer: e.target.value } : v))
-                }
-                fullWidth
-                />
-                <TextField
-                label="ประเภทคอร์ส"
-                value={openEdit?.sessionType ?? ""}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setOpenEdit((v) => (v ? { ...v, sessionType: e.target.value } : v))
-                }
-                fullWidth
-                />
-                <Stack direction={{ xs: "column", sm: "row" }} gap={2}>
-                <TextField
-                    label="วันที่ (YYYY-MM-DD)"
-                    value={openEdit?.date ?? ""}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setOpenEdit((v) => (v ? { ...v, date: e.target.value } : v))
+          <TableBody>
+            {paged.map((r) => (
+              <TableRow key={r.Session_Id} hover>
+                <TableCell>{r.Session_Id}</TableCell>
+                <TableCell>
+                  {r.Customer_First_Name} {r.Customer_Last_Name}
+                  <Typography variant="caption" display="block" color="text.secondary">
+                    {r.Customer_Username}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  {r.Trainer_First_Name} {r.Trainer_Last_Name}
+                  <Typography variant="caption" display="block" color="text.secondary">
+                    {r.Trainer_Username}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  {r.Product_Name}
+                  <Typography variant="caption" display="block" color="text.secondary">
+                    {r.Product_Category} • {r.Product_Type}
+                  </Typography>
+                </TableCell>
+                <TableCell>{r.Session_Amount}</TableCell>
+                <TableCell>{r.Total_Sessions}</TableCell>
+                <TableCell>{r.Used_Sessions}</TableCell>
+                <TableCell>
+                  <Chip
+                    size="small"
+                    label={remaining(r)}
+                    color={remaining(r) > 0 ? "success" : "default"}
+                    variant="outlined"
+                  />
+                </TableCell>
+                <TableCell>{fmtBaht(r.Price_Paid)}</TableCell>
+                <TableCell>{fmtBaht(r.Discount_Amount)}</TableCell>
+                <TableCell>
+                  <Chip
+                    size="small"
+                    label={r.Status}
+                    color={
+                      r.Status === "ACTIVE" ? "success" :
+                      r.Status === "FROZEN" ? "warning" :
+                      r.Status === "CANCELLED" ? "error" : "default"
                     }
-                    fullWidth
-                />
-                <TextField
-                    label="เวลา (HH:mm)"
-                    value={openEdit?.time ?? ""}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setOpenEdit((v) => (v ? { ...v, time: e.target.value } : v))
-                    }
-                    fullWidth
-                />
-                </Stack>
-                <FormControl fullWidth>
-                <InputLabel id="statusLabel">สถานะ</InputLabel>
-                <Select<Status>
-                    labelId="statusLabel"
-                    label="สถานะ"
-                    value={openEdit?.status ?? "Active"}
-                    onChange={(e: SelectChangeEvent<Status>) =>
-                    setOpenEdit((v) => (v ? { ...v, status: e.target.value as Status } : v))
-                    }
-                >
-                    <MenuItem value="Active">Active</MenuItem>
-                    <MenuItem value="Completed">Completed</MenuItem>
-                    <MenuItem value="Cancelled">Cancelled</MenuItem>
-                </Select>
-                </FormControl>
-            </Stack>
-            </DialogContent>
-            <DialogActions>
-            <Button onClick={() => setOpenEdit(null)}>ยกเลิก</Button>
-            <Button
-                variant="contained"
-                sx={{ backgroundColor: PRIMARY.main, "&:hover": { backgroundColor: PRIMARY.dark } }}
-                onClick={() => {
-                if (!openEdit) return;
-                if (openEdit.id === 0) {
-                    const nextId = Math.max(0, ...rows.map((r) => r.id)) + 1;
-                    setRows((prev) => [{ ...openEdit, id: nextId }, ...prev]);
-                } else {
-                    setRows((prev) => prev.map((r) => (r.id === openEdit.id ? openEdit : r)));
-                }
-                setOpenEdit(null);
-                }}
-            >
-                บันทึก
-            </Button>
-            </DialogActions>
-        </Dialog>
-        </Box>
-    );
+                    variant="outlined"
+                  />
+                </TableCell>
+
+                <TableCell>
+                  <Stack direction="row" spacing={1}>
+                    <Tooltip title="แก้ไข">
+                      <IconButton size="small" color="primary" onClick={() => goEdit(r)}>
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="ลบ">
+                      <IconButton size="small" color="error" onClick={() => askDelete(r)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Stack>
+                </TableCell>
+              </TableRow>
+            ))}
+
+            {paged.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={COLUMNS.length + 1} align="center" sx={{ py: 6, color: "text.secondary" }}>
+                  ไม่พบข้อมูล
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+
+        {/* pagination แบบเดียวกับที่ระบุ */}
+        <TablePagination
+          component="div"
+          count={rows.length}
+          page={page}
+          onPageChange={handleChangePage}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          rowsPerPageOptions={[10]}
+        />
+      </TableContainer>
+
+      {/* Confirm Delete */}
+      <ConfirmDialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        title="ยืนยันการลบ Session Course"
+        message={
+          target
+            ? `Warning: Deleting this session course (ID: ${target.Session_Id}) for customer ${target.Customer_Username} is permanent. Continue?`
+            : ""
+        }
+        confirmText="Confirm"
+        cancelText="Cancel"
+        onConfirm={handleConfirmDelete}
+      />
+    </Box>
+  );
 }
