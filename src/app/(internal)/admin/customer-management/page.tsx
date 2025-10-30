@@ -2,105 +2,185 @@
 
 import * as React from "react";
 import {
-  Box,
-  Stack,
-  Typography,
-  Button,
-  IconButton,
-  Tooltip,
-  TextField,
-  InputAdornment,
-  MenuItem,
-  Select,
-  FormControl,
-  InputLabel,
-  Table,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableCell,
-  TableContainer,
-  Paper,
-  TableSortLabel,
-  TablePagination,
-  Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Box, Stack, Typography,
+  Table, TableHead, TableBody, TableRow, TableCell, TableContainer, Paper,
+  TableSortLabel, TablePagination, Chip, IconButton, Tooltip, CircularProgress
 } from "@mui/material";
 import { SelectChangeEvent } from "@mui/material/Select";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import AcUnitIcon from "@mui/icons-material/AcUnit";
-import SearchIcon from "@mui/icons-material/Search";
-
-const PRIMARY = { main: "#38E07A", dark: "#2fbb65" };
+import { useRouter } from "next/navigation";
+import ConfirmDialog from "@/components/pop-up/ConfirmDialog";
+import { useSnack } from "@/components/snack/SnackProvider";
 
 type Order = "asc" | "desc";
-type Status = "Active" | "Suspended" | "Expired";
-type FilterStatus = "All" | Status;
+type GenderAPI = "MALE" | "FEMALE" | "OTHER";
+type MaritalStatus = "SINGLE" | "MARRIED" | "DIVORCED" | "WIDOWED";
 
-interface Customer {
-  id: number;
-  name: string;
-  email: string;
-  phone: string;
-  packageName: string; // current membership/package display
-  sessions?: number;   // remaining sessions if applicable
-  status: Status;
-  joinedAt: string;    // ISO date (YYYY-MM-DD)
-  expiresAt?: string;  // ISO date or undefined
-}
+type ApiCustomer = {
+  username: string;
+  firstName: string;
+  lastName: string;
+  gender: "MALE" | "FEMALE" | "OTHER";
+  dateOfBirth: string;            // ISO with TZ หรือ YYYY-MM-DD
+  phoneNumber: string;
+  gmail: string;
 
-const MOCK: Customer[] = [
-  { id: 1, name: "Somchai Prasert", email: "somchai@example.com", phone: "081-234-5678", packageName: "Monthly (30d)", status: "Active", joinedAt: "2025-09-01", expiresAt: "2025-10-01" },
-  { id: 2, name: "Warunee Boonmee", email: "warunee@example.com", phone: "089-999-8888", packageName: "10 Sessions", sessions: 6, status: "Active", joinedAt: "2025-08-20" },
-  { id: 3, name: "Arthit Meechai", email: "arthit@example.com", phone: "082-777-5555", packageName: "Monthly (30d)", status: "Suspended", joinedAt: "2025-07-10", expiresAt: "2025-08-10" },
-  { id: 4, name: "Nok Srikanya", email: "nok@example.com", phone: "064-333-2222", packageName: "PT 20 Sessions", sessions: 12, status: "Active", joinedAt: "2025-06-01" },
-  { id: 5, name: "Anon Yingsak", email: "anon@example.com", phone: "090-111-2222", packageName: "Monthly (30d)", status: "Expired", joinedAt: "2025-05-01", expiresAt: "2025-06-01" },
-];
+  // ⬇️ จาก ApiNullString → string ปกติ
+  healthInfo: string;
+  address: string;
+  companyName: string;
+  companyPosition: string;
+  maritalStatus: "SINGLE" | "MARRIED" | "DIVORCED" | "WIDOWED";
+  emergencyContactName: string;
+  emergencyContactRelationship: string;
+  emergencyContactPhone: string;
+  marketingSource: string;
 
-export default function AdminCustomers_NoGrid(): React.JSX.Element {
-  const [rows, setRows] = React.useState<Customer[]>(MOCK);
-  const [search, setSearch] = React.useState<string>("");
-  const [statusFilter, setStatusFilter] = React.useState<FilterStatus>("All");
+  // อันนี้ยังคงเป็น NullBool ตาม BE
+  isActive: { Bool: boolean; Valid: boolean };
+};
+
+type ApiResponse = {
+  data: ApiCustomer[];
+  meta: { page: number; limit: number; total_items: number; total_pages: number };
+  message?: string;
+};
+
+type Customer = {
+  username: string;
+  firstName: string;
+  lastName: string;
+  gender?: GenderAPI | null;
+  dateOfBirth?: string | null;
+  phoneNumber: string;
+  gmail: string;
+  healthInfo?: string | null;
+  address?: string | null;
+  companyName?: string | null;
+  companyPosition?: string | null;
+  maritalStatus?: MaritalStatus | null;
+  emergencyContactName?: string | null;
+  emergencyContactRelationship?: string | null;
+  emergencyContactPhone?: string | null;
+  marketingSource?: string | null;
+  isActive: boolean;
+};
+
+const COLUMNS = [
+  { key: "firstName", label: "ชื่อ", sortable: true },
+  { key: "lastName", label: "นามสกุล", sortable: false },
+  { key: "username", label: "Username", sortable: false },
+  { key: "gender", label: "เพศ", sortable: false },
+  { key: "dateOfBirth", label: "วันเกิด", sortable: false },
+  { key: "phoneNumber", label: "โทรศัพท์", sortable: false },
+  { key: "gmail", label: "Gmail", sortable: false },
+  { key: "healthInfo", label: "สุขภาพ", sortable: false },
+  { key: "address", label: "ที่อยู่", sortable: false },
+  { key: "companyName", label: "บริษัท", sortable: false },
+  { key: "companyPosition", label: "ตำแหน่ง", sortable: false },
+  { key: "maritalStatus", label: "สถานภาพสมรส", sortable: false },
+  { key: "emergencyContactName", label: "ผู้ติดต่อฉุกเฉิน", sortable: false },
+  { key: "emergencyContactRelationship", label: "ความสัมพันธ์", sortable: false },
+  { key: "emergencyContactPhone", label: "เบอร์ติดต่อฉุกเฉิน", sortable: false },
+  { key: "marketingSource", label: "ช่องทางการตลาด", sortable: false },
+  { key: "isActive", label: "สถานะ", sortable: false },
+] as const;
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+
+export default function CustomersListPage() {
+  const router = useRouter();
+  const { setSnack } = useSnack();
+
+  const [rows, setRows] = React.useState<Customer[]>([]);
+  const [totalItems, setTotalItems] = React.useState(0);
+
   const [order, setOrder] = React.useState<Order>("asc");
-  const [orderBy, setOrderBy] = React.useState<keyof Customer>("name");
-  const [page, setPage] = React.useState<number>(0);
-  const [rowsPerPage, setRowsPerPage] = React.useState<number>(5);
+  const [page, setPage] = React.useState(0);         // zero-based
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const [loading, setLoading] = React.useState(false);
 
-  // add/edit dialog state (mock form state lives here)
-  const [openEdit, setOpenEdit] = React.useState<Customer | null>(null);
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const [targetUser, setTargetUser] = React.useState<Customer | null>(null);
 
-  // --- derived data ---
-  const filtered: Customer[] = rows.filter((c) => {
-    const q = search.toLowerCase();
-    const hit =
-      c.name.toLowerCase().includes(q) ||
-      c.email.toLowerCase().includes(q) ||
-      c.phone.toLowerCase().includes(q);
-    const okStatus = statusFilter === "All" ? true : c.status === statusFilter;
-    return hit && okStatus;
-  });
-
-  const sorted: Customer[] = [...filtered].sort((a, b) => {
-    const av = String(a[orderBy] ?? "").toLowerCase();
-    const bv = String(b[orderBy] ?? "").toLowerCase();
-    const cmp = av.localeCompare(bv);
-    return order === "asc" ? cmp : -cmp;
-  });
-
-  const paged: Customer[] = sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-
-  // --- handlers ---
-  const handleRequestSort = (key: keyof Customer): void => {
-    const isAsc = orderBy === key && order === "asc";
-    setOrder(isAsc ? "desc" : "asc");
-    setOrderBy(key);
+  const fmt = (v?: string | null) => (v && v.trim() !== "" ? v : "—");
+  const fmtDate = (iso?: string | null) => {
+    if (!iso) return "—";
+    const d = /\d{4}-\d{2}-\d{2}$/.test(iso) ? new Date(`${iso}T00:00:00`) : new Date(iso);
+    if (isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("th-TH");
   };
+  const fmtGender = (g?: GenderAPI | null) => g === "MALE" ? "ชาย" : g === "FEMALE" ? "หญิง" : g ? "อื่น ๆ" : "—";
+  const fmtMarital = (m?: MaritalStatus | null) =>
+    m === "SINGLE" ? "โสด" :
+    m === "MARRIED" ? "สมรส" :
+    m === "DIVORCED" ? "หย่า" :
+    m === "WIDOWED" ? "หม้าย" : "—";
+
+const mapCustomer = (c: ApiCustomer): Customer => ({
+  username: c.username,
+  firstName: c.firstName,
+  lastName: c.lastName,
+  gender: c.gender ?? null,
+  dateOfBirth: c.dateOfBirth ?? null,
+  phoneNumber: c.phoneNumber,
+  gmail: c.gmail,
+
+  healthInfo: c.healthInfo || null,
+  address: c.address || null,
+  companyName: c.companyName || null,
+  companyPosition: c.companyPosition || null,
+  maritalStatus: (c.maritalStatus ?? null) as MaritalStatus | null,
+  emergencyContactName: c.emergencyContactName || null,
+  emergencyContactRelationship: c.emergencyContactRelationship || null,
+  emergencyContactPhone: c.emergencyContactPhone || null,
+  marketingSource: c.marketingSource || null,
+
+  isActive: c.isActive?.Valid ? c.isActive.Bool : false,
+});
+  // โหลดข้อมูลจาก BE
+  const fetchPage = React.useCallback(async () => {
+    setLoading(true);
+    const currentPage = page + 1; // API 1-based
+    try {
+      const res = await fetch(`${API_BASE}/api/customers?page=${currentPage}&limit=${rowsPerPage}`, {
+        method: "GET",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const body = (await res.json().catch(() => ({}))) as Partial<ApiResponse>;
+      if (!res.ok) {
+        throw new Error(body?.message || `โหลดข้อมูลล้มเหลว (HTTP ${res.status})`);
+      }
+
+      const items = Array.isArray(body?.data) ? body!.data : [];
+      setRows(items.map(mapCustomer));
+      setTotalItems(body?.meta?.total_items ?? items.length);
+    } catch (e: unknown) {
+      setSnack({ open: true, msg: errorMessage(e) || "Network error", severity: "error" });
+      setRows([]);
+      setTotalItems(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, rowsPerPage, setSnack]);
+
+  React.useEffect(() => {
+    fetchPage();
+  }, [fetchPage]);
+
+  // sort ชื่อภายในหน้า
+  const sorted = React.useMemo(() => {
+    const arr = [...rows];
+    arr.sort((a, b) => {
+      const cmp = a.firstName.localeCompare(b.firstName, "th");
+      return order === "asc" ? cmp : -cmp;
+    });
+    return arr;
+  }, [rows, order]);
 
   const handleChangePage = (_: React.MouseEvent<HTMLButtonElement> | null, newPage: number): void => {
     setPage(newPage);
@@ -111,21 +191,46 @@ export default function AdminCustomers_NoGrid(): React.JSX.Element {
     setPage(0);
   };
 
-  const onChangeStatusFilter = (e: SelectChangeEvent<FilterStatus>): void => {
-    setStatusFilter(e.target.value as FilterStatus);
-    setPage(0);
-  };
+  // ไปหน้าแก้ไขแบบ dynamic segment: /admin/customer-management/edit/[u]
+  const goEdit = (u: Customer) =>
+    router.push(`/admin/customer-management/edit/${encodeURIComponent(u.username)}`);
 
-  const softDelete = (id: number): void => {
-    setRows((prev) => prev.filter((r) => r.id !== id));
-  };
+  const askDelete = (u: Customer) => { setTargetUser(u); setConfirmOpen(true); };
 
-  const toggleFreeze = (id: number): void => {
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === id ? { ...r, status: r.status === "Suspended" ? "Active" : "Suspended" } : r
-      )
-    );
+  // DELETE /api/customers/:username
+  const handleConfirmDelete = async () => {
+    if (!targetUser) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/customers/${encodeURIComponent(targetUser.username)}`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      let msg = `Username: ${targetUser.username} deleted successfully`;
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        throw new Error(err?.message || `Delete failed (HTTP ${res.status})`);
+      } else if (res.status !== 204) {
+        const body = (await res.json().catch(() => ({}))) as { message?: string };
+        if (body?.message) msg = body.message;
+      }
+
+      setSnack({ open: true, msg, severity: "success" });
+      setConfirmOpen(false);
+      setTargetUser(null);
+
+      // ถ้าลบแถวสุดท้ายของหน้าและไม่ใช่หน้าแรก → ถอยหน้าลง 1 ก่อนค่อยรีเฟช
+      if (rows.length === 1 && page > 0) {
+        setPage((p) => p - 1);
+      } else {
+        await fetchPage();
+      }
+    } catch (e: unknown) {
+      setSnack({ open: true, msg: errorMessage(e) || "Delete failed", severity: "error" });
+      setConfirmOpen(false);
+      setTargetUser(null);
+    }
   };
 
   // --- UI ---
@@ -229,19 +334,32 @@ export default function AdminCustomers_NoGrid(): React.JSX.Element {
           </TableHead>
 
           <TableBody>
-            {paged.map((c) => (
-              <TableRow key={c.id} hover>
-                <TableCell>{c.name}</TableCell>
-                <TableCell>{c.phone}</TableCell>
-                <TableCell>{c.email}</TableCell>
-                <TableCell>
-                  {c.packageName}
-                  {typeof c.sessions === "number" && (
-                    <Typography component="span" sx={{ ml: 1 }} color="text.secondary">
-                      ({c.sessions} sessions left)
-                    </Typography>
-                  )}
+            {loading && (
+              <TableRow>
+                <TableCell colSpan={COLUMNS.length + 1} align="center" sx={{ py: 6 }}>
+                  <CircularProgress size={28} />
                 </TableCell>
+              </TableRow>
+            )}
+
+            {!loading && sorted.map((u) => (
+              <TableRow key={u.username} hover>
+                <TableCell>{fmt(u.firstName)}</TableCell>
+                <TableCell>{fmt(u.lastName)}</TableCell>
+                <TableCell>{u.username}</TableCell>
+                <TableCell>{fmtGender(u.gender)}</TableCell>
+                <TableCell>{fmtDate(u.dateOfBirth)}</TableCell>
+                <TableCell>{fmt(u.phoneNumber)}</TableCell>
+                <TableCell>{fmt(u.gmail)}</TableCell>
+                <TableCell>{fmt(u.healthInfo)}</TableCell>
+                <TableCell>{fmt(u.address)}</TableCell>
+                <TableCell>{fmt(u.companyName)}</TableCell>
+                <TableCell>{fmt(u.companyPosition)}</TableCell>
+                <TableCell>{fmtMarital(u.maritalStatus)}</TableCell>
+                <TableCell>{fmt(u.emergencyContactName)}</TableCell>
+                <TableCell>{fmt(u.emergencyContactRelationship)}</TableCell>
+                <TableCell>{fmt(u.emergencyContactPhone)}</TableCell>
+                <TableCell>{fmt(u.marketingSource)}</TableCell>
                 <TableCell>
                   <Chip
                     size="small"
@@ -285,119 +403,45 @@ export default function AdminCustomers_NoGrid(): React.JSX.Element {
               </TableRow>
             ))}
 
-            {paged.length === 0 && (
+            {!loading && sorted.length === 0 && (
               <TableRow>
                 <TableCell colSpan={8} align="center" sx={{ py: 6, color: "text.secondary" }}>
                   ไม่พบข้อมูล
                 </TableCell>
-              </TableRow>
-            )}
+              </TableRow>)}
           </TableBody>
         </Table>
 
         <TablePagination
           component="div"
-          count={sorted.length}
+          count={totalItems}
           page={page}
           onPageChange={handleChangePage}
           rowsPerPage={rowsPerPage}
           onRowsPerPageChange={handleChangeRowsPerPage}
           rowsPerPageOptions={[5, 10, 25]}
         />
-      </TableContainer>
+      </Box>
 
-      {/* Add/Edit Dialog (mock form) */}
-      <Dialog open={openEdit !== null} onClose={() => setOpenEdit(null)} maxWidth="sm" fullWidth>
-        <DialogTitle>{openEdit && openEdit.id ? "แก้ไขลูกค้า" : "เพิ่มลูกค้า"}</DialogTitle>
-        <DialogContent>
-          <Stack gap={2} sx={{ mt: 1 }}>
-            <TextField
-              label="ชื่อลูกค้า"
-              value={openEdit?.name ?? ""}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setOpenEdit((v) => (v ? { ...v, name: e.target.value } : v))
-              }
-              fullWidth
-            />
-            <TextField
-              label="อีเมล"
-              value={openEdit?.email ?? ""}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setOpenEdit((v) => (v ? { ...v, email: e.target.value } : v))
-              }
-              fullWidth
-            />
-            <TextField
-              label="เบอร์โทร"
-              value={openEdit?.phone ?? ""}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setOpenEdit((v) => (v ? { ...v, phone: e.target.value } : v))
-              }
-              fullWidth
-            />
-            <TextField
-              label="แพ็กเกจ/คอร์ส"
-              value={openEdit?.packageName ?? ""}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setOpenEdit((v) => (v ? { ...v, packageName: e.target.value } : v))
-              }
-              fullWidth
-            />
-            <Stack direction={{ xs: "column", sm: "row" }} gap={2}>
-              <TextField
-                label="วันที่เริ่ม (YYYY-MM-DD)"
-                value={openEdit?.joinedAt ?? ""}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setOpenEdit((v) => (v ? { ...v, joinedAt: e.target.value } : v))
-                }
-                fullWidth
-              />
-              <TextField
-                label="หมดอายุ (ถ้ามี)"
-                value={openEdit?.expiresAt ?? ""}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setOpenEdit((v) => (v ? { ...v, expiresAt: e.target.value } : v))
-                }
-                fullWidth
-              />
-            </Stack>
-            <FormControl fullWidth>
-              <InputLabel id="statusLabel">สถานะ</InputLabel>
-              <Select<Status>
-                labelId="statusLabel"
-                label="สถานะ"
-                value={openEdit?.status ?? "Active"}
-                onChange={(e: SelectChangeEvent<Status>) =>
-                  setOpenEdit((v) => (v ? { ...v, status: e.target.value as Status } : v))
-                }
-              >
-                <MenuItem value="Active">Active</MenuItem>
-                <MenuItem value="Suspended">Suspended</MenuItem>
-                <MenuItem value="Expired">Expired</MenuItem>
-              </Select>
-            </FormControl>
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenEdit(null)}>ยกเลิก</Button>
-          <Button
-            variant="contained"
-            sx={{ backgroundColor: PRIMARY.main, "&:hover": { backgroundColor: PRIMARY.dark } }}
-            onClick={() => {
-              if (!openEdit) return;
-              if (openEdit.id === 0) {
-                const nextId = Math.max(0, ...rows.map((r) => r.id)) + 1;
-                setRows((prev) => [{ ...openEdit, id: nextId }, ...prev]);
-              } else {
-                setRows((prev) => prev.map((r) => (r.id === openEdit.id ? openEdit : r)));
-              }
-              setOpenEdit(null);
-            }}
-          >
-            บันทึก
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        title="ยืนยันการลบลูกค้า"
+        message={
+          targetUser
+            ? <>Warning: การลบจะลบข้อมูลที่เกี่ยวข้องทั้งหมดด้วย<br/>ยืนยันลบลูกค้า: <b>{targetUser.username}</b> ?</>
+            : ""
+        }
+        confirmText="Confirm"
+        cancelText="Cancel"
+        onConfirm={handleConfirmDelete}
+      />
     </Box>
   );
+}
+
+// ---------- utils (UI-only) ----------
+function errorMessage(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  try { return JSON.stringify(e); } catch { return String(e); }
 }

@@ -2,105 +2,219 @@
 
 import * as React from "react";
 import {
-  Box,
-  Stack,
-  Typography,
-  Button,
-  IconButton,
-  Tooltip,
-  TextField,
-  Table,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableCell,
-  TableContainer,
-  Paper,
-  TableSortLabel,
-  TablePagination,
-  Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions
+  Box, Stack, Typography, Button, Table, TableHead, TableBody, TableRow,
+  TableCell, TableContainer, Paper, TableSortLabel, TablePagination, Chip,
+  IconButton, Tooltip, CircularProgress,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import LockResetIcon from "@mui/icons-material/LockReset";
 
-const PRIMARY = { main: "#38E07A", dark: "#2fbb65" };
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: "Admin" | "Manager" | "Trainer" | "Member";
-  status: "Active" | "Inactive";
-}
+const PRIMARY = { main: "#38E07A", dark: "#2fbb65" } as const;
 
+type Role = "ADMIN" | "MANAGER" | "TRAINER" | "SALES";
+type Gender = "MALE" | "FEMALE" | "OTHER";
 type Order = "asc" | "desc";
 
-const MOCK: User[] = [
-  { id: 1, name: "John Doe", email: "john@example.com", role: "Admin", status: "Active" },
-  { id: 2, name: "Jane Smith", email: "jane@example.com", role: "Manager", status: "Inactive" },
-  { id: 3, name: "Mark Lee", email: "mark@example.com", role: "Trainer", status: "Active" },
-  { id: 4, name: "Alice Brown", email: "alice@example.com", role: "Member", status: "Active" },
-  { id: 5, name: "Bob Chan", email: "bob@example.com", role: "Trainer", status: "Inactive" },
-  { id: 6, name: "Nina Park", email: "nina@example.com", role: "Manager", status: "Active" },
-];
+type Staff = {
+  username: string;
+  role: Role;
+  firstName: string;
+  lastName: string;
+  gender?: Gender | null;
+  dateOfBirth?: string | null;
+  phoneNumber?: string | null;
+  gmail?: string | null;
+  specialty?: string | null;
+  isActive: boolean;
+};
 
-export default function AdminUsers_NoGrid() {
-  const [rows, setRows] = React.useState<User[]>(MOCK);
-  const [search, setSearch] = React.useState("");
+const COLUMNS = [
+  { key: "firstName", label: "ชื่อ", sortable: true },
+  { key: "lastName", label: "นามสกุล", sortable: false },
+  { key: "username", label: "Username", sortable: false },
+  { key: "role", label: "บทบาท", sortable: false },
+  { key: "gender", label: "เพศ", sortable: false },
+  { key: "dateOfBirth", label: "วันเกิด", sortable: false },
+  { key: "phoneNumber", label: "โทรศัพท์", sortable: false },
+  { key: "gmail", label: "Gmail", sortable: false },
+  { key: "specialty", label: "ความถนัด", sortable: false },
+  { key: "isActive", label: "สถานะ", sortable: false },
+] as const;
+
+type ApiNullString = { String: string; Valid: boolean };
+type ApiNullBool = { Bool: boolean; Valid: boolean };
+
+type ApiStaff = {
+  username: string;
+  role: Role;
+  firstName: string;
+  lastName: string;
+  gender: Gender;
+  dateOfBirth: string; // ISO with TZ
+  phoneNumber: string;
+  gmail: string;
+  specialty: ApiNullString;
+  isActive: ApiNullBool;
+};
+
+type ApiResponse = {
+  data: ApiStaff[];
+  meta: { page: number; limit: number; total_items: number; total_pages: number };
+  message?: string;
+};
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+
+const renderGender = (g?: Gender | null) =>
+  g === "MALE" ? "ชาย" : g === "FEMALE" ? "หญิง" : g ? "อื่น ๆ" : "—";
+
+export default function StaffAccounts() {
+  const router = useRouter();
+  const { setSnack } = useSnack();
+
+  const [rows, setRows] = React.useState<Staff[]>([]);
+  const [totalItems, setTotalItems] = React.useState(0);
+
   const [order, setOrder] = React.useState<Order>("asc");
-  const [orderBy, setOrderBy] = React.useState<keyof User>("name");
-  const [page, setPage] = React.useState(0);
-  const [rowsPerPage, setRowsPerPage] = React.useState(5);
-  const [confirmDelete, setConfirmDelete] = React.useState<User | null>(null);
+  const [page, setPage] = React.useState(0); // zero-based
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const [loading, setLoading] = React.useState(false);
 
-  const filtered = rows.filter(
-    (u) =>
-      u.name.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase())
-  );
+  const [confirm, setConfirm] = React.useState<{ open: boolean; target?: Staff }>({ open: false });
 
-  const sorted = [...filtered].sort((a, b) => {
-    const aVal = String(a[orderBy]).toLowerCase();
-    const bVal = String(b[orderBy]).toLowerCase();
-    const cmp = aVal.localeCompare(bVal);
-    return order === "asc" ? cmp : -cmp;
+  const mapStaff = (s: ApiStaff): Staff => ({
+    username: s.username,
+    role: s.role,
+    firstName: s.firstName,
+    lastName: s.lastName,
+    gender: s.gender ?? null,
+    dateOfBirth: s.dateOfBirth ?? null,
+    phoneNumber: s.phoneNumber ?? null,
+    gmail: s.gmail ?? null,
+    specialty: s.specialty?.Valid ? s.specialty.String : null,
+    isActive: s.isActive?.Valid ? s.isActive.Bool : false,
   });
 
-  const paged = sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  // --- ดึงข้อมูลหน้า (ใช้ซ้ำหลังลบ) ---
+  const fetchPage = React.useCallback(async () => {
+    setLoading(true);
+    const controller = new AbortController();
+    try {
+      const currentPage = page + 1; // API 1-based
+      const url = `${API_BASE}/api/staffs?page=${currentPage}&limit=${rowsPerPage}`;
+      const res = await fetch(url, {
+        method: "GET",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+      });
+      const data = (await res.json().catch(() => ({}))) as Partial<ApiResponse>;
 
-  const handleRequestSort = (property: keyof User) => {
-    const isAsc = orderBy === property && order === "asc";
-    setOrder(isAsc ? "desc" : "asc");
-    setOrderBy(property);
-  };
+      if (!res.ok) {
+        setSnack({
+          open: true,
+          msg: data?.message || `โหลดข้อมูลล้มเหลว (HTTP ${res.status})`,
+          severity: "error",
+        });
+        setRows([]);
+        setTotalItems(0);
+        return;
+      }
+
+      const items = Array.isArray(data?.data) ? data!.data : [];
+      setRows(items.map(mapStaff));
+      setTotalItems(data?.meta?.total_items ?? items.length);
+    } catch (e: unknown) {
+      if (e instanceof Error && e.name !== "AbortError") {
+        setSnack({ open: true, msg: e.message || "Network error", severity: "error" });
+        setRows([]);
+        setTotalItems(0);
+      }
+    } finally {
+      setLoading(false);
+    }
+
+    return () => controller.abort();
+  }, [page, rowsPerPage, setSnack]);
+
+  // ดึงข้อมูลเมื่อ page/rowsPerPage เปลี่ยน
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!cancelled) await fetchPage();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchPage]);
+
+  const sorted = React.useMemo(() => {
+    const arr = [...rows];
+    arr.sort((a, b) => {
+      const cmp = a.firstName.localeCompare(b.firstName, "th");
+      return order === "asc" ? cmp : -cmp;
+    });
+    return arr;
+  }, [rows, order]);
 
   const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
+
   const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLInputElement>) => {
     setRowsPerPage(parseInt(e.target.value, 10));
     setPage(0);
   };
 
-  const handleDelete = (u: User) => setConfirmDelete(u);
-  const confirmDeleteRow = () => {
-    if (confirmDelete) setRows((prev) => prev.filter((r) => r.id !== confirmDelete.id));
-    setConfirmDelete(null);
+  const formatDOB = (iso?: string | null) => {
+    if (!iso) return "—";
+    try { return new Date(iso).toLocaleDateString("th-TH"); } catch { return "—"; }
   };
 
-  const resetPassword = (u: User) => {
-    alert(`Reset password for ${u.email}`);
+  const goEdit = (u: Staff) => {
+    router.push(`/admin/user-management/edit/${encodeURIComponent(u.username)}`);
   };
 
-  const editUser = (u: User) => {
-    alert(`Edit user: ${u.name}`);
+  const onDeleteClick = (u: Staff) => setConfirm({ open: true, target: u });
+
+  // DELETE /api/staffs/:username
+  const doDelete = async () => {
+    const username = confirm.target?.username;
+    if (!username) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/staffs/${encodeURIComponent(username)}`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      let successMsg = `Username: ${username} deleted successfully`;
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody?.message || `Delete failed (HTTP ${res.status})`);
+      } else if (res.status !== 204) {
+        const body = await res.json().catch(() => ({}));
+        if (body?.message) successMsg = body.message;
+      }
+
+      setSnack({ open: true, msg: successMsg, severity: "success" });
+      setConfirm({ open: false });
+
+      const isLastItemOnPage = rows.length === 1 && page > 0;
+      if (isLastItemOnPage) {
+        setPage((p) => p - 1);
+      } else {
+        await fetchPage();
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Delete failed";
+      setSnack({ open: true, msg, severity: "error" });
+    }
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 2, md: 3} }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" gap={2} flexWrap="wrap" sx={{ mb: 2 }}>
         <Typography variant="h5" fontWeight={400}>จัดการบัญชีผู้ใช้งาน</Typography>
         <Button
@@ -146,11 +260,25 @@ export default function AdminUsers_NoGrid() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {paged.map((u) => (
-              <TableRow key={u.id} hover>
-                <TableCell>{u.name}</TableCell>
-                <TableCell>{u.email}</TableCell>
+            {loading && (
+              <TableRow>
+                <TableCell colSpan={COLUMNS.length + 1} align="center" sx={{ py: 6 }}>
+                  <CircularProgress size={28} />
+                </TableCell>
+              </TableRow>
+            )}
+
+            {!loading && sorted.map((u) => (
+              <TableRow key={u.username} hover>
+                <TableCell>{u.firstName}</TableCell>
+                <TableCell>{u.lastName}</TableCell>
+                <TableCell>{u.username}</TableCell>
                 <TableCell>{u.role}</TableCell>
+                <TableCell>{renderGender(u.gender)}</TableCell>
+                <TableCell>{formatDOB(u.dateOfBirth)}</TableCell>
+                <TableCell>{u.phoneNumber || "—"}</TableCell>
+                <TableCell>{u.gmail || "—"}</TableCell>
+                <TableCell>{u.role === "TRAINER" ? (u.specialty || "—") : "ไม่มี"}</TableCell>
                 <TableCell>
                   <Chip
                     size="small"
@@ -174,7 +302,8 @@ export default function AdminUsers_NoGrid() {
                 </TableCell>
               </TableRow>
             ))}
-            {paged.length === 0 && (
+
+            {!loading && sorted.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} align="center" sx={{ py: 6, color: "text.secondary" }}>
                   ไม่พบข้อมูล
@@ -185,7 +314,7 @@ export default function AdminUsers_NoGrid() {
         </Table>
         <TablePagination
           component="div"
-          count={sorted.length}
+          count={totalItems}
           page={page}
           onPageChange={handleChangePage}
           rowsPerPage={rowsPerPage}

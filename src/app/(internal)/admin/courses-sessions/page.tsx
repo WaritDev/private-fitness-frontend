@@ -2,346 +2,391 @@
 
 import * as React from "react";
 import {
-    Box,
-    Stack,
-    Typography,
-    Button,
-    IconButton,
-    Tooltip,
-    TextField,
-    InputAdornment,
-    MenuItem,
-    Select,
-    FormControl,
-    InputLabel,
-    Table,
-    TableHead,
-    TableBody,
-    TableRow,
-    TableCell,
-    TableContainer,
-    Paper,
-    TableSortLabel,
-    TablePagination,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
+  Box, Paper, Stack, Typography,
+  Table, TableHead, TableBody, TableRow, TableCell, TableContainer,
+  TablePagination, IconButton, Tooltip, Chip, CircularProgress, Alert
 } from "@mui/material";
 import { SelectChangeEvent } from "@mui/material/Select";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import SearchIcon from "@mui/icons-material/Search";
+import { useRouter } from "next/navigation";
+import ConfirmDialog from "@/components/pop-up/ConfirmDialog";
+import { useSnack } from "@/components/snack/SnackProvider";
 
-const PRIMARY = { main: "#38E07A", dark: "#2fbb65" };
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
-type Order = "asc" | "desc";
-type Status = "Active" | "Completed" | "Cancelled";
-type FilterStatus = "All" | Status;
+type Status = "ACTIVE" | "EXPIRED" | "FROZEN" | "CANCELLED" | "COMPLETED";
 
-interface Session {
-    id: number;
-    customer: string;
-    trainer: string;
-    sessionType: string;   // เช่น "Yoga", "Weight Training"
-    date: string;          // ISO date YYYY-MM-DD
-    time: string;          // HH:mm
-    status: Status;
-}
+// ---------- API types ----------
+type ApiNullString = { String: string; Valid: boolean };
+type ApiNullInt32 = { Int32: number; Valid: boolean };
 
-const MOCK: Session[] = [
-    { id: 1, customer: "Somchai Prasert", trainer: "Trainer A", sessionType: "Yoga", date: "2025-10-20", time: "09:00", status: "Active" },
-    { id: 2, customer: "Warunee Boonmee", trainer: "Trainer B", sessionType: "HIIT", date: "2025-10-21", time: "14:00", status: "Completed" },
-    { id: 3, customer: "Arthit Meechai", trainer: "Trainer C", sessionType: "Weight Training", date: "2025-10-22", time: "16:00", status: "Cancelled" },
-];
+type ApiRow = {
+  id: number;
+  customerUsername?: ApiNullString;
+  customerFirstName: string;
+  customerLastName: string;
 
-export default function AdminSessions(): React.JSX.Element {
-    const [rows, setRows] = React.useState<Session[]>(MOCK);
-    const [search, setSearch] = React.useState<string>("");
-    const [statusFilter, setStatusFilter] = React.useState<FilterStatus>("All");
-    const [order, setOrder] = React.useState<Order>("asc");
-    const [orderBy, setOrderBy] = React.useState<keyof Session>("date");
-    const [page, setPage] = React.useState<number>(0);
-    const [rowsPerPage, setRowsPerPage] = React.useState<number>(5);
+  trainerUsername?: ApiNullString;
+  trainerFirstName: string;
+  trainerLastName: string;
 
-    const [openEdit, setOpenEdit] = React.useState<Session | null>(null);
+  productId?: ApiNullInt32;
+  productName: string;
+  type: "SESSION" | "DURATION";
+  category: string;
 
-    // --- derived data ---
-    const filtered: Session[] = rows.filter((s) => {
-        const q = search.toLowerCase();
-        const hit =
-        s.customer.toLowerCase().includes(q) ||
-        s.trainer.toLowerCase().includes(q) ||
-        s.sessionType.toLowerCase().includes(q);
-        const okStatus = statusFilter === "All" ? true : s.status === statusFilter;
-        return hit && okStatus;
-    });
+  sessionAmount?: ApiNullInt32;
+  salesUsername?: ApiNullString;
 
-    const sorted: Session[] = [...filtered].sort((a, b) => {
-        const av = String(a[orderBy] ?? "").toLowerCase();
-        const bv = String(b[orderBy] ?? "").toLowerCase();
-        const cmp = av.localeCompare(bv);
-        return order === "asc" ? cmp : -cmp;
-    });
+  purchaseDate: string;           // ISO
+  totalSessions: number;
+  usedSessions?: ApiNullInt32;
+  remainingSessions: number;
 
-    const paged: Session[] = sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  pricePaid: string;              // "4500.00"
+  discountAmount?: ApiNullString; // "0.00"
 
-    // --- handlers ---
-    const handleRequestSort = (key: keyof Session): void => {
-        const isAsc = orderBy === key && order === "asc";
-        setOrder(isAsc ? "desc" : "asc");
-        setOrderBy(key);
-    };
+  status: Status;
+};
 
-    const handleChangePage = (_: React.MouseEvent<HTMLButtonElement> | null, newPage: number): void => {
-        setPage(newPage);
-    };
+type ApiMeta = {
+  page: number;
+  limit: number;
+  total_items: number;
+  total_pages: number;
+};
 
-    const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLInputElement>): void => {
-        setRowsPerPage(parseInt(e.target.value, 10));
-        setPage(0);
-    };
+type ApiResponse = {
+  data: ApiRow[];
+  meta: ApiMeta;
+  message?: string;
+};
 
-    const onChangeStatusFilter = (e: SelectChangeEvent<FilterStatus>): void => {
-        setStatusFilter(e.target.value as FilterStatus);
-        setPage(0);
-    };
+type ErrResponse = { message?: string };
 
-    const softDelete = (id: number): void => {
-        setRows((prev) => prev.filter((r) => r.id !== id));
-    };
+// ---------- UI Row ----------
+type UIRow = {
+  Session_Id: number;
+  Customer_Username: string;
+  Customer_First_Name: string;
+  Customer_Last_Name: string;
+  Trainer_Username: string;
+  Trainer_First_Name: string;
+  Trainer_Last_Name: string;
+  Product_Id: string;
+  Product_Name: string;
+  Product_Type: "SESSION" | "DURATION";
+  Product_Category: string;
+  Session_Amount: number | null;
+  Sales_Username: string;
+  Purchase_Date: string;         // YYYY-MM-DD
+  Total_Sessions: number;
+  Used_Sessions: number;
+  Remaining_Sessions: number;
+  Price_Paid_Baht: number;
+  Discount_Baht: number;
+  Status: Status;
+};
 
-    // --- UI ---
-    return (
-        <Box sx={{ p: 3 }}>
-        {/* Header */}
-        <Stack
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-            gap={2}
-            flexWrap="wrap"
-            sx={{ mb: 2 }}
-        >
-            <Typography variant="h5" fontWeight={400}>
-            จัดการข้อมูลคอร์ส Sessions ของลูกค้า
-            </Typography>
-            <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            sx={{ backgroundColor: PRIMARY.main, "&:hover": { backgroundColor: PRIMARY.dark } }}
-            onClick={() =>
-                setOpenEdit({
-                id: 0,
-                customer: "",
-                trainer: "",
-                sessionType: "",
-                date: new Date().toISOString().slice(0, 10),
-                time: "09:00",
-                status: "Active",
-                })
-            }
-            >
-            เพิ่ม Session
-            </Button>
-        </Stack>
+// ---------- Helpers ----------
+const ns = (v?: ApiNullString | null) => (v && v.Valid ? v.String : "");
+const ni = (v?: ApiNullInt32 | null) => (v && v.Valid ? v.Int32 : undefined);
 
-        {/* Filters */}
-        <Stack direction={{ xs: "column", sm: "row" }} gap={2} sx={{ mb: 2 }}>
-            <TextField
-            placeholder="ค้นหาลูกค้า / เทรนเนอร์ / ประเภทคอร์ส"
-            size="small"
-            fullWidth
-            value={search}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                setSearch(e.target.value);
-                setPage(0);
-            }}
-            InputProps={{
-                startAdornment: (
-                <InputAdornment position="start">
-                    <SearchIcon />
-                </InputAdornment>
-                ),
-            }}
-            />
-            <FormControl size="small" sx={{ minWidth: 180 }}>
-            <InputLabel id="statusFilterLabel">สถานะ</InputLabel>
-            <Select<FilterStatus>
-                labelId="statusFilterLabel"
-                label="สถานะ"
-                value={statusFilter}
-                onChange={onChangeStatusFilter}
-            >
-                <MenuItem value="All">ทั้งหมด</MenuItem>
-                <MenuItem value="Active">Active</MenuItem>
-                <MenuItem value="Completed">Completed</MenuItem>
-                <MenuItem value="Cancelled">Cancelled</MenuItem>
-            </Select>
-            </FormControl>
-        </Stack>
+const moneyStrToIntBaht = (s?: string) => {
+  if (!s) return 0;
+  const n = Number(s);
+  return Number.isFinite(n) ? Math.round(n) : 0;
+};
 
-        {/* Table */}
-        <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
-            <Table>
+const isoToYMD = (iso?: string) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+    return "";
+  }
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+};
+
+const fmtBaht = (n: number) =>
+  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", maximumFractionDigits: 0 }).format(n);
+
+// บอกคีย์กับเลเบลด้วยชนิดคงที่ (ไม่ใช่ any)
+const COLUMNS: ReadonlyArray<{ key: keyof UIRow; label: string }> = [
+  { key: "Session_Id", label: "Session ID" },
+  { key: "Customer_Username", label: "Customer" },
+  { key: "Trainer_Username", label: "Trainer" },
+  { key: "Product_Name", label: "Product" },
+  { key: "Session_Amount", label: "Session/Pack" },
+  { key: "Total_Sessions", label: "Total" },
+  { key: "Used_Sessions", label: "Used" },
+  { key: "Remaining_Sessions", label: "Remaining" },
+  { key: "Price_Paid_Baht", label: "Paid" },
+  { key: "Discount_Baht", label: "Discount" },
+  { key: "Status", label: "Status" },
+] as const;
+
+export default function CustomerSessionCoursesPage(): React.JSX.Element {
+  const router = useRouter();
+  const { setSnack } = useSnack();
+
+  // table states
+  const [rows, setRows] = React.useState<UIRow[]>([]);
+  const [totalItems, setTotalItems] = React.useState(0);
+
+  const [page, setPage] = React.useState(0); // 0-based
+  const rowsPerPage = 10; // fixed
+
+  // ui states
+  const [loading, setLoading] = React.useState(false);
+  const [globalErr, setGlobalErr] = React.useState("");
+
+  // confirm delete
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const [target, setTarget] = React.useState<UIRow | null>(null);
+
+  const mapRow = (r: ApiRow): UIRow => ({
+    Session_Id: r.id,
+    Customer_Username: ns(r.customerUsername),
+    Customer_First_Name: r.customerFirstName || "",
+    Customer_Last_Name: r.customerLastName || "",
+
+    Trainer_Username: ns(r.trainerUsername),
+    Trainer_First_Name: r.trainerFirstName || "",
+    Trainer_Last_Name: r.trainerLastName || "",
+
+    Product_Id: String(ni(r.productId) ?? ""),
+    Product_Name: r.productName || "",
+    Product_Type: r.type,
+    Product_Category: r.category,
+
+    Session_Amount: ni(r.sessionAmount) ?? null,
+    Sales_Username: ns(r.salesUsername),
+
+    Purchase_Date: isoToYMD(r.purchaseDate),
+    Total_Sessions: r.totalSessions ?? 0,
+    Used_Sessions: ni(r.usedSessions) ?? 0,
+    Remaining_Sessions:
+      r.remainingSessions ?? Math.max(0, (r.totalSessions ?? 0) - (ni(r.usedSessions) ?? 0)),
+
+    Price_Paid_Baht: moneyStrToIntBaht(r.pricePaid),
+    Discount_Baht: moneyStrToIntBaht(ns(r.discountAmount)),
+
+    Status: r.status,
+  });
+
+  const fetchPage = React.useCallback(async () => {
+    setLoading(true);
+    setGlobalErr("");
+    try {
+      const apiPage = page + 1; // API 1-based
+      const res = await fetch(
+        `${API_BASE}/api/customer-sessions?page=${apiPage}&limit=${rowsPerPage}`,
+        { method: "GET", credentials: "include", headers: { "Content-Type": "application/json" } }
+      );
+
+      if (!res.ok) {
+        const err: ErrResponse | null = await res.json().catch(() => null);
+        throw new Error(err?.message ?? `โหลดข้อมูลล้มเหลว (HTTP ${res.status})`);
+      }
+
+      const body: ApiResponse = await res.json();
+      const items: ApiRow[] = Array.isArray(body.data) ? body.data : [];
+      const mapped = items.map(mapRow).sort((a, b) => b.Session_Id - a.Session_Id);
+
+      setRows(mapped);
+      setTotalItems(body.meta?.total_items ?? mapped.length);
+    } catch (e) {
+      setGlobalErr(e instanceof Error ? e.message : String(e));
+      setRows([]);
+      setTotalItems(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, rowsPerPage]);
+
+  React.useEffect(() => {
+    void fetchPage();
+  }, [fetchPage]);
+
+  const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
+
+  const goEdit = (r: UIRow) =>
+    router.push(`/admin/courses-sessions/edit/${encodeURIComponent(String(r.Session_Id))}`);
+
+  const askDelete = (r: UIRow) => {
+    setTarget(r);
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!target) return;
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/customer-sessions/${encodeURIComponent(String(target.Session_Id))}`,
+        { method: "DELETE", credentials: "include", headers: { "Content-Type": "application/json" } }
+      );
+      if (!res.ok) {
+        const errBody: ErrResponse | null = await res.json().catch(() => null);
+        throw new Error(errBody?.message ?? `Delete failed (HTTP ${res.status})`);
+      }
+
+      setSnack({ open: true, msg: `Session: ${target.Session_Id} deleted successfully`, severity: "success" });
+
+      // ถ้าลบแถวสุดท้ายของหน้าและมีหน้าก่อนหน้า → ถอยหน้า แล้วค่อยรีเฟช
+      if (rows.length === 1 && page > 0) {
+        setPage((p) => p - 1);
+      } else {
+        await fetchPage();
+      }
+    } catch (e) {
+      setSnack({ open: true, msg: e instanceof Error ? e.message : String(e), severity: "error" });
+    } finally {
+      setConfirmOpen(false);
+      setTarget(null);
+    }
+  };
+
+  return (
+    <Box sx={{ p: { xs: 2, md: 3 } }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }} gap={2} flexWrap="wrap">
+        <Typography variant="h5" fontWeight={400}>Customer Session Courses</Typography>
+      </Stack>
+
+      {globalErr && <Alert severity="error" sx={{ mb: 2 }}>{globalErr}</Alert>}
+
+      <TableContainer component={Paper} sx={{ borderRadius: 3, overflowX: "auto" }}>
+        {loading ? (
+          <Stack alignItems="center" justifyContent="center" sx={{ p: 4 }}>
+            <CircularProgress />
+          </Stack>
+        ) : (
+          <Table stickyHeader>
             <TableHead>
-                <TableRow>
-                {(
-                    [
-                    { key: "customer", label: "ลูกค้า" },
-                    { key: "trainer", label: "เทรนเนอร์" },
-                    { key: "sessionType", label: "ประเภทคอร์ส" },
-                    { key: "date", label: "วันที่" },
-                    { key: "time", label: "เวลา" },
-                    { key: "status", label: "สถานะ" },
-                    ] as const
-                ).map((col) => (
-                    <TableCell key={col.key} sx={{ fontWeight: 500 }}>
-                    <TableSortLabel
-                        active={orderBy === (col.key as keyof Session)}
-                        direction={orderBy === (col.key as keyof Session) ? order : "asc"}
-                        onClick={() => handleRequestSort(col.key as keyof Session)}
-                    >
-                        {col.label}
-                    </TableSortLabel>
-                    </TableCell>
+              <TableRow>
+                {COLUMNS.map((c) => (
+                  <TableCell key={String(c.key)} sx={{ fontWeight: 600, whiteSpace: "nowrap" }}>
+                    {c.label}
+                  </TableCell>
                 ))}
-                <TableCell sx={{ fontWeight: 500, width: 160 }}>การจัดการ</TableCell>
-                </TableRow>
+                <TableCell sx={{ fontWeight: 600, whiteSpace: "nowrap", width: 140 }}>การจัดการ</TableCell>
+              </TableRow>
             </TableHead>
 
             <TableBody>
-                {paged.map((s) => (
-                <TableRow key={s.id} hover>
-                    <TableCell>{s.customer}</TableCell>
-                    <TableCell>{s.trainer}</TableCell>
-                    <TableCell>{s.sessionType}</TableCell>
-                    <TableCell>{s.date}</TableCell>
-                    <TableCell>{s.time}</TableCell>
-                    <TableCell>{s.status}</TableCell>
-                    <TableCell>
+              {rows.map((r) => (
+                <TableRow key={r.Session_Id} hover>
+                  <TableCell>{r.Session_Id}</TableCell>
+
+                  <TableCell>
+                    {r.Customer_First_Name} {r.Customer_Last_Name}
+                    <Typography variant="caption" display="block" color="text.secondary">
+                      {r.Customer_Username}
+                    </Typography>
+                  </TableCell>
+
+                  <TableCell>
+                    {r.Trainer_First_Name} {r.Trainer_Last_Name}
+                    <Typography variant="caption" display="block" color="text.secondary">
+                      {r.Trainer_Username || "—"}
+                    </Typography>
+                  </TableCell>
+
+                  <TableCell>
+                    {r.Product_Name}
+                    <Typography variant="caption" display="block" color="text.secondary">
+                      {r.Product_Category} • {r.Product_Type}
+                    </Typography>
+                  </TableCell>
+
+                  <TableCell>{r.Session_Amount ?? "—"}</TableCell>
+                  <TableCell>{r.Total_Sessions}</TableCell>
+                  <TableCell>{r.Used_Sessions}</TableCell>
+
+                  <TableCell>
+                    <Chip
+                      size="small"
+                      label={r.Remaining_Sessions}
+                      color={r.Remaining_Sessions > 0 ? "success" : "default"}
+                      variant="outlined"
+                    />
+                  </TableCell>
+
+                  <TableCell>{fmtBaht(r.Price_Paid_Baht)}</TableCell>
+                  <TableCell>{fmtBaht(r.Discount_Baht)}</TableCell>
+
+                  <TableCell>
+                    <Chip
+                      size="small"
+                      label={r.Status}
+                      color={
+                        r.Status === "ACTIVE" ? "success"
+                        : r.Status === "FROZEN" ? "warning"
+                        : r.Status === "CANCELLED" ? "error"
+                        : r.Status === "COMPLETED" ? "primary"
+                        : "default"
+                      }
+                      variant="outlined"
+                    />
+                  </TableCell>
+
+                  <TableCell>
                     <Stack direction="row" spacing={1}>
-                        <Tooltip title="แก้ไข">
-                        <IconButton size="small" color="primary" onClick={() => setOpenEdit(s)}>
-                            <EditIcon fontSize="small" />
+                      <Tooltip title="แก้ไข">
+                        <IconButton size="small" color="primary" onClick={() => goEdit(r)}>
+                          <EditIcon fontSize="small" />
                         </IconButton>
-                        </Tooltip>
-                        <Tooltip title="ลบ">
-                        <IconButton size="small" color="error" onClick={() => softDelete(s.id)}>
-                            <DeleteIcon fontSize="small" />
+                      </Tooltip>
+                      <Tooltip title="ลบ">
+                        <IconButton size="small" color="error" onClick={() => askDelete(r)}>
+                          <DeleteIcon fontSize="small" />
                         </IconButton>
-                        </Tooltip>
+                      </Tooltip>
                     </Stack>
-                    </TableCell>
+                  </TableCell>
                 </TableRow>
-                ))}
+              ))}
 
-                {paged.length === 0 && (
+              {!loading && rows.length === 0 && (
                 <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 6, color: "text.secondary" }}>
+                  <TableCell colSpan={COLUMNS.length + 1} align="center" sx={{ py: 6, color: "text.secondary" }}>
                     ไม่พบข้อมูล
-                    </TableCell>
+                  </TableCell>
                 </TableRow>
-                )}
+              )}
             </TableBody>
-            </Table>
+          </Table>
+        )}
 
-            <TablePagination
-            component="div"
-            count={sorted.length}
-            page={page}
-            onPageChange={handleChangePage}
-            rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-            rowsPerPageOptions={[5, 10, 25]}
-            />
-        </TableContainer>
+        <TablePagination
+          component="div"
+          count={totalItems}
+          page={page}
+          onPageChange={handleChangePage}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={() => {}}
+          rowsPerPageOptions={[10]}
+        />
+      </TableContainer>
 
-        {/* Add/Edit Dialog */}
-        <Dialog open={openEdit !== null} onClose={() => setOpenEdit(null)} maxWidth="sm" fullWidth>
-            <DialogTitle>{openEdit && openEdit.id ? "แก้ไข Session" : "เพิ่ม Session"}</DialogTitle>
-            <DialogContent>
-            <Stack gap={2} sx={{ mt: 1 }}>
-                <TextField
-                label="ชื่อลูกค้า"
-                value={openEdit?.customer ?? ""}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setOpenEdit((v) => (v ? { ...v, customer: e.target.value } : v))
-                }
-                fullWidth
-                />
-                <TextField
-                label="เทรนเนอร์"
-                value={openEdit?.trainer ?? ""}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setOpenEdit((v) => (v ? { ...v, trainer: e.target.value } : v))
-                }
-                fullWidth
-                />
-                <TextField
-                label="ประเภทคอร์ส"
-                value={openEdit?.sessionType ?? ""}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setOpenEdit((v) => (v ? { ...v, sessionType: e.target.value } : v))
-                }
-                fullWidth
-                />
-                <Stack direction={{ xs: "column", sm: "row" }} gap={2}>
-                <TextField
-                    label="วันที่ (YYYY-MM-DD)"
-                    value={openEdit?.date ?? ""}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setOpenEdit((v) => (v ? { ...v, date: e.target.value } : v))
-                    }
-                    fullWidth
-                />
-                <TextField
-                    label="เวลา (HH:mm)"
-                    value={openEdit?.time ?? ""}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setOpenEdit((v) => (v ? { ...v, time: e.target.value } : v))
-                    }
-                    fullWidth
-                />
-                </Stack>
-                <FormControl fullWidth>
-                <InputLabel id="statusLabel">สถานะ</InputLabel>
-                <Select<Status>
-                    labelId="statusLabel"
-                    label="สถานะ"
-                    value={openEdit?.status ?? "Active"}
-                    onChange={(e: SelectChangeEvent<Status>) =>
-                    setOpenEdit((v) => (v ? { ...v, status: e.target.value as Status } : v))
-                    }
-                >
-                    <MenuItem value="Active">Active</MenuItem>
-                    <MenuItem value="Completed">Completed</MenuItem>
-                    <MenuItem value="Cancelled">Cancelled</MenuItem>
-                </Select>
-                </FormControl>
-            </Stack>
-            </DialogContent>
-            <DialogActions>
-            <Button onClick={() => setOpenEdit(null)}>ยกเลิก</Button>
-            <Button
-                variant="contained"
-                sx={{ backgroundColor: PRIMARY.main, "&:hover": { backgroundColor: PRIMARY.dark } }}
-                onClick={() => {
-                if (!openEdit) return;
-                if (openEdit.id === 0) {
-                    const nextId = Math.max(0, ...rows.map((r) => r.id)) + 1;
-                    setRows((prev) => [{ ...openEdit, id: nextId }, ...prev]);
-                } else {
-                    setRows((prev) => prev.map((r) => (r.id === openEdit.id ? openEdit : r)));
-                }
-                setOpenEdit(null);
-                }}
-            >
-                บันทึก
-            </Button>
-            </DialogActions>
-        </Dialog>
-        </Box>
-    );
+      <ConfirmDialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        title="ยืนยันการลบ Session Course"
+        message={
+          target
+            ? `Warning: Deleting this session course (ID: ${target.Session_Id}) for customer ${target.Customer_Username} is permanent. Continue?`
+            : ""
+        }
+        confirmText="Confirm"
+        cancelText="Cancel"
+        onConfirm={handleConfirmDelete}
+      />
+    </Box>
+  );
 }
