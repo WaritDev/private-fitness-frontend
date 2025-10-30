@@ -46,6 +46,7 @@ function roleTabs(role: Role): NavItem[] {
       { href: '/admin/packages-duration', label: 'แพ็กเกจ Duration', tab: true },
       { href: '/admin/courses-sessions', label: 'คอร์ส Sessions', tab: true },
       { href: '/admin/products-management', label: 'Products', tab: true },
+      { href: '/admin/payments-management', label: 'Payment', tab: true },
       { href: '/admin/customer-log', label: 'Customer Log', tab: true },
     ];
   }
