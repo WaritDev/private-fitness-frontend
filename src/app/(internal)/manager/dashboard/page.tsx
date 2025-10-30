@@ -13,6 +13,8 @@ import {
   LinearProgress,
   Skeleton,
   Alert,
+  Chip,
+  Divider,
 } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { LineChart } from "@mui/x-charts";
@@ -29,12 +31,19 @@ interface DashboardSummary {
   newMembersSpark: number[];
   checkinsSpark: number[];
   ptSpark: number[];
+  topProducts: { name: string; units: number }[];
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE?.replace(/\/+$/,"") || "http://localhost:8000";
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE?.replace(/\/+$/, "") ||
+  "http://localhost:8000";
 
 const formatTHB = (v: number) =>
-  v.toLocaleString("th-TH", { style: "currency", currency: "THB", maximumFractionDigits: 0 });
+  v.toLocaleString("th-TH", {
+    style: "currency",
+    currency: "THB",
+    maximumFractionDigits: 0,
+  });
 
 function MetricCard({
   title,
@@ -76,13 +85,14 @@ function MetricCard({
 }
 
 async function fetchDashboard(start: string, end: string, signal: AbortSignal) {
-  // Go: GET /manager/dashboard?start=YYYY-MM-DD&end=YYYY-MM-DD
-  const url = `${API_BASE}/manager/dashboard?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+  // GET http://localhost:8000/api/manager/dashboard?start=YYYY-MM-DD&end=YYYY-MM-DD
+  const url = `${API_BASE}/api/manager/dashboard?start=${encodeURIComponent(
+    start
+  )}&end=${encodeURIComponent(end)}`;
   const res = await fetch(url, {
     method: "GET",
     mode: "cors",
-    credentials: "include",
-    headers: { "Accept": "application/json" },
+    headers: { Accept: "application/json" },
     signal,
   });
   if (!res.ok) {
@@ -96,7 +106,9 @@ async function fetchDashboard(start: string, end: string, signal: AbortSignal) {
 export default function Page(): React.JSX.Element {
   const today = new Date();
   const defaultEnd = today.toISOString().slice(0, 10);
-  const defaultStart = new Date(today.getTime() - 29 * 86400000).toISOString().slice(0, 10);
+  const defaultStart = new Date(today.getTime() - 29 * 86400000)
+    .toISOString()
+    .slice(0, 10);
 
   const [start, setStart] = React.useState(defaultStart);
   const [end, setEnd] = React.useState(defaultEnd);
@@ -168,7 +180,11 @@ export default function Page(): React.JSX.Element {
             variant="contained"
             startIcon={<RefreshIcon />}
             onClick={load}
-            sx={{ backgroundColor: primary.main, "&:hover": { backgroundColor: primary.dark }, textTransform: "none" }}
+            sx={{
+              backgroundColor: primary.main,
+              "&:hover": { backgroundColor: primary.dark },
+              textTransform: "none",
+            }}
           >
             Refresh
           </Button>
@@ -201,7 +217,12 @@ export default function Page(): React.JSX.Element {
       {!loading && !error && data && (
         <>
           <Stack direction="row" flexWrap="wrap" gap={3} sx={{ mb: 3 }}>
-            <Box sx={{ flex: "1 1 280px", width: { xs: "100%", md: "calc(50% - 12px)", lg: "calc(33.333% - 16px)" } }}>
+            <Box
+              sx={{
+                flex: "1 1 280px",
+                width: { xs: "100%", md: "calc(50% - 12px)", lg: "calc(33.333% - 16px)" },
+              }}
+            >
               <MetricCard
                 title="Total Revenue"
                 value={formatTHB(data.totalRevenueTHB)}
@@ -209,7 +230,12 @@ export default function Page(): React.JSX.Element {
                 series={data.revenueSpark}
               />
             </Box>
-            <Box sx={{ flex: "1 1 280px", width: { xs: "100%", md: "calc(50% - 12px)", lg: "calc(33.333% - 16px)" } }}>
+            <Box
+              sx={{
+                flex: "1 1 280px",
+                width: { xs: "100%", md: "calc(50% - 12px)", lg: "calc(33.333% - 16px)" },
+              }}
+            >
               <MetricCard
                 title="New Members"
                 value={String(data.newMembers30d)}
@@ -217,13 +243,26 @@ export default function Page(): React.JSX.Element {
                 series={data.newMembersSpark}
               />
             </Box>
-            <Box sx={{ flex: "1 1 280px", width: { xs: "100%", md: "calc(50% - 12px)", lg: "calc(33.333% - 16px)" } }}>
-              <MetricCard title="Total Active Members" value={String(data.activeMembers)} />
+            <Box
+              sx={{
+                flex: "1 1 280px",
+                width: { xs: "100%", md: "calc(50% - 12px)", lg: "calc(33.333% - 16px)" },
+              }}
+            >
+              <MetricCard
+                title="Total Active Members"
+                value={String(data.activeMembers)}
+              />
             </Box>
           </Stack>
 
-          <Stack direction="row" flexWrap="wrap" gap={3}>
-            <Box sx={{ flex: "1 1 360px", width: { xs: "100%", md: "calc(50% - 12px)" } }}>
+          <Stack direction="row" flexWrap="wrap" gap={3} sx={{ mb: 4 }}>
+            <Box
+              sx={{
+                flex: "1 1 360px",
+                width: { xs: "100%", md: "calc(50% - 12px)" },
+              }}
+            >
               <MetricCard
                 title="Check-ins Today"
                 value={String(data.checkinsToday)}
@@ -231,7 +270,12 @@ export default function Page(): React.JSX.Element {
                 series={data.checkinsSpark}
               />
             </Box>
-            <Box sx={{ flex: "1 1 360px", width: { xs: "100%", md: "calc(50% - 12px)" } }}>
+            <Box
+              sx={{
+                flex: "1 1 360px",
+                width: { xs: "100%", md: "calc(50% - 12px)" },
+              }}
+            >
               <MetricCard
                 title="Completed PT Classes"
                 value={String(data.completedPT30d)}
@@ -239,6 +283,45 @@ export default function Page(): React.JSX.Element {
                 series={data.ptSpark}
               />
             </Box>
+          </Stack>
+
+          <Divider sx={{ mb: 2 }} />
+          <Box sx={{ mb: 1, display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography variant="h6">Top Selling Products</Typography>
+            <Chip
+              label={`${data.topProducts.length} รายการ`}
+              size="small"
+              sx={{
+                bgcolor: "rgba(56,224,122,0.12)",
+                color: primary.dark,
+                border: `1px solid ${primary.main}`,
+              }}
+            />
+          </Box>
+
+          <Stack direction="row" gap={2} flexWrap="wrap">
+            {data.topProducts.map((p, idx) => (
+              <Card
+                key={`${p.name}-${idx}`}
+                sx={{ flex: "1 1 200px", minWidth: 200, borderRadius: 2 }}
+              >
+                <CardContent>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.5 }}>
+                    {p.name}
+                  </Typography>
+                  <Typography variant="h5" fontWeight={600}>{p.units}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Units Sold
+                  </Typography>
+                </CardContent>
+              </Card>
+            ))}
+
+            {data.topProducts.length === 0 && (
+              <Typography variant="body2" color="text.secondary">
+                No products found in this period
+              </Typography>
+            )}
           </Stack>
         </>
       )}
