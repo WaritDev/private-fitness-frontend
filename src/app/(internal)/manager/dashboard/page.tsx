@@ -9,14 +9,18 @@ import {
   CardContent,
   Stack,
   Container,
+  TextField,
+  LinearProgress,
+  Skeleton,
+  Alert,
+  Chip,
+  Divider,
 } from "@mui/material";
-import DescriptionIcon from "@mui/icons-material/Description";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import { LineChart } from "@mui/x-charts";
 
-const primary = {
-  main: "#38E07A",
-  dark: "#2fbb65",
-};
+const primary = { main: "#38E07A", dark: "#2fbb65" } as const;
+
 interface DashboardSummary {
   totalRevenueTHB: number;
   newMembers30d: number;
@@ -27,7 +31,12 @@ interface DashboardSummary {
   newMembersSpark: number[];
   checkinsSpark: number[];
   ptSpark: number[];
+  topProducts: { name: string; units: number }[];
 }
+
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE?.replace(/\/+$/, "") ||
+  "http://localhost:8000";
 
 const formatTHB = (v: number) =>
   v.toLocaleString("th-TH", {
@@ -48,7 +57,7 @@ function MetricCard({
   series?: number[];
 }) {
   return (
-    <Card sx={{ height: "100%", borderRadius: 3 }}>
+    <Card sx={{ height: "100%", borderRadius: 3, minWidth: 260 }}>
       <CardContent>
         <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
           {title}
@@ -75,39 +84,64 @@ function MetricCard({
   );
 }
 
-export default function ManagerDashboardContent() {
-  const [loading, setLoading] = React.useState(true);
+async function fetchDashboard(start: string, end: string, signal: AbortSignal) {
+  // GET http://localhost:8000/api/manager/dashboard?start=YYYY-MM-DD&end=YYYY-MM-DD
+  const url = `${API_BASE}/api/manager/dashboard?start=${encodeURIComponent(
+    start
+  )}&end=${encodeURIComponent(end)}`;
+  const res = await fetch(url, {
+    method: "GET",
+    mode: "cors",
+    headers: { Accept: "application/json" },
+    signal,
+  });
+  if (!res.ok) {
+    const msg = await res.text().catch(() => "");
+    throw new Error(`HTTP ${res.status}: ${msg || "failed to load"}`);
+  }
+  const j = (await res.json()) as DashboardSummary;
+  return j;
+}
+
+export default function Page(): React.JSX.Element {
+  const today = new Date();
+  const defaultEnd = today.toISOString().slice(0, 10);
+  const defaultStart = new Date(today.getTime() - 29 * 86400000)
+    .toISOString()
+    .slice(0, 10);
+
+  const [start, setStart] = React.useState(defaultStart);
+  const [end, setEnd] = React.useState(defaultEnd);
+
+  const [loading, setLoading] = React.useState<boolean>(true);
   const [data, setData] = React.useState<DashboardSummary | null>(null);
+  const [error, setError] = React.useState<string>("");
+
+  const controllerRef = React.useRef<AbortController | null>(null);
+
+  const load = React.useCallback(async () => {
+    controllerRef.current?.abort();
+    const ctrl = new AbortController();
+    controllerRef.current = ctrl;
+
+    setLoading(true);
+    setError("");
+    try {
+      const j = await fetchDashboard(start, end, ctrl.signal);
+      setData(j);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "failed";
+      setError(msg || "โหลดข้อมูลไม่สำเร็จ");
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [start, end]);
 
   React.useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const res = await fetch("/api/manager/dashboard", { cache: "no-store" });
-        if (!res.ok) throw new Error("non-200");
-        const j = (await res.json()) as DashboardSummary;
-        if (mounted) setData(j);
-      } catch {
-        const demo: DashboardSummary = {
-          totalRevenueTHB: 450000,
-          newMembers30d: 120,
-          activeMembers: 850,
-          checkinsToday: 95,
-          completedPT30d: 210,
-          revenueSpark: [30, 44, 32, 60, 55, 72, 65, 90, 70, 95],
-          newMembersSpark: [3, 6, 4, 8, 7, 9, 6, 10, 7, 12],
-          checkinsSpark: [20, 24, 26, 34, 40, 42, 48, 52, 60, 62],
-          ptSpark: [2, 5, 6, 8, 10, 7, 12, 14, 16, 18],
-        };
-        if (mounted) setData(demo);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    load();
+    return () => controllerRef.current?.abort();
+  }, [load]);
 
   return (
     <Container maxWidth="xl" sx={{ py: 3 }}>
@@ -124,85 +158,170 @@ export default function ManagerDashboardContent() {
         <Typography variant="h4" fontWeight={400}>
           Dashboard
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<DescriptionIcon />}
-          sx={{
-            backgroundColor: primary.main,
-            "&:hover": { backgroundColor: primary.dark },
-            textTransform: "none",
-            borderRadius: 2,
-          }}
-        >
-          New Report
-        </Button>
+
+        <Stack direction="row" gap={1.5} alignItems="center" flexWrap="wrap">
+          <TextField
+            label="Start"
+            type="date"
+            size="small"
+            value={start}
+            onChange={(e) => setStart(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+          />
+          <TextField
+            label="End"
+            type="date"
+            size="small"
+            value={end}
+            onChange={(e) => setEnd(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+          />
+          <Button
+            variant="contained"
+            startIcon={<RefreshIcon />}
+            onClick={load}
+            sx={{
+              backgroundColor: primary.main,
+              "&:hover": { backgroundColor: primary.dark },
+              textTransform: "none",
+            }}
+          >
+            Refresh
+          </Button>
+        </Stack>
       </Box>
 
-      {loading || !data ? (
-        <Typography color="text.secondary">Loading dashboard…</Typography>
-      ) : (
+      {loading && (
+        <>
+          <LinearProgress sx={{ mb: 2 }} />
+          <Stack direction="row" gap={3} flexWrap="wrap" sx={{ mb: 3 }}>
+            {[...Array(4)].map((_, i) => (
+              <Card key={i} sx={{ flex: "1 1 280px", minWidth: 260 }}>
+                <CardContent>
+                  <Skeleton width="40%" />
+                  <Skeleton height={40} />
+                  <Skeleton width="60%" />
+                </CardContent>
+              </Card>
+            ))}
+          </Stack>
+        </>
+      )}
+
+      {!loading && error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      {!loading && !error && data && (
         <>
           <Stack direction="row" flexWrap="wrap" gap={3} sx={{ mb: 3 }}>
-            {[
+            <Box
+              sx={{
+                flex: "1 1 280px",
+                width: { xs: "100%", md: "calc(50% - 12px)", lg: "calc(33.333% - 16px)" },
+              }}
+            >
               <MetricCard
-                key="rev"
                 title="Total Revenue"
                 value={formatTHB(data.totalRevenueTHB)}
-                subtitle="Last 30 Days"
+                subtitle={`ช่วง ${start} ถึง ${end}`}
                 series={data.revenueSpark}
-              />,
+              />
+            </Box>
+            <Box
+              sx={{
+                flex: "1 1 280px",
+                width: { xs: "100%", md: "calc(50% - 12px)", lg: "calc(33.333% - 16px)" },
+              }}
+            >
               <MetricCard
-                key="new"
                 title="New Members"
                 value={String(data.newMembers30d)}
                 subtitle="Last 30 Days"
                 series={data.newMembersSpark}
-              />,
+              />
+            </Box>
+            <Box
+              sx={{
+                flex: "1 1 280px",
+                width: { xs: "100%", md: "calc(50% - 12px)", lg: "calc(33.333% - 16px)" },
+              }}
+            >
               <MetricCard
-                key="act"
                 title="Total Active Members"
                 value={String(data.activeMembers)}
-              />,
-            ].map((card, i) => (
-              <Box
-                key={i}
-                sx={{
-                  flex: "1 1 280px",
-                  width: { xs: "100%", md: "calc(50% - 12px)", lg: "calc(33.333% - 16px)" },
-                }}
-              >
-                {card}
-              </Box>
-            ))}
+              />
+            </Box>
           </Stack>
 
-          <Stack direction="row" flexWrap="wrap" gap={3}>
-            {[
+          <Stack direction="row" flexWrap="wrap" gap={3} sx={{ mb: 4 }}>
+            <Box
+              sx={{
+                flex: "1 1 360px",
+                width: { xs: "100%", md: "calc(50% - 12px)" },
+              }}
+            >
               <MetricCard
-                key="chk"
                 title="Check-ins Today"
                 value={String(data.checkinsToday)}
                 subtitle="As of now"
                 series={data.checkinsSpark}
-              />,
+              />
+            </Box>
+            <Box
+              sx={{
+                flex: "1 1 360px",
+                width: { xs: "100%", md: "calc(50% - 12px)" },
+              }}
+            >
               <MetricCard
-                key="pt"
                 title="Completed PT Classes"
                 value={String(data.completedPT30d)}
                 subtitle="Last 30 Days"
                 series={data.ptSpark}
-              />,
-            ].map((card, i) => (
-              <Box
-                key={i}
-                sx={{
-                  flex: "1 1 360px",
-                  width: { xs: "100%", md: "calc(50% - 12px)", lg: "calc(50% - 12px)" },
-                }}
+              />
+            </Box>
+          </Stack>
+
+          <Divider sx={{ mb: 2 }} />
+          <Box sx={{ mb: 1, display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography variant="h6">Top Selling Products</Typography>
+            <Chip
+              label={`${data.topProducts.length} รายการ`}
+              size="small"
+              sx={{
+                bgcolor: "rgba(56,224,122,0.12)",
+                color: primary.dark,
+                border: `1px solid ${primary.main}`,
+              }}
+            />
+          </Box>
+
+          <Stack direction="row" gap={2} flexWrap="wrap">
+            {data.topProducts.map((p, idx) => (
+              <Card
+                key={`${p.name}-${idx}`}
+                sx={{ flex: "1 1 200px", minWidth: 200, borderRadius: 2 }}
               >
-                {card}
-              </Box>
+                <CardContent>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.5 }}>
+                    {p.name}
+                  </Typography>
+                  <Typography variant="h5" fontWeight={600}>{p.units}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Units Sold
+                  </Typography>
+                </CardContent>
+              </Card>
             ))}
+
+            {data.topProducts.length === 0 && (
+              <Typography variant="body2" color="text.secondary">
+                No products found in this period
+              </Typography>
+            )}
           </Stack>
         </>
       )}
