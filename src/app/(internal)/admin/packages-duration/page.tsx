@@ -6,8 +6,6 @@ import {
   Table, TableHead, TableBody, TableRow, TableCell, TableContainer,
   IconButton, Tooltip, Chip, TablePagination, CircularProgress
 } from "@mui/material";
-import { SelectChangeEvent } from "@mui/material/Select";
-import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useRouter } from "next/navigation";
@@ -191,109 +189,34 @@ export default function CustomerDurationPackagesPage(): React.JSX.Element {
     }
   };
 
-    return (
-        <Box sx={{ p: 3 }}>
-        {/* Header */}
-        <Stack
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-            gap={2}
-            flexWrap="wrap"
-            sx={{ mb: 2 }}
-        >
-            <Typography variant="h5" fontWeight={400}>
-            แพ็กเกจ Duration
-            </Typography>
-            <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            sx={{
-                backgroundColor: PRIMARY.main,
-                "&:hover": { backgroundColor: PRIMARY.dark }
-            }}
-            onClick={() =>
-                setOpenEdit({
-                id: 0,
-                name: "",
-                durationDays: 30,
-                priceTHB: 0,
-                allowFreezeDays: 0,
-                maxFreezeTimes: 0,
-                description: "",
-                isActive: true,
-                createdAt: new Date().toISOString().slice(0, 10),
-                updatedAt: new Date().toISOString().slice(0, 10)
-                })
-            }
-            >
-            เพิ่มแพ็กเกจ
-            </Button>
-        </Stack>
+  return (
+    <Box sx={{ p: { xs: 2, md: 3 } }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }} gap={2} flexWrap="wrap">
+        <Typography variant="h5" fontWeight={400}>Customer Duration Packages</Typography>
+      </Stack>
 
-        {/* Filters */}
-        <Stack direction={{ xs: "column", sm: "row" }} gap={2} sx={{ mb: 2 }}>
-            <TextField
-            placeholder="ค้นหาชื่อ / ราคา / จำนวนวัน"
-            size="small"
-            fullWidth
-            value={search}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                setSearch(e.target.value);
-                setPage(0);
-            }}
-            InputProps={{
-                startAdornment: (
-                <InputAdornment position="start">
-                    <SearchIcon />
-                </InputAdornment>
-                )
-            }}
-            />
-            <FormControl size="small" sx={{ minWidth: 180 }}>
-            <InputLabel id="activeFilterLabel">สถานะ</InputLabel>
-            <Select<ActiveFilter>
-                labelId="activeFilterLabel"
-                label="สถานะ"
-                value={activeFilter}
-                onChange={onChangeActiveFilter}
-            >
-                <MenuItem value="All">ทั้งหมด</MenuItem>
-                <MenuItem value="Active">Active</MenuItem>
-                <MenuItem value="Inactive">Inactive</MenuItem>
-            </Select>
-            </FormControl>
-        </Stack>
-
-        {/* Table */}
-        <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
-            <Table>
-            <TableHead>
-                <TableRow>
-                {(
-                    [
-                    { key: "name", label: "ชื่อแพ็กเกจ" },
-                    { key: "durationDays", label: "จำนวนวัน" },
-                    { key: "priceTHB", label: "ราคา" },
-                    { key: "allowFreezeDays", label: "พักได้ (วัน)" },
-                    { key: "maxFreezeTimes", label: "พักได้ (ครั้ง)" },
-                    { key: "isActive", label: "สถานะ" },
-                    { key: "updatedAt", label: "อัปเดตล่าสุด" }
-                    ] as const
-                ).map((col) => (
-                    <TableCell key={col.key} sx={{ fontWeight: 500 }}>
-                    <TableSortLabel
-                        active={orderBy === (col.key as keyof DurationPackage)}
-                        direction={orderBy === (col.key as keyof DurationPackage) ? order : "asc"}
-                        onClick={() => handleRequestSort(col.key as keyof DurationPackage)}
-                    >
-                        {col.label}
-                    </TableSortLabel>
-                    </TableCell>
-                ))}
-                <TableCell sx={{ fontWeight: 500, width: 220 }}>การจัดการ</TableCell>
-                </TableRow>
-            </TableHead>
+      <TableContainer component={Paper} sx={{ borderRadius: 3, overflowX: "auto" }}>
+        <Table stickyHeader>
+          <TableHead>
+            <TableRow>
+              <TableCell>Duration_Id</TableCell>
+              <TableCell>Customer Username</TableCell>
+              <TableCell>Customer Name</TableCell>
+              <TableCell>Product_Id</TableCell>
+              <TableCell>Product_Name</TableCell>
+              <TableCell>Product_Type</TableCell>
+              <TableCell>Product_Category</TableCell>
+              <TableCell align="right">Duration_Days</TableCell>
+              <TableCell>Sales_Username</TableCell>
+              <TableCell>Purchase_Date</TableCell>
+              <TableCell>Start_Date</TableCell>
+              <TableCell>End_Date</TableCell>
+              <TableCell align="right">Price_Paid</TableCell>
+              <TableCell align="right">Discount_Amount</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell sx={{ width: 120 }}>การจัดการ</TableCell>
+            </TableRow>
+          </TableHead>
 
           <TableBody>
             {loading && (

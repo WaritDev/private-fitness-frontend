@@ -6,8 +6,6 @@ import {
   Table, TableHead, TableBody, TableRow, TableCell, TableContainer, Paper,
   TableSortLabel, TablePagination, Chip, IconButton, Tooltip, CircularProgress
 } from "@mui/material";
-import { SelectChangeEvent } from "@mui/material/Select";
-import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useRouter } from "next/navigation";
@@ -182,11 +180,8 @@ const mapCustomer = (c: ApiCustomer): Customer => ({
     return arr;
   }, [rows, order]);
 
-  const handleChangePage = (_: React.MouseEvent<HTMLButtonElement> | null, newPage: number): void => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLInputElement>): void => {
+  const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
+  const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLInputElement>) => {
     setRowsPerPage(parseInt(e.target.value, 10));
     setPage(0);
   };
@@ -235,101 +230,29 @@ const mapCustomer = (c: ApiCustomer): Customer => ({
 
   // --- UI ---
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        gap={2}
-        flexWrap="wrap"
-        sx={{ mb: 2 }}
-      >
-        <Typography variant="h5" fontWeight={400}>
-          จัดการข้อมูลลูกค้า
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          sx={{ backgroundColor: PRIMARY.main, "&:hover": { backgroundColor: PRIMARY.dark } }}
-          onClick={() =>
-            setOpenEdit({
-              id: 0,
-              name: "",
-              email: "",
-              phone: "",
-              packageName: "Monthly (30d)",
-              status: "Active",
-              joinedAt: new Date().toISOString().slice(0, 10),
-            })
-          }
-        >
-          เพิ่มลูกค้า
-        </Button>
+    <Box sx={{ p: { xs: 2, md: 3 } }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }} gap={2} flexWrap="wrap">
+        <Typography variant="h5" fontWeight={400}>Customer Accounts</Typography>
       </Stack>
 
-      {/* Filters */}
-      <Stack direction={{ xs: "column", sm: "row" }} gap={2} sx={{ mb: 2 }}>
-        <TextField
-          placeholder="ค้นหาชื่อ / อีเมล / เบอร์โทร"
-          size="small"
-          fullWidth
-          value={search}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-            setSearch(e.target.value);
-            setPage(0);
-          }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-          }}
-        />
-        <FormControl size="small" sx={{ minWidth: 180 }}>
-          <InputLabel id="statusFilterLabel">สถานะ</InputLabel>
-          <Select<FilterStatus>
-            labelId="statusFilterLabel"
-            label="สถานะ"
-            value={statusFilter}
-            onChange={onChangeStatusFilter}
-          >
-            <MenuItem value="All">ทั้งหมด</MenuItem>
-            <MenuItem value="Active">Active</MenuItem>
-            <MenuItem value="Suspended">Suspended</MenuItem>
-            <MenuItem value="Expired">Expired</MenuItem>
-          </Select>
-        </FormControl>
-      </Stack>
-
-      {/* Table */}
-      <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
-        <Table>
+      <TableContainer component={Paper} sx={{ borderRadius: 3, overflowX: "auto" }}>
+        <Table stickyHeader>
           <TableHead>
             <TableRow>
-              {(
-                [
-                  { key: "name", label: "ชื่อลูกค้า" },
-                  { key: "phone", label: "เบอร์โทร" },
-                  { key: "email", label: "อีเมล" },
-                  { key: "packageName", label: "แพ็กเกจ/คอร์ส" },
-                  { key: "status", label: "สถานะ" },
-                  { key: "joinedAt", label: "วันที่เริ่ม" },
-                  { key: "expiresAt", label: "หมดอายุ" },
-                ] as const
-              ).map((col) => (
-                <TableCell key={col.key} sx={{ fontWeight: 500 }}>
-                  <TableSortLabel
-                    active={orderBy === (col.key as keyof Customer)}
-                    direction={orderBy === (col.key as keyof Customer) ? order : "asc"}
-                    onClick={() => handleRequestSort(col.key as keyof Customer)}
-                  >
-                    {col.label}
-                  </TableSortLabel>
+              {COLUMNS.map((c) => (
+                <TableCell key={c.key as string} sx={{ fontWeight: 600, whiteSpace: "nowrap" }}>
+                  {c.key === "firstName" ? (
+                    <TableSortLabel
+                      active
+                      direction={order}
+                      onClick={() => setOrder((o) => (o === "asc" ? "desc" : "asc"))}
+                    >
+                      {c.label}
+                    </TableSortLabel>
+                  ) : c.label}
                 </TableCell>
               ))}
-              <TableCell sx={{ fontWeight: 500, width: 220 }}>การจัดการ</TableCell>
+              <TableCell sx={{ fontWeight: 600, whiteSpace: "nowrap", width: 140 }}>การจัดการ</TableCell>
             </TableRow>
           </TableHead>
 
@@ -363,38 +286,20 @@ const mapCustomer = (c: ApiCustomer): Customer => ({
                 <TableCell>
                   <Chip
                     size="small"
-                    label={c.status}
-                    color={
-                      c.status === "Active" ? "success" : c.status === "Suspended" ? "warning" : "default"
-                    }
-                    variant={c.status === "Active" ? "filled" : "outlined"}
+                    label={u.isActive ? "Active" : "Inactive"}
+                    color={u.isActive ? "success" : "default"}
+                    variant={u.isActive ? "filled" : "outlined"}
                   />
                 </TableCell>
-                <TableCell>{c.joinedAt || "-"}</TableCell>
-                <TableCell>{c.expiresAt || "-"}</TableCell>
                 <TableCell>
                   <Stack direction="row" spacing={1}>
-                    <Tooltip title="รายละเอียด">
-                      <IconButton size="small" color="primary">
-                        <VisibilityIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
                     <Tooltip title="แก้ไข">
-                      <IconButton
-                        size="small"
-                        color="primary"
-                        onClick={() => setOpenEdit(c)}
-                      >
+                      <IconButton size="small" color="primary" onClick={() => goEdit(u)}>
                         <EditIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title={c.status === "Suspended" ? "ปลดระงับ" : "ระงับการใช้งาน"}>
-                      <IconButton size="small" color="secondary" onClick={() => toggleFreeze(c.id)}>
-                        <AcUnitIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
                     <Tooltip title="ลบ">
-                      <IconButton size="small" color="error" onClick={() => softDelete(c.id)}>
+                      <IconButton size="small" color="error" onClick={() => askDelete(u)}>
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
@@ -405,13 +310,15 @@ const mapCustomer = (c: ApiCustomer): Customer => ({
 
             {!loading && sorted.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 6, color: "text.secondary" }}>
+                <TableCell colSpan={COLUMNS.length + 1} align="center" sx={{ py: 6, color: "text.secondary" }}>
                   ไม่พบข้อมูล
                 </TableCell>
               </TableRow>)}
           </TableBody>
         </Table>
+      </TableContainer>
 
+      <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
         <TablePagination
           component="div"
           count={totalItems}
@@ -419,7 +326,7 @@ const mapCustomer = (c: ApiCustomer): Customer => ({
           onPageChange={handleChangePage}
           rowsPerPage={rowsPerPage}
           onRowsPerPageChange={handleChangeRowsPerPage}
-          rowsPerPageOptions={[5, 10, 25]}
+          rowsPerPageOptions={[10]}
         />
       </Box>
 

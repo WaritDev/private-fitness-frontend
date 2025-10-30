@@ -9,7 +9,9 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import LockResetIcon from "@mui/icons-material/LockReset";
+import { useRouter } from "next/navigation";
+import ConfirmDialog from "@/components/pop-up/ConfirmDialog";
+import { useSnack } from "@/components/snack/SnackProvider";
 
 const PRIMARY = { main: "#38E07A", dark: "#2fbb65" } as const;
 
@@ -220,45 +222,38 @@ export default function StaffAccounts() {
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          sx={{ backgroundColor: PRIMARY.main, '&:hover': { backgroundColor: PRIMARY.dark } }}
-          onClick={() => alert("Create user form…")}
+          sx={{ backgroundColor: PRIMARY.main, "&:hover": { backgroundColor: PRIMARY.dark } }}
+          onClick={() => router.push("/admin/user-management/add")}
         >
           เพิ่มผู้ใช้งาน
         </Button>
       </Stack>
 
-      <TextField
-        placeholder="ค้นหาชื่อหรืออีเมล…"
-        size="small"
-        fullWidth
-        value={search}
-        onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-        sx={{ mb: 2 }}
-      />
-
-      <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
-        <Table>
+      <TableContainer component={Paper} sx={{ borderRadius: 3, overflowX: "auto" }}>
+        <Table stickyHeader>
           <TableHead>
             <TableRow>
-              {([
-                { key: "name", label: "ชื่อ" },
-                { key: "email", label: "อีเมล" },
-                { key: "role", label: "บทบาท" },
-                { key: "status", label: "สถานะ" },
-              ] as const).map((col) => (
-                <TableCell key={col.key} sx={{ fontWeight: 500 }}>
-                  <TableSortLabel
-                    active={orderBy === col.key}
-                    direction={orderBy === col.key ? order : "asc"}
-                    onClick={() => handleRequestSort(col.key as keyof User)}
-                  >
-                    {col.label}
-                  </TableSortLabel>
+              {COLUMNS.map((c) => (
+                <TableCell key={c.key} sx={{ fontWeight: 600, whiteSpace: "nowrap" }}>
+                  {c.key === "firstName" ? (
+                    <TableSortLabel
+                      active
+                      direction={order}
+                      onClick={() => setOrder((o) => (o === "asc" ? "desc" : "asc"))}
+                    >
+                      {c.label}
+                    </TableSortLabel>
+                  ) : (
+                    c.label
+                  )}
                 </TableCell>
               ))}
-              <TableCell sx={{ fontWeight: 500, width: 160 }}>การจัดการ</TableCell>
+              <TableCell sx={{ fontWeight: 600, whiteSpace: "nowrap", width: 140 }}>
+                การจัดการ
+              </TableCell>
             </TableRow>
           </TableHead>
+
           <TableBody>
             {loading && (
               <TableRow>
@@ -282,21 +277,23 @@ export default function StaffAccounts() {
                 <TableCell>
                   <Chip
                     size="small"
-                    label={u.status}
-                    color={u.status === "Active" ? "success" : "default"}
-                    variant={u.status === "Active" ? "filled" : "outlined"}
+                    label={u.isActive ? "Active" : "Inactive"}
+                    color={u.isActive ? "success" : "default"}
+                    variant={u.isActive ? "filled" : "outlined"}
                   />
                 </TableCell>
+
                 <TableCell>
                   <Stack direction="row" spacing={1}>
                     <Tooltip title="แก้ไข">
-                      <IconButton onClick={() => editUser(u)} color="primary" size="small"><EditIcon fontSize="small" /></IconButton>
-                    </Tooltip>
-                    <Tooltip title="รีเซ็ตรหัสผ่าน">
-                      <IconButton onClick={() => resetPassword(u)} color="secondary" size="small"><LockResetIcon fontSize="small" /></IconButton>
+                      <IconButton size="small" color="primary" onClick={() => goEdit(u)}>
+                        <EditIcon fontSize="small" />
+                      </IconButton>
                     </Tooltip>
                     <Tooltip title="ลบ">
-                      <IconButton onClick={() => handleDelete(u)} color="error" size="small"><DeleteIcon fontSize="small" /></IconButton>
+                      <IconButton size="small" color="error" onClick={() => onDeleteClick(u)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
                     </Tooltip>
                   </Stack>
                 </TableCell>
@@ -305,13 +302,14 @@ export default function StaffAccounts() {
 
             {!loading && sorted.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 6, color: "text.secondary" }}>
+                <TableCell colSpan={COLUMNS.length + 1} align="center" sx={{ py: 6, color: "text.secondary" }}>
                   ไม่พบข้อมูล
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
+
         <TablePagination
           component="div"
           count={totalItems}
@@ -319,18 +317,25 @@ export default function StaffAccounts() {
           onPageChange={handleChangePage}
           rowsPerPage={rowsPerPage}
           onRowsPerPageChange={handleChangeRowsPerPage}
-          rowsPerPageOptions={[5, 10, 25]}
+          rowsPerPageOptions={[10]}
         />
       </TableContainer>
 
-      <Dialog open={!!confirmDelete} onClose={() => setConfirmDelete(null)}>
-        <DialogTitle>ลบผู้ใช้งาน</DialogTitle>
-        <DialogContent>คุณต้องการลบผู้ใช้ {confirmDelete?.name} หรือไม่?</DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDelete(null)}>ยกเลิก</Button>
-          <Button color="error" variant="contained" onClick={confirmDeleteRow}>ลบ</Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDialog
+        open={confirm.open}
+        title="ยืนยันการลบผู้ใช้งาน"
+        message={
+          <>
+            Warning: Are you sure you want to delete user: <b>{confirm.target?.username}</b> ?
+            <br />
+            บทบาท: <b>{confirm.target?.role}</b>
+          </>
+        }
+        confirmText="Confirm"
+        cancelText="Cancel"
+        onConfirm={doDelete}
+        onClose={() => setConfirm({ open: false })}
+      />
     </Box>
   );
 }

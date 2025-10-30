@@ -4,23 +4,78 @@ import SessionCard from '@/components/ui/SessionCard';
 import DurationCard from '@/components/ui/DurationCard';
 import { Product } from '@/types/product';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+
 function ProductsPage() {
   const [sessions, setSessions] = React.useState<Product[]>([]);
   const [durations, setDurations] = React.useState<Product[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     async function fetchSessions() {
-      const res = await fetch('/api/sessions');
-      const data = await res.json();
-      setSessions(data.items ?? []);
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/products/sessions`, {
+          credentials: 'include',
+        });
+        const data = await res.json();
+        
+        if (data.status === 'OK' && data.result) {
+          // Map Golang response to Product type
+          const products: Product[] = data.result.map((item: any) => ({
+            productId: item.id,
+            name: item.name,
+            productType: item.type,
+            productCategory: item.category,
+            listPrice: item.listPrice,
+            price: item.listPrice,
+            sessionAmount: item.sessionAmount,
+            durationDays: item.durationDays,
+            isActive: item.isActive,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          }));
+          setSessions(products);
+        }
+      } catch (err) {
+        console.error('Error fetching sessions:', err);
+        setError('ไม่สามารถโหลดข้อมูล Sessions ได้');
+      }
     }
+
     async function fetchDurations() {
-      const res = await fetch('/api/durations');
-      const data = await res.json();
-      setDurations(data.items ?? []);
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/products/durations`, {
+          credentials: 'include',
+        });
+        const data = await res.json();
+        
+        if (data.status === 'OK' && data.result) {
+          // Map Golang response to Product type
+          const products: Product[] = data.result.map((item: any) => ({
+            productId: item.id,
+            name: item.name,
+            productType: item.type,
+            productCategory: item.category,
+            listPrice: item.listPrice,
+            price: item.listPrice,
+            sessionAmount: item.sessionAmount,
+            durationDays: item.durationDays,
+            isActive: item.isActive,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          }));
+          setDurations(products);
+        }
+      } catch (err) {
+        console.error('Error fetching durations:', err);
+        setError('ไม่สามารถโหลดข้อมูล Durations ได้');
+      }
     }
-    fetchSessions();
-    fetchDurations();
+
+    Promise.all([fetchSessions(), fetchDurations()]).finally(() => {
+      setLoading(false);
+    });
   }, []);
 
   const rowStyle: React.CSSProperties = {
@@ -35,28 +90,52 @@ function ProductsPage() {
     flex: '0 0 auto',
   };
 
+  if (loading) {
+    return (
+      <div className="container py-6">
+        <div className="text-center">กำลังโหลดข้อมูล...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container py-6">
+        <div className="text-center text-red-500">{error}</div>
+      </div>
+    );
+  }
+
   return (
     <div className="container py-6 space-y-8">
       <section>
         <h2 className="text-xl font-semibold mb-4">Personal Training (Session)</h2>
-        <div style={rowStyle} aria-label="sessions list">
-          {sessions.map((session) => (
-            <div key={session.Product_Id} style={itemStyle}>
-              <SessionCard session={session} />
-            </div>
-          ))}
-        </div>
+        {sessions.length === 0 ? (
+          <div className="text-gray-500">ไม่มีแพ็กเกจ Session</div>
+        ) : (
+          <div style={rowStyle} aria-label="sessions list">
+            {sessions.map((session) => (
+              <div key={session.productId} style={itemStyle}>
+                <SessionCard session={session} />
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section>
         <h2 className="text-xl font-semibold mb-4">Membership (Duration)</h2>
-        <div style={rowStyle} aria-label="durations list">
-          {durations.map((duration) => (
-            <div key={duration.Product_Id} style={itemStyle}>
-              <DurationCard duration={duration} />
-            </div>
-          ))}
-        </div>
+        {durations.length === 0 ? (
+          <div className="text-gray-500">ไม่มีแพ็กเกจ Duration</div>
+        ) : (
+          <div style={rowStyle} aria-label="durations list">
+            {durations.map((duration) => (
+              <div key={duration.productId} style={itemStyle}>
+                <DurationCard duration={duration} />
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

@@ -3,13 +3,13 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { defaultPathForRole } from '@/lib/roleRedirect';
+import { useSnack } from '@/components/snack/SnackProvider';
 import {
   Box,
   Paper,
   TextField,
   Button,
   Typography,
-  Alert,
   InputAdornment,
   IconButton,
   Stack,
@@ -20,35 +20,143 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 
 const PRIMARY = { main: '#38E07A', dark: '#2fbb65' } as const;
 
+// Backend API Base URL
+const API_BASE_URL = 'http://localhost:8000';
+
 export default function LoginPage() {
   const [username, setUsername] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [showPw, setShowPw] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
-  const [err, setErr] = React.useState('');
+  const [errors, setErrors] = React.useState<Record<string, string>>({});
+  
   const router = useRouter();
+  const { setSnack } = useSnack();
 
-  async function onSubmit(e: React.FormEvent) {
+  /**
+   * ตรวจสอบค่าว่างของ Username และ Password
+   */
+  const validateFields = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    // Username ห้ามค่าว่าง
+    if (!username.trim()) {
+      newErrors.username = 'Username is required';
+    }
+
+    // Password ห้ามค่าว่าง
+    if (!password.trim()) {
+      newErrors.password = 'Password is required';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  /**
+   * จัดการการเข้าสู่ระบบ
+   */
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    setErr('');
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ username, password }),
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-    });
-    setLoading(false);
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      setErr(j.error || 'Login failed');
+    
+    // Clear previous errors
+    setErrors({});
+
+    // Step 4: ตรวจสอบ Model Validation
+    if (!validateFields()) {
       return;
     }
-    const j = await res.json().catch(() => ({}));
-    const role = j?.user?.role;
-    const to = role ? defaultPathForRole(role) : '/';
-    router.replace(to);
+
+    setLoading(true);
+
+    try {
+      // เรียก Backend API (ตรวจสอบ Username & Password)
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+        credentials: 'include', // รับ cookie จาก backend
+      });
+
+      const data = await response.json();
+
+      // Golang Backend ใช้ status: "OK"
+      if (response.ok && data.status === 'OK') {
+        // Login สำเร็จ - Backend อัปเดต Updated_At แล้ว
+        const user = data.result?.user;
+        
+        if (!user || !user.role) {
+          console.error('User data not found in response:', data);
+          setErrors({ form: 'Invalid response from server' });
+          return;
+        }
+
+        // Step 9: Redirect ไปยัง Landing Page ตาม Role
+        const targetPath = defaultPathForRole(user.role);
+        console.log('Redirecting to:', targetPath);
+
+        // แสดง Pop-up ข้อความสำเร็จ
+        setSnack({
+          open: true,
+          msg: `เข้าสู่ระบบสำเร็จ ✅ ยินดีต้อนรับ คุณ ${user.firstName || user.first_name || username}!`,
+          severity: 'success',
+        });
+
+        // Redirect ทันที (Snackbar จะแสดงในหน้าใหม่)
+        setTimeout(() => {
+          window.location.href = targetPath;
+        }, 1500);
+
+      } else {
+        // Step 6-7: Database Validation Failed
+        console.error('Login failed:', data);
+        handleLoginError(data.message || 'Login failed');
+      }
+
+    } catch (error) {
+      console.error('Login error:', error);
+      setErrors({ form: 'เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์' });
+    } finally {
+      setLoading(false);
+    }
   }
+
+  /**
+   * จัดการ Error Message ตาม Use Case
+   * - Username or Password is Incorrect (Step 6)
+   * - This account has been suspended (Step 7)
+   */
+  const handleLoginError = (message: string) => {
+    const lowerMsg = message.toLowerCase();
+
+    if (lowerMsg.includes('invalid credentials') || lowerMsg.includes('incorrect')) {
+      // Step 6: Username หรือ Password ไม่ถูกต้อง
+      setErrors({ form: 'Username or Password is Incorrect' });
+    } else if (lowerMsg.includes('suspended') || lowerMsg.includes('inactive')) {
+      // Step 7: บัญชีถูกระงับ
+      setErrors({ form: 'This account has been suspended.' });
+    } else {
+      // Error อื่นๆ
+      setErrors({ form: message });
+    }
+  };
+
+  /**
+   * Clear error when user starts typing
+   */
+  const handleUsernameChange = (value: string) => {
+    setUsername(value);
+    if (errors.username) {
+      setErrors((prev) => ({ ...prev, username: '' }));
+    }
+  };
+
+  const handlePasswordChange = (value: string) => {
+    setPassword(value);
+    if (errors.password) {
+      setErrors((prev) => ({ ...prev, password: '' }));
+    }
+  };
 
   return (
     <Box
@@ -62,6 +170,7 @@ export default function LoginPage() {
         py: 4,
       }}
     >
+      {/* Background Image */}
       <Box
         sx={{
           position: 'absolute',
@@ -75,6 +184,7 @@ export default function LoginPage() {
         }}
       />
 
+      {/* Login Form */}
       <Paper
         elevation={6}
         sx={{
@@ -86,8 +196,9 @@ export default function LoginPage() {
           zIndex: 1,
         }}
       >
-        <form onSubmit={onSubmit} noValidate>
+        <form onSubmit={handleLogin} noValidate>
           <Stack spacing={3}>
+            {/* Header */}
             <Box textAlign="center" mb={1}>
               <Typography variant="h5" fontWeight={600} gutterBottom>
                 เข้าสู่ระบบ
@@ -97,23 +208,45 @@ export default function LoginPage() {
               </Typography>
             </Box>
 
-            {err && <Alert severity="error">{err}</Alert>}
+            {/* Form-level Error Message */}
+            {errors.form && (
+              <Typography 
+                variant="body2" 
+                color="error" 
+                sx={{ 
+                  textAlign: 'center',
+                  p: 1.5,
+                  backgroundColor: 'error.lighter',
+                  borderRadius: 1,
+                  border: '1px solid',
+                  borderColor: 'error.main',
+                }}
+              >
+                {errors.form}
+              </Typography>
+            )}
 
+            {/* Username Field */}
             <TextField
               label="Username"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => handleUsernameChange(e.target.value)}
+              error={!!errors.username}
+              helperText={errors.username}
               fullWidth
               required
               autoFocus
               variant="outlined"
             />
 
+            {/* Password Field */}
             <TextField
               label="Password"
               type={showPw ? 'text' : 'password'}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => handlePasswordChange(e.target.value)}
+              error={!!errors.password}
+              helperText={errors.password}
               fullWidth
               required
               variant="outlined"
@@ -122,7 +255,7 @@ export default function LoginPage() {
                   <InputAdornment position="end">
                     <IconButton
                       aria-label={showPw ? 'Hide password' : 'Show password'}
-                      onClick={() => setShowPw((s) => !s)}
+                      onClick={() => setShowPw((prev) => !prev)}
                       edge="end"
                     >
                       {showPw ? <VisibilityOffIcon /> : <VisibilityIcon />}
@@ -132,6 +265,7 @@ export default function LoginPage() {
               }}
             />
 
+            {/* Submit Button */}
             <Button
               type="submit"
               variant="contained"
