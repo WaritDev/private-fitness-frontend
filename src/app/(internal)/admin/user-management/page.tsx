@@ -6,9 +6,6 @@ import {
   Stack,
   Typography,
   Button,
-  IconButton,
-  Tooltip,
-  TextField,
   Table,
   TableHead,
   TableBody,
@@ -19,65 +16,93 @@ import {
   TableSortLabel,
   TablePagination,
   Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions
+  IconButton,
+  Tooltip,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import LockResetIcon from "@mui/icons-material/LockReset";
+import { useRouter } from "next/navigation";
+import ConfirmDialog from "@/components/pop-up/ConfirmDialog";
+import { useSnack } from "@/components/snack/SnackProvider";
 
-const PRIMARY = { main: "#38E07A", dark: "#2fbb65" };
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: "Admin" | "Manager" | "Trainer" | "Member";
-  status: "Active" | "Inactive";
-}
+const PRIMARY = { main: "#38E07A", dark: "#2fbb65" } as const;
 
+type Role = "ADMIN" | "MANAGER" | "TRAINER" | "SALES";
+type Gender = "M" | "F" | "OTHER";
 type Order = "asc" | "desc";
 
-const MOCK: User[] = [
-  { id: 1, name: "John Doe", email: "john@example.com", role: "Admin", status: "Active" },
-  { id: 2, name: "Jane Smith", email: "jane@example.com", role: "Manager", status: "Inactive" },
-  { id: 3, name: "Mark Lee", email: "mark@example.com", role: "Trainer", status: "Active" },
-  { id: 4, name: "Alice Brown", email: "alice@example.com", role: "Member", status: "Active" },
-  { id: 5, name: "Bob Chan", email: "bob@example.com", role: "Trainer", status: "Inactive" },
-  { id: 6, name: "Nina Park", email: "nina@example.com", role: "Manager", status: "Active" },
+type Staff = {
+  username: string;
+  role: Role;
+  firstName: string;
+  lastName: string;
+  gender?: Gender | null;
+  dateOfBirth?: string | null;
+  phoneNumber?: string | null;
+  gmail?: string | null;
+  specialty?: string | null;
+  isActive: boolean;
+};
+
+const MOCK: Staff[] = [
+  { username: "jane.m", role: "MANAGER", firstName: "Jane", lastName: "Moon", gender: "F", dateOfBirth: "1990-03-11", phoneNumber: "080-111-2233", gmail: "jane.m@example.com", specialty: "Ops", isActive: true },
+  { username: "john.d", role: "ADMIN", firstName: "John", lastName: "Doe", gender: "M", dateOfBirth: "1989-07-22", phoneNumber: "081-222-3344", gmail: "john.d@example.com", specialty: "Infra", isActive: true },
+  { username: "alice.b", role: "TRAINER", firstName: "Alice", lastName: "Brown", gender: "F", dateOfBirth: "1996-01-09", phoneNumber: "089-777-8899", gmail: "alice.b@example.com", specialty: "Yoga", isActive: true },
+  { username: "mark.l", role: "TRAINER", firstName: "Mark", lastName: "Lee", gender: "M", dateOfBirth: "1993-12-30", phoneNumber: "086-333-4455", gmail: "mark.l@example.com", specialty: "Strength", isActive: false },
+  { username: "nina.p", role: "MANAGER", firstName: "Nina", lastName: "Park", gender: "F", dateOfBirth: "1992-04-15", phoneNumber: "085-555-6677", gmail: "nina.p@example.com", specialty: "Strategy", isActive: true },
+  { username: "bob.c", role: "SALES", firstName: "Bob", lastName: "Chan", gender: "M", dateOfBirth: "1995-10-08", phoneNumber: "084-999-0001", gmail: "bob.c@example.com", specialty: "B2B", isActive: false },
+  { username: "pam.s", role: "SALES", firstName: "Pam", lastName: "Somsri", gender: "F", dateOfBirth: "1998-02-02", phoneNumber: "083-666-7788", gmail: "pam.s@example.com", specialty: "Retail", isActive: true },
+  { username: "krit.t", role: "TRAINER", firstName: "Krit", lastName: "Tana", gender: "M", dateOfBirth: "1994-05-25", phoneNumber: "082-111-2223", gmail: "krit.t@example.com", specialty: "HIIT", isActive: true },
+  { username: "ploy.k", role: "TRAINER", firstName: "Ploy", lastName: "Kawin", gender: "F", dateOfBirth: "1997-06-14", phoneNumber: "081-999-1234", gmail: "ploy.k@example.com", specialty: "Pilates", isActive: false },
+  { username: "anong.m", role: "ADMIN", firstName: "Anong", lastName: "Manee", gender: "F", dateOfBirth: "1987-09-19", phoneNumber: "080-333-5544", gmail: "anong.m@example.com", specialty: "Security", isActive: true },
+  { username: "boss.z", role: "MANAGER", firstName: "Boss", lastName: "Zhang", gender: "M", dateOfBirth: "1985-11-03", phoneNumber: "089-212-4545", gmail: "boss.z@example.com", specialty: "Finance", isActive: true },
+  { username: "fon.w", role: "SALES", firstName: "Fon", lastName: "Wipa", gender: "F", dateOfBirth: "1999-08-08", phoneNumber: "086-120-3040", gmail: "fon.w@example.com", specialty: "Online", isActive: true },
+  { username: "ice.k", role: "TRAINER", firstName: "Ice", lastName: "Korn", gender: "OTHER", dateOfBirth: "1996-07-01", phoneNumber: "088-223-3344", gmail: "ice.k@example.com", specialty: "Mobility", isActive: true },
+  { username: "mike.t", role: "SALES", firstName: "Mike", lastName: "Tan", gender: "M", dateOfBirth: "1991-02-27", phoneNumber: "083-333-4445", gmail: "mike.t@example.com", specialty: "Partners", isActive: false },
+  { username: "noon.n", role: "TRAINER", firstName: "Noon", lastName: "Nita", gender: "F", dateOfBirth: "1994-03-03", phoneNumber: "087-888-9990", gmail: "noon.n@example.com", specialty: "Dance", isActive: true },
+  { username: "oak.r", role: "MANAGER", firstName: "Oak", lastName: "Rit", gender: "M", dateOfBirth: "1990-10-10", phoneNumber: "086-777-9090", gmail: "oak.r@example.com", specialty: "HR", isActive: true },
+  { username: "ploys.h", role: "SALES", firstName: "Ploys", lastName: "Hong", gender: "F", dateOfBirth: "1998-12-12", phoneNumber: "082-555-6666", gmail: "ploys.h@example.com", specialty: "Events", isActive: true },
+  { username: "yui.c", role: "TRAINER", firstName: "Yui", lastName: "Chaya", gender: "F", dateOfBirth: "1993-01-15", phoneNumber: "089-333-3232", gmail: "yui.c@example.com", specialty: "Cardio", isActive: true },
 ];
 
-export default function AdminUsers_NoGrid() {
-  const [rows, setRows] = React.useState<User[]>(MOCK);
-  const [search, setSearch] = React.useState("");
+const COLUMNS = [
+  { key: "firstName", label: "ชื่อ", sortable: true },
+  { key: "lastName", label: "นามสกุล", sortable: false },
+  { key: "username", label: "Username", sortable: false },
+  { key: "role", label: "บทบาท", sortable: false },
+  { key: "gender", label: "เพศ", sortable: false },
+  { key: "dateOfBirth", label: "วันเกิด", sortable: false },
+  { key: "phoneNumber", label: "โทรศัพท์", sortable: false },
+  { key: "gmail", label: "Gmail", sortable: false },
+  { key: "specialty", label: "ความถนัด", sortable: false },
+  { key: "isActive", label: "สถานะ", sortable: false },
+] as const;
+
+export default function StaffAccountsMockOnlyFirstNameSort() {
+  const [rows, setRows] = React.useState<Staff[]>(MOCK);
   const [order, setOrder] = React.useState<Order>("asc");
-  const [orderBy, setOrderBy] = React.useState<keyof User>("name");
   const [page, setPage] = React.useState(0);
-  const [rowsPerPage, setRowsPerPage] = React.useState(5);
-  const [confirmDelete, setConfirmDelete] = React.useState<User | null>(null);
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const router = useRouter();
 
-  const filtered = rows.filter(
-    (u) =>
-      u.name.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase())
+  const [confirm, setConfirm] = React.useState<{ open: boolean; target?: Staff }>({ open: false });
+
+  const { setSnack } = useSnack();
+
+  const sorted = React.useMemo(() => {
+    const arr = [...rows];
+    arr.sort((a, b) => {
+      const cmp = a.firstName.localeCompare(b.firstName, "th");
+      return order === "asc" ? cmp : -cmp;
+    });
+    return arr;
+  }, [rows, order]);
+
+  const paged = React.useMemo(
+    () => sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [sorted, page, rowsPerPage]
   );
-
-  const sorted = [...filtered].sort((a, b) => {
-    const aVal = String(a[orderBy]).toLowerCase();
-    const bVal = String(b[orderBy]).toLowerCase();
-    const cmp = aVal.localeCompare(bVal);
-    return order === "asc" ? cmp : -cmp;
-  });
-
-  const paged = sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-
-  const handleRequestSort = (property: keyof User) => {
-    const isAsc = orderBy === property && order === "asc";
-    setOrder(isAsc ? "desc" : "asc");
-    setOrderBy(property);
-  };
 
   const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
   const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -85,123 +110,146 @@ export default function AdminUsers_NoGrid() {
     setPage(0);
   };
 
-  const handleDelete = (u: User) => setConfirmDelete(u);
-  const confirmDeleteRow = () => {
-    if (confirmDelete) setRows((prev) => prev.filter((r) => r.id !== confirmDelete.id));
-    setConfirmDelete(null);
+  const formatDOB = (iso?: string | null) => {
+    if (!iso) return "—";
+    try { return new Date(iso).toLocaleDateString("th-TH"); } catch { return "—"; }
   };
 
-  const resetPassword = (u: User) => {
-    alert(`Reset password for ${u.email}`);
+  const goEdit = (u: Staff) => {
+    router.push(`/admin/user-management/edit?u=${encodeURIComponent(u.username)}`);
   };
 
-  const editUser = (u: User) => {
-    alert(`Edit user: ${u.name}`);
+  const onDeleteClick = (u: Staff) => setConfirm({ open: true, target: u });
+
+  const doDelete = async () => {
+    await new Promise((r) => setTimeout(r, 300));
+    const username = confirm.target?.username;
+    if (!username) return;
+
+    setRows((prev) => prev.filter((it) => it.username !== username));
+
+    setSnack({
+      open: true,
+      msg: `Username: ${username} deleted successfully`,
+      severity: "success",
+    });
+
+    setConfirm({ open: false });
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 2, md: 3 } }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" gap={2} flexWrap="wrap" sx={{ mb: 2 }}>
         <Typography variant="h5" fontWeight={400}>จัดการบัญชีผู้ใช้งาน</Typography>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          sx={{ backgroundColor: PRIMARY.main, '&:hover': { backgroundColor: PRIMARY.dark } }}
-          onClick={() => alert("Create user form…")}
+          sx={{ backgroundColor: PRIMARY.main, "&:hover": { backgroundColor: PRIMARY.dark } }}
+          onClick={() => router.push("/admin/user-management/add")}
         >
           เพิ่มผู้ใช้งาน
         </Button>
       </Stack>
 
-      <TextField
-        placeholder="ค้นหาชื่อหรืออีเมล…"
-        size="small"
-        fullWidth
-        value={search}
-        onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-        sx={{ mb: 2 }}
-      />
-
-      <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
-        <Table>
+      <TableContainer component={Paper} sx={{ borderRadius: 3, overflowX: "auto" }}>
+        <Table stickyHeader>
           <TableHead>
             <TableRow>
-              {([
-                { key: "name", label: "ชื่อ" },
-                { key: "email", label: "อีเมล" },
-                { key: "role", label: "บทบาท" },
-                { key: "status", label: "สถานะ" },
-              ] as const).map((col) => (
-                <TableCell key={col.key} sx={{ fontWeight: 500 }}>
-                  <TableSortLabel
-                    active={orderBy === col.key}
-                    direction={orderBy === col.key ? order : "asc"}
-                    onClick={() => handleRequestSort(col.key as keyof User)}
-                  >
-                    {col.label}
-                  </TableSortLabel>
+              {COLUMNS.map((c) => (
+                <TableCell key={c.key} sx={{ fontWeight: 600, whiteSpace: "nowrap" }}>
+                  {c.key === "firstName" ? (
+                    <TableSortLabel
+                      active
+                      direction={order}
+                      onClick={() => setOrder((o) => (o === "asc" ? "desc" : "asc"))}
+                    >
+                      {c.label}
+                    </TableSortLabel>
+                  ) : (
+                    c.label
+                  )}
                 </TableCell>
               ))}
-              <TableCell sx={{ fontWeight: 500, width: 160 }}>การจัดการ</TableCell>
+              <TableCell sx={{ fontWeight: 600, whiteSpace: "nowrap", width: 140 }}>
+                การจัดการ
+              </TableCell>
             </TableRow>
           </TableHead>
+
           <TableBody>
             {paged.map((u) => (
-              <TableRow key={u.id} hover>
-                <TableCell>{u.name}</TableCell>
-                <TableCell>{u.email}</TableCell>
+              <TableRow key={u.username} hover>
+                <TableCell>{u.firstName}</TableCell>
+                <TableCell>{u.lastName}</TableCell>
+                <TableCell>{u.username}</TableCell>
                 <TableCell>{u.role}</TableCell>
+                <TableCell>{u.gender === "M" ? "ชาย" : u.gender === "F" ? "หญิง" : u.gender ? "อื่น ๆ" : "—"}</TableCell>
+                <TableCell>{formatDOB(u.dateOfBirth)}</TableCell>
+                <TableCell>{u.phoneNumber || "—"}</TableCell>
+                <TableCell>{u.gmail || "—"}</TableCell>
+                <TableCell>{u.role === "TRAINER" ? (u.specialty || "—") : "ไม่มี"}</TableCell>
                 <TableCell>
                   <Chip
                     size="small"
-                    label={u.status}
-                    color={u.status === "Active" ? "success" : "default"}
-                    variant={u.status === "Active" ? "filled" : "outlined"}
+                    label={u.isActive ? "Active" : "Inactive"}
+                    color={u.isActive ? "success" : "default"}
+                    variant={u.isActive ? "filled" : "outlined"}
                   />
                 </TableCell>
+
                 <TableCell>
                   <Stack direction="row" spacing={1}>
                     <Tooltip title="แก้ไข">
-                      <IconButton onClick={() => editUser(u)} color="primary" size="small"><EditIcon fontSize="small" /></IconButton>
-                    </Tooltip>
-                    <Tooltip title="รีเซ็ตรหัสผ่าน">
-                      <IconButton onClick={() => resetPassword(u)} color="secondary" size="small"><LockResetIcon fontSize="small" /></IconButton>
+                      <IconButton size="small" color="primary" onClick={() => goEdit(u)}>
+                        <EditIcon fontSize="small" />
+                      </IconButton>
                     </Tooltip>
                     <Tooltip title="ลบ">
-                      <IconButton onClick={() => handleDelete(u)} color="error" size="small"><DeleteIcon fontSize="small" /></IconButton>
+                      <IconButton size="small" color="error" onClick={() => onDeleteClick(u)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
                     </Tooltip>
                   </Stack>
                 </TableCell>
               </TableRow>
             ))}
+
             {paged.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 6, color: "text.secondary" }}>
+                <TableCell colSpan={COLUMNS.length + 1} align="center" sx={{ py: 6, color: "text.secondary" }}>
                   ไม่พบข้อมูล
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
+
         <TablePagination
           component="div"
-          count={sorted.length}
+          count={rows.length}
           page={page}
           onPageChange={handleChangePage}
           rowsPerPage={rowsPerPage}
           onRowsPerPageChange={handleChangeRowsPerPage}
-          rowsPerPageOptions={[5, 10, 25]}
+          rowsPerPageOptions={[10]}
         />
       </TableContainer>
 
-      <Dialog open={!!confirmDelete} onClose={() => setConfirmDelete(null)}>
-        <DialogTitle>ลบผู้ใช้งาน</DialogTitle>
-        <DialogContent>คุณต้องการลบผู้ใช้ {confirmDelete?.name} หรือไม่?</DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDelete(null)}>ยกเลิก</Button>
-          <Button color="error" variant="contained" onClick={confirmDeleteRow}>ลบ</Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDialog
+        open={confirm.open}
+        title="ยืนยันการลบผู้ใช้งาน"
+        message={
+          <>
+            Warning: Are you sure you want to delete user: <b>{confirm.target?.username}</b> ?
+            <br />
+            บทบาท: <b>{confirm.target?.role}</b>
+          </>
+        }
+        confirmText="Confirm"
+        cancelText="Cancel"
+        onConfirm={doDelete}
+        onClose={() => setConfirm({ open: false })}
+      />
     </Box>
   );
 }
