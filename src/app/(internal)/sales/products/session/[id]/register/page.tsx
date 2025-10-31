@@ -164,7 +164,7 @@ export default function SessionRegisterPage() {
 
         if (res.statusText === 'OK' && data) {
           setProductName(data.name || '');
-          const price = data.listPrice || 0;
+          const price = data.listPrice / 100 || 0;
           setBasePrice(price);
           setSessionAmount(data.sessionAmount || null);
           setPricePaid(price);

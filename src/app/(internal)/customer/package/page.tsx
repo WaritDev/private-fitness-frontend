@@ -92,30 +92,39 @@ export default function PackagesPage() {
   }, []);
 
   function buyDuration(product: Product) {
-    // Store minimal data for flow detection
+    // Store minimal data for flow detection (use unified key 'pendingOrder')
     const orderData = {
       source: 'customer-purchase',
       timestamp: new Date().toISOString(),
     };
-    sessionStorage.setItem('pendingDurationOrder', JSON.stringify(orderData));
+    sessionStorage.setItem('pendingOrder', JSON.stringify(orderData));
     
     // Redirect to payment page with product ID from API
     router.push(`/customer/package/${product.productId}/payment`);
   }
 
   function buySession(product: Product) {
-    const q = new URLSearchParams({
-      package_id: String(product.productId),
-      package_name: product.name,
-      package_type: 'SESSION',
-      price: String(product.listPrice),
-      sessions: String(product.sessionAmount || 0),
-    });
-    sessionStorage.setItem('pendingSessionOrder', JSON.stringify({
+    // TODO: In the future, this should navigate to trainer selection page first
+    // For now, we'll use a default trainer or show error
+    // Temporary: prompt user to select trainer (in real app, navigate to trainer selection page)
+    
+    const trainerUsername = prompt('กรุณาใส่ Username ของ Trainer (ชั่วคราว):');
+    
+    if (!trainerUsername) {
+      alert('กรุณาเลือก Trainer ก่อนซื้อแพ็กเกจ Session');
+      return;
+    }
+    
+    // Store order data with trainer info (use unified key 'pendingOrder')
+    const orderData = {
       source: 'customer-purchase',
       timestamp: new Date().toISOString(),
-    }));
-    router.push(`/customer/package/trainer?${q.toString()}`);
+      trainerUsername: trainerUsername.trim(),
+    };
+    sessionStorage.setItem('pendingOrder', JSON.stringify(orderData));
+    
+    // Redirect directly to payment page
+    router.push(`/customer/package/${product.productId}/payment`);
   }
 
   // Loading state

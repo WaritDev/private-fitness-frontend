@@ -135,7 +135,7 @@ export default function DurationRegisterPage() {
 
         if (res.statusText === 'OK' && data) {
           setProductName(data.name || '');
-          const price = data.listPrice || 0;
+          const price = data.listPrice / 100 || 0;
           setBasePrice(price);
           setDurationDays(data.durationDays || null);
           // Initialize pricing

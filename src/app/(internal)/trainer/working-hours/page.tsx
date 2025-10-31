@@ -1,348 +1,648 @@
 "use client";
 
 import * as React from "react";
-import dayjs, { Dayjs } from "dayjs";
 import {
   Box,
-  Stack,
+  Container,
   Typography,
-  Card,
-  CardContent,
-  Chip,
   Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
   IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   TextField,
-  Checkbox,
-  FormControlLabel,
-  Divider,
-  Tooltip,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
+  Snackbar,
+  Alert,
+  CircularProgress,
+  Stack,
 } from "@mui/material";
-import {
-  LocalizationProvider,
-  DateCalendar,
-  PickersDay,
-  TimePicker,
-} from "@mui/x-date-pickers";
-import type { PickersDayProps } from "@mui/x-date-pickers/PickersDay";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
-import EventAvailableIcon from "@mui/icons-material/EventAvailable";
+import { DayOfWeek, DAY_NAMES } from "@/types/trainer-availability";
+import ConfirmPopUpUI from "@/components/pop-up/ConfirmPopUpUI";
 
 const PRIMARY = { main: "#38E07A", dark: "#2fbb65" } as const;
+const API_BASE_URL = "http://localhost:8000";
 
-type Appointment = {
-  id: string;
-  customer: string;
-  note?: string;
-  date: string;  // "YYYY-MM-DD"
-  start: string; // "HH:mm"
-  end: string;   // "HH:mm"
+// Working Hour Type - ตรงตาม API Response
+type WorkingHour = {
+  availabilityId: number;
+  dayOfWeek: DayOfWeek;
+  startTime: string; // HH:mm format
+  endTime: string; // HH:mm format
 };
 
-type WorkingDays = { [dow: number]: boolean };
-type OffDay = string; // "YYYY-MM-DD"
+// Form Data Type
+type WorkingHoursFormData = {
+  date: string;      // YYYY-MM-DD format
+  dayOfWeek: DayOfWeek;
+  startTime: string; // HH:mm format
+  endTime: string;   // HH:mm format
+};
 
-const MOCK_APPTS: Appointment[] = [
-  {
-    id: "a1",
-    customer: "Somchai",
-    note: "PT Upper body",
-    date: dayjs().format("YYYY-MM-DD"),
-    start: "10:00",
-    end: "11:00",
-  },
-  {
-    id: "a2",
-    customer: "Warunee",
-    date: dayjs().add(1, "day").format("YYYY-MM-DD"),
-    start: "14:00",
-    end: "15:00",
-  },
-];
+// API Response Types
+type WorkingHoursResponse = {
+  status: string;
+  message: string;
+  workingHours: WorkingHour[];
+};
 
-export default function TrainerCalendarPage(): React.JSX.Element {
-  const [selected, setSelected] = React.useState<Dayjs>(dayjs());
-  const [appts, setAppts] = React.useState<Appointment[]>(MOCK_APPTS);
-  const [working, setWorking] = React.useState<WorkingDays>({
-    0: false, 1: true, 2: true, 3: true, 4: true, 5: true, 6: false,
+type SuccessResponse = {
+  status: string;
+  message: string;
+};
+
+type ErrorResponse = {
+  status: string;
+  message: string;
+};
+
+export default function TrainerWorkingHoursPage(): React.JSX.Element {
+  // State Management
+  const [workingHours, setWorkingHours] = React.useState<WorkingHour[]>([]);
+  const [loading, setLoading] = React.useState<boolean>(true);
+  const [error, setError] = React.useState<string | null>(null);
+
+  // Dialog State
+  const [openDialog, setOpenDialog] = React.useState<boolean>(false);
+  const [editing, setEditing] = React.useState<WorkingHour | null>(null);
+
+  // Confirm Delete Dialog State
+  const [confirmDelete, setConfirmDelete] = React.useState<{
+    open: boolean;
+    availabilityId: number | null;
+  }>({
+    open: false,
+    availabilityId: null,
   });
-  const [offDays, setOffDays] = React.useState<OffDay[]>([]);
 
-  const [openForm, setOpenForm] = React.useState<boolean>(false);
-  const [editing, setEditing] = React.useState<Appointment | null>(null);
-
-  const [formDate, setFormDate] = React.useState<Dayjs>(selected);
-  const [formStart, setFormStart] = React.useState<Dayjs>(dayjs().hour(10).minute(0));
-  const [formEnd, setFormEnd] = React.useState<Dayjs>(dayjs().hour(11).minute(0));
-  const [formCustomer, setFormCustomer] = React.useState<string>("");
-  const [formNote, setFormNote] = React.useState<string>("");
-
-  const keyOf = (d: Dayjs): string => d.format("YYYY-MM-DD");
-  const isOffDay = (d: Dayjs): boolean => offDays.includes(keyOf(d));
-  const isWorkingDow = (d: Dayjs): boolean => !!working[d.day()];
-
-  const apptsOfSelected = React.useMemo(
-    () =>
-      appts
-        .filter((a) => a.date === keyOf(selected))
-        .sort((a, b) => a.start.localeCompare(b.start)),
-    [appts, selected]
-  );
-
-  const toggleOffDay = (d: Dayjs): void => {
-    const k = keyOf(d);
-    setOffDays((prev) => (prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]));
+  // Form State
+  const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   };
 
-  const upsertAppt = (val: Appointment): void => {
-    setAppts((prev) =>
-      prev.some((a) => a.id === val.id)
-        ? prev.map((a) => (a.id === val.id ? val : a))
-        : [val, ...prev]
-    );
-  };
+  const [formData, setFormData] = React.useState<WorkingHoursFormData>({
+    date: getTodayDate(),
+    dayOfWeek: "MONDAY",
+    startTime: "09:00",
+    endTime: "17:00",
+  });
 
-  const removeAppt = (id: string): void =>
-    setAppts((prev) => prev.filter((a) => a.id !== id));
+  // Form Validation Errors
+  const [formErrors, setFormErrors] = React.useState<{
+    date?: string;
+    dayOfWeek?: string;
+    startTime?: string;
+    endTime?: string;
+  }>({});
 
-  const openCreate = (day?: Dayjs): void => {
-    const base = day ?? selected;
+  // Snackbar State
+  const [snackbar, setSnackbar] = React.useState<{
+    open: boolean;
+    message: string;
+    severity: "success" | "error" | "info" | "warning";
+  }>({
+    open: false,
+    message: "",
+    severity: "success",
+  });
+
+  // Load Working Hours from API
+  const loadWorkingHours = React.useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/trainers/working-hours`, {
+        method: "GET",
+        credentials: "include", // ส่ง cookie pf_auth
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = (await response.json()) as WorkingHoursResponse | ErrorResponse;
+
+      if (response.ok && data.status === "success") {
+        const successData = data as WorkingHoursResponse;
+        setWorkingHours(successData.workingHours || []);
+      } else {
+        const errorData = data as ErrorResponse;
+        setError(errorData.message || "Failed to load working hours");
+        setSnackbar({
+          open: true,
+          message: errorData.message || "Failed to load working hours",
+          severity: "error",
+        });
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to load working hours";
+      setError(errorMessage);
+      setSnackbar({
+        open: true,
+        message: "เกิดข้อผิดพลาดในการโหลดข้อมูล",
+        severity: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Load data on component mount
+  React.useEffect(() => {
+    loadWorkingHours();
+  }, [loadWorkingHours]);
+
+  // Open Add Dialog
+  const handleOpenAddDialog = () => {
     setEditing(null);
-    setFormDate(base);
-    setFormStart(base.hour(10).minute(0));
-    setFormEnd(base.hour(11).minute(0));
-    setFormCustomer("");
-    setFormNote("");
-    setOpenForm(true);
+    setFormData({
+      date: getTodayDate(),
+      dayOfWeek: "MONDAY",
+      startTime: "09:00",
+      endTime: "17:00",
+    });
+    setFormErrors({});
+    setOpenDialog(true);
   };
 
-  const openEdit = (a: Appointment): void => {
-    setEditing(a);
-    setFormDate(dayjs(a.date));
-    setFormStart(dayjs(`${a.date} ${a.start}`));
-    setFormEnd(dayjs(`${a.date} ${a.end}`));
-    setFormCustomer(a.customer);
-    setFormNote(a.note ?? "");
-    setOpenForm(true);
+  // Open Edit Dialog
+  const handleOpenEditDialog = (workingHour: WorkingHour) => {
+    setEditing(workingHour);
+    setFormData({
+      date: getTodayDate(),
+      dayOfWeek: workingHour.dayOfWeek,
+      startTime: workingHour.startTime,
+      endTime: workingHour.endTime,
+    });
+    setFormErrors({});
+    setOpenDialog(true);
   };
 
-  const submitForm = (): void => {
-    const newA: Appointment = {
-      id: editing?.id ?? crypto.randomUUID(),
-      customer: formCustomer.trim() || "Customer",
-      note: formNote.trim() || undefined,
-      date: formDate.format("YYYY-MM-DD"),
-      start: formStart.format("HH:mm"),
-      end: formEnd.format("HH:mm"),
+  // Close Dialog
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setEditing(null);
+    setFormData({
+      date: getTodayDate(),
+      dayOfWeek: "MONDAY",
+      startTime: "09:00",
+      endTime: "17:00",
+    });
+    setFormErrors({});
+  };
+
+  // Validate Form
+  const validateForm = (): boolean => {
+    const errors: typeof formErrors = {};
+
+    // Validate date
+    if (!formData.date) {
+      errors.date = "กรุณาเลือกวันที่";
+    } else {
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(formData.date)) {
+        errors.date = "รูปแบบวันที่ไม่ถูกต้อง (YYYY-MM-DD)";
+      }
+    }
+
+    // Validate dayOfWeek
+    if (!formData.dayOfWeek) {
+      errors.dayOfWeek = "กรุณาเลือกวัน";
+    }
+
+    // Validate startTime
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    if (!formData.startTime) {
+      errors.startTime = "กรุณาเลือกเวลาเริ่มต้น";
+    } else if (!timeRegex.test(formData.startTime)) {
+      errors.startTime = "รูปแบบเวลาไม่ถูกต้อง (HH:mm)";
+    }
+
+    // Validate endTime
+    if (!formData.endTime) {
+      errors.endTime = "กรุณาเลือกเวลาสิ้นสุด";
+    } else if (!timeRegex.test(formData.endTime)) {
+      errors.endTime = "รูปแบบเวลาไม่ถูกต้อง (HH:mm)";
+    }
+
+    // Validate endTime > startTime
+    if (formData.startTime && formData.endTime && formData.endTime <= formData.startTime) {
+      errors.endTime = "เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่มต้น";
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Handle Save (Add or Update)
+  const handleSave = async () => {
+    // Validate form
+    if (!validateForm()) {
+      return;
+    }
+
+    try {
+      const method = editing ? "PUT" : "POST";
+      const url = editing
+        ? `${API_BASE_URL}/api/trainers/working-hours/${editing.availabilityId}`
+        : `${API_BASE_URL}/api/trainers/working-hours`;
+
+      const response = await fetch(url, {
+        method,
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          dayOfWeek: formData.dayOfWeek,
+          startTime: formData.startTime,
+          endTime: formData.endTime,
+        }),
+      });
+
+      const data = (await response.json()) as SuccessResponse | ErrorResponse;
+
+      if (response.ok && data.status === "success") {
+        setSnackbar({
+          open: true,
+          message: editing
+            ? "แก้ไขเวลาทำงานสำเร็จ"
+            : "เพิ่มเวลาทำงานสำเร็จ",
+          severity: "success",
+        });
+
+        handleCloseDialog();
+
+        // Refresh data after 4 seconds (ตาม Use Case)
+        setTimeout(() => {
+          loadWorkingHours();
+        }, 4000);
+      } else {
+        const errorData = data as ErrorResponse;
+        setSnackbar({
+          open: true,
+          message: errorData.message || "เกิดข้อผิดพลาด",
+          severity: "error",
+        });
+      }
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: "เกิดข้อผิดพลาดในการบันทึกข้อมูล",
+        severity: "error",
+      });
+    }
+  };
+
+  // Handle Delete Click
+  const handleDeleteClick = (availabilityId: number) => {
+    setConfirmDelete({
+      open: true,
+      availabilityId,
+    });
+  };
+
+  // Perform Delete after confirmation
+  const performDelete = React.useCallback(async () => {
+    if (!confirmDelete.availabilityId) return;
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/trainers/working-hours/${confirmDelete.availabilityId}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const data = (await response.json()) as SuccessResponse | ErrorResponse;
+
+      if (response.ok && data.status === "success") {
+        setSnackbar({
+          open: true,
+          message: "ลบเวลาทำงานสำเร็จ",
+          severity: "success",
+        });
+
+        // Refresh data after 4 seconds (ตาม Use Case)
+        setTimeout(() => {
+          loadWorkingHours();
+        }, 4000);
+      } else {
+        const errorData = data as ErrorResponse;
+        setSnackbar({
+          open: true,
+          message: errorData.message || "เกิดข้อผิดพลาดในการลบข้อมูล",
+          severity: "error",
+        });
+      }
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: "เกิดข้อผิดพลาดในการลบข้อมูล",
+        severity: "error",
+      });
+    } finally {
+      setConfirmDelete({
+        open: false,
+        availabilityId: null,
+      });
+    }
+  }, [confirmDelete.availabilityId, loadWorkingHours]);
+
+  // Group working hours by day
+  const groupedByDay = React.useMemo(() => {
+    const groups: Record<DayOfWeek, WorkingHour[]> = {
+      MONDAY: [],
+      TUESDAY: [],
+      WEDNESDAY: [],
+      THURSDAY: [],
+      FRIDAY: [],
+      SATURDAY: [],
+      SUNDAY: [],
     };
-    upsertAppt(newA);
-    setOpenForm(false);
-  };
 
-  function DayWithMarkers(props: PickersDayProps): React.JSX.Element {
-    const { day, outsideCurrentMonth, ...other } = props;
-    const d: Dayjs = day as unknown as Dayjs;
-    const k = keyOf(d);
-    const hasAppt = appts.some((a) => a.date === k);
-    const off = isOffDay(d);
-    const work = isWorkingDow(d);
+    workingHours.forEach((hour) => {
+      groups[hour.dayOfWeek].push(hour);
+    });
 
-    return (
-      <Box sx={{ position: "relative" }}>
-        <PickersDay {...other} day={d as unknown as never} outsideCurrentMonth={outsideCurrentMonth} />
-        <Stack
-          direction="row"
-          spacing={0.5}
-          sx={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            bottom: 4,
-            justifyContent: "center",
-            pointerEvents: "none",
-          }}
-        >
-          {hasAppt && (
-            <Box sx={{ width: 6, height: 6, borderRadius: 99, bgcolor: PRIMARY.main }} />
-          )}
-          {off && (
-            <Box sx={{ width: 6, height: 6, borderRadius: 99, bgcolor: "error.main" }} />
-          )}
-          {work && !off && (
-            <Box sx={{ width: 6, height: 6, borderRadius: 99, bgcolor: "success.main", opacity: 0.6 }} />
-          )}
-        </Stack>
-      </Box>
-    );
-  }
+    // Sort each day by startTime
+    Object.keys(groups).forEach((day) => {
+      groups[day as DayOfWeek].sort((a, b) => a.startTime.localeCompare(b.startTime));
+    });
+
+    return groups;
+  }, [workingHours]);
+
+  // Day order for display
+  const dayOrder: DayOfWeek[] = [
+    "MONDAY",
+    "TUESDAY",
+    "WEDNESDAY",
+    "THURSDAY",
+    "FRIDAY",
+    "SATURDAY",
+    "SUNDAY",
+  ];
 
   return (
-    <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <Box sx={{ p: 3 }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" sx={{ mb: 2 }}>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Stack spacing={3}>
+        {/* Header */}
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <Typography variant="h5" fontWeight={500}>
-            ปฏิทินงานเทรนเนอร์
+            เวลาทำงานประจำสัปดาห์
           </Typography>
-          <Stack direction="row" spacing={1}>
-            <Button variant="outlined" onClick={() => toggleOffDay(selected)}>
-              {isOffDay(selected) ? "ยกเลิกวันหยุด" : "ตั้งวันหยุด (วันนี้)"}
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              sx={{ bgcolor: PRIMARY.main, "&:hover": { bgcolor: PRIMARY.dark } }}
-              onClick={() => openCreate()}
-            >
-              เพิ่มนัดหมาย
-            </Button>
-          </Stack>
-        </Stack>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleOpenAddDialog}
+            sx={{
+              bgcolor: PRIMARY.main,
+              "&:hover": { bgcolor: PRIMARY.dark },
+            }}
+          >
+            เพิ่มเวลาทำงาน
+          </Button>
+        </Box>
 
-        <Stack direction={{ xs: "column", md: "row" }} spacing={3}>
-          <Card sx={{ flex: "0 0 360px" }}>
-            <CardContent>
-              <DateCalendar
-                value={selected}
-                onChange={(d: Dayjs | null) => d && setSelected(d)}
-                views={["day"]}
-                slots={{ day: DayWithMarkers }}
-              />
+        {/* Loading State */}
+        {loading && (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+            <CircularProgress />
+          </Box>
+        )}
 
-              <Divider sx={{ my: 2 }} />
+        {/* Error State */}
+        {!loading && error && (
+          <Alert severity="error" onClose={() => setError(null)}>
+            {error}
+          </Alert>
+        )}
 
-              <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                วันทำงานประจำสัปดาห์
-              </Typography>
-              <Stack direction="row" flexWrap="wrap" gap={1}>
-                {["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"].map((lbl, i) => (
-                  <FormControlLabel
-                    key={i}
-                    control={
-                      <Checkbox
-                        size="small"
-                        checked={!!working[i]}
-                        onChange={(_e: React.ChangeEvent<HTMLInputElement>, checked: boolean) =>
-                          setWorking((prev) => ({ ...prev, [i]: checked }))
-                        }
-                      />
-                    }
-                    label={lbl}
-                  />
-                ))}
-              </Stack>
+        {/* Working Hours Table */}
+        {!loading && !error && (
+          <TableContainer component={Paper} variant="outlined">
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 600, width: "20%" }}>
+                    วัน
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 600, width: "30%" }}>
+                    เวลาเริ่มต้น
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 600, width: "30%" }}>
+                    เวลาสิ้นสุด
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 600, width: "20%", textAlign: "center" }}>
+                    จัดการ
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {dayOrder.map((day) => {
+                  const hours = groupedByDay[day];
+                  if (hours.length === 0) {
+                    return (
+                      <TableRow key={day}>
+                        <TableCell>{DAY_NAMES[day]}</TableCell>
+                        <TableCell colSpan={3} sx={{ color: "text.secondary", fontStyle: "italic" }}>
+                          ไม่มีเวลาทำงาน
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
 
-              <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                <Chip label="มีนัด" size="small" sx={{ bgcolor: PRIMARY.main, color: "#0e2016" }} />
-                <Chip label="วันหยุด" size="small" color="error" variant="outlined" />
-                <Chip label="วันทำงาน" size="small" color="success" variant="outlined" />
-              </Stack>
-            </CardContent>
-          </Card>
-
-          <Card sx={{ flex: 1 }}>
-            <CardContent>
-              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-                <Typography variant="h6">
-                  นัดหมายวันที่ {selected.format("DD/MM/YYYY")}
-                </Typography>
-                <Tooltip title="เพิ่มนัดหมาย">
-                  <IconButton color="primary" onClick={() => openCreate(selected)}>
-                    <EventAvailableIcon />
-                  </IconButton>
-                </Tooltip>
-              </Stack>
-
-              {apptsOfSelected.length === 0 ? (
-                <Box sx={{ py: 6, textAlign: "center", color: "text.secondary" }}>
-                  ยังไม่มีนัดหมายในวันนี้
-                </Box>
-              ) : (
-                <Stack spacing={1.5}>
-                  {apptsOfSelected.map((a) => (
-                    <Card key={a.id} variant="outlined" sx={{ borderRadius: 2 }}>
-                      <CardContent sx={{ py: 1.5 }}>
-                        <Stack
-                          direction="row"
-                          alignItems="center"
-                          justifyContent="space-between"
-                          flexWrap="wrap"
-                          gap={1}
+                  return hours.map((hour, index) => (
+                    <TableRow key={hour.availabilityId}>
+                      {index === 0 && (
+                        <TableCell rowSpan={hours.length}>{DAY_NAMES[day]}</TableCell>
+                      )}
+                      <TableCell>{hour.startTime}</TableCell>
+                      <TableCell>{hour.endTime}</TableCell>
+                      <TableCell sx={{ textAlign: "center" }}>
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={() => handleOpenEditDialog(hour)}
+                          sx={{ mr: 1 }}
                         >
-                          <Stack spacing={0.3}>
-                            <Typography fontWeight={600}>{a.customer}</Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              {a.start}–{a.end} • {a.note ?? "PT Session"}
-                            </Typography>
-                          </Stack>
-                          <Stack direction="row" spacing={1}>
-                            <IconButton size="small" color="primary" onClick={() => openEdit(a)}>
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton size="small" color="error" onClick={() => removeAppt(a.id)}>
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </Stack>
-                        </Stack>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </Stack>
-              )}
-            </CardContent>
-          </Card>
-        </Stack>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleDeleteClick(hour.availabilityId)}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ));
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
 
-        <Dialog open={openForm} onClose={() => setOpenForm(false)} maxWidth="sm" fullWidth>
-          <DialogTitle>{editing ? "แก้ไขนัดหมาย" : "เพิ่มนัดหมาย"}</DialogTitle>
+        {/* Empty State */}
+        {!loading && !error && workingHours.length === 0 && (
+          <Box sx={{ py: 6, textAlign: "center", color: "text.secondary" }}>
+            <Typography variant="body1">ยังไม่มีเวลาทำงาน</Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              คลิกปุ่ม "เพิ่มเวลาทำงาน" เพื่อเริ่มต้น
+            </Typography>
+          </Box>
+        )}
+
+        {/* Add/Edit Dialog */}
+        <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+          <DialogTitle>
+            {editing ? "แก้ไขเวลาทำงาน" : "เพิ่มเวลาทำงาน"}
+          </DialogTitle>
           <DialogContent>
-            <Stack spacing={2} sx={{ mt: 1 }}>
-              <DateCalendar value={formDate} onChange={(d: Dayjs | null) => d && setFormDate(d)} />
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                <TimePicker
-                  label="เริ่มต้น"
-                  value={formStart}
-                  onChange={(v: Dayjs | null) => v && setFormStart(v)}
-                />
-                <TimePicker
-                  label="สิ้นสุด"
-                  value={formEnd}
-                  onChange={(v: Dayjs | null) => v && setFormEnd(v)}
-                />
-              </Stack>
+            <Stack spacing={3} sx={{ mt: 1 }}>
+              {/* Date Input */}
               <TextField
-                label="ชื่อลูกค้า"
-                value={formCustomer}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormCustomer(e.target.value)}
+                label="วันที่"
+                type="date"
+                value={formData.date}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                error={!!formErrors.date}
+                helperText={formErrors.date}
                 fullWidth
+                InputLabelProps={{
+                  shrink: true,
+                }}
               />
+
+              {/* Day of Week Select */}
+              <FormControl fullWidth error={!!formErrors.dayOfWeek}>
+                <InputLabel>วัน</InputLabel>
+                <Select
+                  value={formData.dayOfWeek}
+                  onChange={(e) =>
+                    setFormData({ ...formData, dayOfWeek: e.target.value as DayOfWeek })
+                  }
+                  label="วัน"
+                >
+                  {dayOrder.map((day) => (
+                    <MenuItem key={day} value={day}>
+                      {DAY_NAMES[day]}
+                    </MenuItem>
+                  ))}
+                </Select>
+                {formErrors.dayOfWeek && (
+                  <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
+                    {formErrors.dayOfWeek}
+                  </Typography>
+                )}
+              </FormControl>
+
+              {/* Start Time */}
               <TextField
-                label="บันทึกย่อ"
-                value={formNote}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormNote(e.target.value)}
+                label="เวลาเริ่มต้น"
+                type="time"
+                value={formData.startTime}
+                onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                error={!!formErrors.startTime}
+                helperText={formErrors.startTime}
                 fullWidth
-                multiline
-                minRows={2}
+                InputLabelProps={{
+                  shrink: true,
+                }}
+                inputProps={{
+                  step: 300, // 5 minutes
+                }}
+              />
+
+              {/* End Time */}
+              <TextField
+                label="เวลาสิ้นสุด"
+                type="time"
+                value={formData.endTime}
+                onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                error={!!formErrors.endTime}
+                helperText={formErrors.endTime}
+                fullWidth
+                InputLabelProps={{
+                  shrink: true,
+                }}
+                inputProps={{
+                  step: 300, // 5 minutes
+                }}
               />
             </Stack>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setOpenForm(false)}>ยกเลิก</Button>
+            <Button onClick={handleCloseDialog}>ยกเลิก</Button>
             <Button
               variant="contained"
-              onClick={submitForm}
-              sx={{ bgcolor: PRIMARY.main, "&:hover": { bgcolor: PRIMARY.dark } }}
+              onClick={handleSave}
+              sx={{
+                bgcolor: PRIMARY.main,
+                "&:hover": { bgcolor: PRIMARY.dark },
+              }}
             >
               บันทึก
             </Button>
           </DialogActions>
         </Dialog>
-      </Box>
-    </LocalizationProvider>
+
+        {/* Confirm Delete Dialog */}
+        <ConfirmPopUpUI
+          open={confirmDelete.open}
+          title="ยืนยันการลบเวลาทำงาน"
+          message="คุณต้องการลบเวลาทำงานนี้หรือไม่?"
+          confirmText="ลบ"
+          cancelText="ยกเลิก"
+          onConfirm={performDelete}
+          onClose={() =>
+            setConfirmDelete({
+              open: false,
+              availabilityId: null,
+            })
+          }
+        />
+
+        {/* Snackbar for Toast Messages */}
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={4000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          anchorOrigin={{ vertical: "top", horizontal: "right" }}
+        >
+          <Alert
+            onClose={() => setSnackbar({ ...snackbar, open: false })}
+            severity={snackbar.severity}
+            sx={{ width: "100%" }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </Stack>
+    </Container>
   );
 }

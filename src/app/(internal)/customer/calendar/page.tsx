@@ -144,7 +144,7 @@ export default function CalendarPage() {
       if (data.status === 'success' && data.result?.success) {
         setAlert({
           open: true,
-          msg: `✅ จองนัดสำเร็จ! คงเหลือ ${data.remainingSession} ครั้ง`,
+          msg: `✅ จองนัดสำเร็จ! คงเหลือ ${data.result.remainingSessions} ครั้ง`,
           severity: 'success'
         });
         

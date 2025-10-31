@@ -11,11 +11,11 @@ function formatISODateOnly(d: Date) {
   const dd = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${dd}`;
 }
-function toIso(date: Date) {
-  return new Date(date).toISOString();
-}
-function addMinutes(d: Date, mins: number) {
-  return new Date(d.getTime() + mins * 60_000);
+
+function calculateSlotDuration(start: string, end: string): number {
+  const startTime = new Date(start);
+  const endTime = new Date(end);
+  return Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60));
 }
 
 type UseCalendarData = {
@@ -112,93 +112,63 @@ export default function useCalendarData(
   }, [selectedDate, selectedTrainer]);
 
   /**
-   * แปลง API response เป็น TimeSlot[] สำหรับแสดงใน Calendar
-   * รวมข้อมูลจาก weeklyAvailability, bookedAppointments, dayOffSlots
-   * Generate slots ทุก 30 นาที, แต่ละ slot มี duration 2 ชั่วโมง
+   * แปลง API response (ที่ Backend คำนวณมาแล้ว) เป็น TimeSlot[] สำหรับแสดงใน Calendar
+   * ใช้ availableSlots และ customerBookings จาก Backend โดยตรง
    */
-  const convertToTimeSlots = useCallback((
+  const convertApiSlotsToTimeSlots = useCallback((
     apiResult: BookingSlotsResponse['result'],
     targetDate: string, // YYYY-MM-DD
     currentUsername?: string
   ): TimeSlot[] => {
-    const slots: TimeSlot[] = [];
-    const date = new Date(targetDate);
-    const dayOfWeek = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][date.getDay()];
+    const targetDateObj = new Date(targetDate);
+    const targetDateStr = targetDateObj.toISOString().split('T')[0]; // YYYY-MM-DD
     
-    // 1. หา weeklyAvailability ของวันนี้
-    const todayAvailability = apiResult.weeklyAvailability.find(w => w.dayOfWeek === dayOfWeek);
-    if (!todayAvailability) {
-      return []; // ไม่มีเวลาทำงานวันนี้
-    }
-
-    // 2. Parse startTime และ endTime จาก API (format: "2025-10-31T09:00:00+07:00")
-    const availStart = new Date(todayAvailability.startTime);
-    const availEnd = new Date(todayAvailability.endTime);
+    // กรอง customerBookings เฉพาะวันที่เลือก
+    const customerBookingsToday = apiResult.customerBookings.filter(slot => {
+      const slotDate = new Date(slot.startTime).toISOString().split('T')[0];
+      return slotDate === targetDateStr;
+    });
     
-    // Extract hours and minutes
-    const startHour = availStart.getHours();
-    const startMinute = availStart.getMinutes();
-    const endHour = availEnd.getHours();
-    const endMinute = availEnd.getMinutes();
+    // สร้าง Set ของ (startTime, endTime) จาก customerBookings เพื่อหลีกเลี่ยง duplicate
+    // ใช้ startTime + endTime เป็น key เพราะ Backend อาจส่ง slot เดียวกันมาทั้งใน availableSlots และ customerBookings
+    const customerSlotKeys = new Set(
+      customerBookingsToday.map(slot => `${slot.startTime}|${slot.endTime}`)
+    );
     
-    // 3. สร้าง time slots ทุก 30 นาที, แต่ละ slot มี duration 120 นาที (2 ชั่วโมง)
-    // เช่น 09:00-11:00, 09:30-11:30, 10:00-12:00, ... , 15:00-17:00
-    const SLOT_DURATION_MINS = 120; // 2 ชั่วโมง
-    const SLOT_INTERVAL_MINS = 30;   // ทุก 30 นาที
+    // กรอง availableSlots เฉพาะวันที่เลือก และตัดที่ซ้ำกับ customerBookings ออก
+    const availableSlotsToday = apiResult.availableSlots.filter(slot => {
+      const slotDate = new Date(slot.startTime).toISOString().split('T')[0];
+      const slotKey = `${slot.startTime}|${slot.endTime}`;
+      // เอาเฉพาะ slot ของวันนี้ และไม่ซ้ำกับ customerBookings
+      return slotDate === targetDateStr && !customerSlotKeys.has(slotKey);
+    });
     
-    // คำนวณเวลาเริ่มต้นและสิ้นสุดของการ generate slots
-    const firstSlotStart = new Date(targetDate);
-    firstSlotStart.setHours(startHour, startMinute, 0, 0);
+    // รวม availableSlots (ไม่ซ้ำ) + customerBookings
+    const allSlots = [
+      ...availableSlotsToday,
+      ...customerBookingsToday
+    ];
     
-    const lastSlotStart = new Date(targetDate);
-    lastSlotStart.setHours(endHour, endMinute, 0, 0);
-    lastSlotStart.setMinutes(lastSlotStart.getMinutes() - SLOT_DURATION_MINS); // ลบ 2 ชม. เพื่อให้ slot สุดท้ายไม่เกิน endTime
-    
-    let currentSlotStart = new Date(firstSlotStart);
-    
-    while (currentSlotStart <= lastSlotStart) {
-      const slotEnd = addMinutes(currentSlotStart, SLOT_DURATION_MINS);
+    // แปลงเป็น TimeSlot[] พร้อมเพิ่มข้อมูล isOwn
+    const timeSlots: TimeSlot[] = allSlots.map(slot => {
+      const duration = calculateSlotDuration(slot.startTime, slot.endTime);
+      const isOwn = slot.bookedBy === currentUsername;
       
-      const slotStartIso = currentSlotStart.toISOString();
-      const slotEndIso = slotEnd.toISOString();
-      
-      // 4. ตรวจสอบว่าช่วงนี้ถูกจองหรือไม่
-      const bookedAppt = apiResult.bookedAppointments.find(appt => {
-        const apptStart = new Date(appt.startTime);
-        const apptEnd = new Date(appt.endTime);
-        // ตรวจสอบ overlap: slot overlaps with appointment
-        return currentSlotStart < apptEnd && slotEnd > apptStart;
-      });
-      
-      // 5. ตรวจสอบว่าเป็นวันหยุดหรือไม่
-      const isDayOff = apiResult.dayOffSlots.some(dayOff => {
-        const dayOffStart = new Date(dayOff.startTime);
-        const dayOffEnd = new Date(dayOff.endTime);
-        return currentSlotStart < dayOffEnd && slotEnd > dayOffStart;
-      });
-      
-      // 6. สร้าง TimeSlot object
-      const slot: TimeSlot = {
-        start: slotStartIso,
-        end: slotEndIso,
-        durationMins: SLOT_DURATION_MINS,
-        available: !bookedAppt && !isDayOff,
+      return {
+        start: slot.startTime,
+        end: slot.endTime,
+        durationMins: duration,
+        available: slot.available,
+        bookedBy: slot.bookedBy || undefined,
+        isOwn: slot.isBooked ? isOwn : undefined,
+        scheduleId: slot.scheduleId || (slot as any).id, // ใช้ scheduleId หรือ id
       };
-      
-      // 7. ถ้าถูกจอง, เพิ่มข้อมูลผู้จองและ scheduleId
-      if (bookedAppt) {
-        slot.bookedBy = bookedAppt.customerUsername;
-        slot.isOwn = currentUsername ? bookedAppt.customerUsername === currentUsername : undefined;
-        slot.scheduleId = bookedAppt.scheduleId; // ⚠️ สำคัญ: ต้องมีค่านี้สำหรับการยกเลิก
-      }
-      
-      slots.push(slot);
-      
-      // 8. เลื่อนไปช่วงถัดไป (ทุก 30 นาที)
-      currentSlotStart = addMinutes(currentSlotStart, SLOT_INTERVAL_MINS);
-    }
+    });
     
-    return slots;
+    // เรียงตามเวลา
+    timeSlots.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+    
+    return timeSlots;
   }, []);
 
   const fetchSlots = useCallback(async (dateIso: string, trainerUsername: string) => {
@@ -206,12 +176,14 @@ export default function useCalendarData(
     setError(null);
     
     try {
-      // สร้าง calendarStart และ calendarEnd สำหรับช่วง 7 วัน
+      // สร้าง calendarStart และ calendarEnd สำหรับช่วง 1 เดือน
       const dateStart = new Date(dateIso);
+      dateStart.setDate(1); // วันแรกของเดือน
       dateStart.setHours(0, 0, 0, 0);
       
       const dateEnd = new Date(dateIso);
-      dateEnd.setDate(dateEnd.getDate() + 6); // +6 วัน = รวม 7 วัน
+      dateEnd.setMonth(dateEnd.getMonth() + 1); // เดือนถัดไป
+      dateEnd.setDate(0); // วันสุดท้ายของเดือนปัจจุบัน
       dateEnd.setHours(23, 59, 59, 999);
       
       const calendarStart = dateStart.toISOString();
@@ -243,8 +215,8 @@ export default function useCalendarData(
       const data: BookingSlotsResponse = await response.json();
       
       if (data.status === 'success' && data.result) {
-        // แปลง API result เป็น TimeSlot[] สำหรับวันที่เลือก
-        const slots = convertToTimeSlots(data.result, dateIso, customerUsername);
+        // แปลง API result เป็น TimeSlot[] สำหรับวันที่เลือก (Backend คำนวณมาแล้ว)
+        const slots = convertApiSlotsToTimeSlots(data.result, dateIso, customerUsername);
         setAvailableSlots(slots);
       } else {
         throw new Error(data.message || 'Failed to fetch slots');
@@ -257,7 +229,7 @@ export default function useCalendarData(
       setAvailableSlots([]);
       setLoading(false);
     }
-  }, [customerUsername, convertToTimeSlots]);
+  }, [customerUsername, convertApiSlotsToTimeSlots]);
 
   // initial load
   useEffect(() => {

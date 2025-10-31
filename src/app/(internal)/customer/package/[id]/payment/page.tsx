@@ -20,6 +20,7 @@ type FlowSource = {
   source: string;
   timestamp: string;
   discountAmount?: number;
+  trainerUsername?: string; // For Session package
 };
 
 // Type definition for payment info API response
@@ -187,6 +188,7 @@ export default function PaymentPage() {
     setUploadError(null);
 
     try {
+      // Step 1: Verify slip
       const formData = new FormData();
       formData.append('file', selectedFile);
 
@@ -208,18 +210,41 @@ export default function PaymentPage() {
       console.log('📦 Slip Upload Response:', result);
 
       if (result.status === 'success' && result.data?.verified) {
-        // Success notification
-        setAlert({
-          open: true,
-          msg: '✅ Payment verified successfully. Your membership has been activated.',
-          severity: 'success',
-        });
-        sessionStorage.setItem('paymentVerified', 'true');
+        console.log('✅ Payment verified - proceeding to create package...');
         
-        // Redirect after short delay to show notification
-        setTimeout(() => {
-          router.push('/customer/package');
-        }, 1500);
+        // Step 2: Create Duration or Session package
+        let packageCreated = false;
+        
+        if (paymentInfo.productType === 'DURATION') {
+          packageCreated = await createDurationPackage(paymentInfo.productId);
+        } else if (paymentInfo.productType === 'SESSION') {
+          // Get trainerUsername from sessionStorage
+          const trainerUsername = flowSource?.trainerUsername;
+          if (!trainerUsername) {
+            throw new Error('ไม่พบข้อมูล Trainer กรุณาเลือก Trainer อีกครั้ง');
+          }
+          packageCreated = await createSessionPackage(paymentInfo.productId, trainerUsername);
+        }
+
+        if (packageCreated) {
+          // Success notification
+          setAlert({
+            open: true,
+            msg: '✅ Payment verified successfully. Your membership has been activated.',
+            severity: 'success',
+          });
+          sessionStorage.setItem('paymentVerified', 'true');
+          
+          // Clear pending order from sessionStorage
+          sessionStorage.removeItem('pendingOrder');
+          
+          // Redirect after short delay to show notification
+          setTimeout(() => {
+            router.push('/customer/member');
+          }, 1500);
+        } else {
+          throw new Error('ไม่สามารถสร้างแพ็กเกจได้ กรุณาติดต่อเจ้าหน้าที่');
+        }
       } else {
         // Failed notification
         setAlert({
@@ -230,9 +255,71 @@ export default function PaymentPage() {
         throw new Error('การตรวจสอบสลิปล้มเหลว กรุณาตรวจสอบข้อมูลและลองอีกครั้ง');
       }
     } catch (err) {
+      console.error('❌ Upload error:', err);
       setUploadError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการอัปโหลดสลิป');
     } finally {
       setUploading(false);
+    }
+  }
+
+  // Create Duration Package via API
+  async function createDurationPackage(productId: number): Promise<boolean> {
+    try {
+      console.log('🔵 Creating Duration Package:', { productId });
+      
+      const response = await fetch(`${API_BASE_URL}/api/customer-durations/renew`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Send JWT token
+        body: JSON.stringify({ productId }),
+      });
+
+      const data = await response.json();
+      console.log('📦 Duration API Response:', data);
+
+      if (data.status === 'success' && data.result) {
+        console.log('✅ Duration package created successfully:', data.result);
+        return true;
+      } else {
+        console.log('❌ Duration API failed:', data);
+        console.error('❌ Duration API failed:', data.message);
+        throw new Error(data.message || 'ไม่สามารถสร้าง Duration package ได้');
+      }
+    } catch (err) {
+      console.error('❌ Create Duration error:', err);
+      throw err;
+    }
+  }
+
+  // Create Session Package via API
+  async function createSessionPackage(productId: number, trainerUsername: string): Promise<boolean> {
+    try {
+      console.log('🟢 Creating Session Package:', { productId, trainerUsername });
+      
+      const response = await fetch(`${API_BASE_URL}/api/customer-sessions/renew`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Send JWT token
+        body: JSON.stringify({ productId, trainerUsername }),
+      });
+
+      const data = await response.json();
+      console.log('📦 Session API Response:', data);
+
+      if (data.status === 'success' && data.result) {
+        console.log('✅ Session package created successfully:', data.result);
+        return true;
+      } else {
+        console.error('❌ Session API failed:', data.message);
+        throw new Error(data.message || 'ไม่สามารถสร้าง Session package ได้');
+      }
+    } catch (err) {
+      console.error('❌ Create Session error:', err);
+      throw err;
     }
   }
 
