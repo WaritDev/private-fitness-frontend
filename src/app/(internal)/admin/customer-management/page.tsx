@@ -2,25 +2,64 @@
 
 import * as React from "react";
 import {
-  Box, Stack, Typography,
-  Table, TableHead, TableBody, TableRow, TableCell, TableContainer, Paper,
-  TableSortLabel, TablePagination, Chip, IconButton, Tooltip
+  Box,
+  Stack,
+  Typography,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableContainer,
+  Paper,
+  TableSortLabel,
+  TablePagination,
+  Chip,
+  IconButton,
+  Tooltip,
+  CircularProgress,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useRouter } from "next/navigation";
-import ConfirmDialog from "@/components/pop-up/ConfirmDialog";
-import { useSnack } from "@/components/snack/SnackProvider";
+import ConfirmDialog from "@/components/pop-up/ConfirmPopUpUI";
+import { useAlertPopUp } from "@/components/pop-up/AlertPopUpUI";
 
-type Gender = "M" | "F" | "OTHER";
 type Order = "asc" | "desc";
+type GenderAPI = "MALE" | "FEMALE" | "OTHER";
 type MaritalStatus = "SINGLE" | "MARRIED" | "DIVORCED" | "WIDOWED";
+
+type ApiCustomer = {
+  username: string;
+  firstName: string;
+  lastName: string;
+  gender: GenderAPI;
+  dateOfBirth: string;
+  phoneNumber: string;
+  gmail: string;
+  healthInfo: string;
+  address: string;
+  companyName: string;
+  companyPosition: string;
+  maritalStatus: MaritalStatus;
+  emergencyContactName: string;
+  emergencyContactRelationship: string;
+  emergencyContactPhone: string;
+  marketingSource: string;
+  isActive: { Bool: boolean; Valid: boolean };
+};
+
+type ApiResponse = {
+  data: ApiCustomer[];
+  meta: { page: number; limit: number; total_items: number; total_pages: number };
+  message?: string;
+};
 
 type Customer = {
   username: string;
   firstName: string;
   lastName: string;
-  gender?: Gender | null;
+  gender?: GenderAPI | null;
   dateOfBirth?: string | null;
   phoneNumber: string;
   gmail: string;
@@ -36,55 +75,121 @@ type Customer = {
   isActive: boolean;
 };
 
-const MOCK: Customer[] = [
-  { username: "c.ploy", firstName: "Ploy", lastName: "Kawin", gender: "F", dateOfBirth: "1998-05-01", phoneNumber: "0811111111", gmail: "c.ploy@example.com", address: "Bangkok", maritalStatus: "SINGLE", marketingSource: "Facebook", isActive: true },
-  { username: "c.noon", firstName: "Noon", lastName: "Nita", gender: "F", dateOfBirth: "1996-03-03", phoneNumber: "0822222222", gmail: "c.noon@example.com", address: "Nonthaburi", maritalStatus: "MARRIED", marketingSource: "Walk-in", isActive: true },
-  { username: "c.oak", firstName: "Oak", lastName: "Rit", gender: "M", dateOfBirth: "1990-10-10", phoneNumber: "0833333333", gmail: "c.oak@example.com", companyName: "ACME", companyPosition: "Engineer", isActive: false },
-];
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+
+const TOKENS = {
+  heading: { variant: "h5" as const, weight: 500 as const },
+  table: { headerFontWeight: 600 as const, actionsColWidth: 140, cellY: 1.25 },
+  spacing: { sectionY: 3 },
+};
 
 const COLUMNS = [
-  { key: "firstName", label: "ชื่อ", sortable: true },
-  { key: "lastName", label: "นามสกุล", sortable: false },
+  { key: "firstName", label: "First Name", sortable: true },
+  { key: "lastName", label: "Last Name", sortable: false },
   { key: "username", label: "Username", sortable: false },
-  { key: "gender", label: "เพศ", sortable: false },
-  { key: "dateOfBirth", label: "วันเกิด", sortable: false },
-  { key: "phoneNumber", label: "โทรศัพท์", sortable: false },
-  { key: "gmail", label: "Gmail", sortable: false },
-  { key: "healthInfo", label: "สุขภาพ", sortable: false },
-  { key: "address", label: "ที่อยู่", sortable: false },
-  { key: "companyName", label: "บริษัท", sortable: false },
-  { key: "companyPosition", label: "ตำแหน่ง", sortable: false },
-  { key: "maritalStatus", label: "สถานภาพสมรส", sortable: false },
-  { key: "emergencyContactName", label: "ผู้ติดต่อฉุกเฉิน", sortable: false },
-  { key: "emergencyContactRelationship", label: "ความสัมพันธ์", sortable: false },
-  { key: "emergencyContactPhone", label: "เบอร์ติดต่อฉุกเฉิน", sortable: false },
-  { key: "marketingSource", label: "ช่องทางการตลาด", sortable: false },
-  { key: "isActive", label: "สถานะ", sortable: false },
+  { key: "gender", label: "Gender", sortable: false },
+  { key: "dateOfBirth", label: "Date of Birth", sortable: false },
+  { key: "phoneNumber", label: "Phone", sortable: false },
+  { key: "gmail", label: "Email", sortable: false },
+  { key: "healthInfo", label: "Health Info", sortable: false },
+  { key: "address", label: "Address", sortable: false },
+  { key: "companyName", label: "Company", sortable: false },
+  { key: "companyPosition", label: "Position", sortable: false },
+  { key: "maritalStatus", label: "Marital Status", sortable: false },
+  { key: "emergencyContactName", label: "Emergency Contact", sortable: false },
+  { key: "emergencyContactRelationship", label: "Relationship", sortable: false },
+  { key: "emergencyContactPhone", label: "Emergency Phone", sortable: false },
+  { key: "marketingSource", label: "Marketing Source", sortable: false },
+  { key: "isActive", label: "Status", sortable: false },
 ] as const;
 
-export default function CustomersListPage() {
-  const router = useRouter();
-  const { setSnack } = useSnack();
+function errorMessage(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  try {
+    return JSON.stringify(e);
+  } catch {
+    return String(e);
+  }
+}
 
-  const [rows, setRows] = React.useState<Customer[]>(MOCK);
+const fmt = (v?: string | null) => (v && v.trim() !== "" ? v : "—");
+
+const fmtDate = (iso?: string | null) => {
+  if (!iso) return "—";
+  const d = /\d{4}-\d{2}-\d{2}$/.test(iso) ? new Date(`${iso}T00:00:00`) : new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("th-TH");
+};
+
+const fmtGender = (g?: GenderAPI | null) =>
+  g === "MALE" ? "Male" : g === "FEMALE" ? "Female" : g ? "Other" : "—";
+
+const fmtMarital = (m?: MaritalStatus | null) =>
+  m === "SINGLE" ? "Single" : m === "MARRIED" ? "Married" : m === "DIVORCED" ? "Divorced" : m === "WIDOWED" ? "Widowed" : "—";
+
+const mapCustomer = (c: ApiCustomer): Customer => ({
+  username: c.username,
+  firstName: c.firstName,
+  lastName: c.lastName,
+  gender: c.gender ?? null,
+  dateOfBirth: c.dateOfBirth ?? null,
+  phoneNumber: c.phoneNumber,
+  gmail: c.gmail,
+  healthInfo: c.healthInfo || null,
+  address: c.address || null,
+  companyName: c.companyName || null,
+  companyPosition: c.companyPosition || null,
+  maritalStatus: (c.maritalStatus ?? null) as MaritalStatus | null,
+  emergencyContactName: c.emergencyContactName || null,
+  emergencyContactRelationship: c.emergencyContactRelationship || null,
+  emergencyContactPhone: c.emergencyContactPhone || null,
+  marketingSource: c.marketingSource || null,
+  isActive: c.isActive?.Valid ? c.isActive.Bool : false,
+});
+
+export default function CustomersListPage(): React.JSX.Element {
+  const router = useRouter();
+  const { setAlert } = useAlertPopUp();
+
+  const [rows, setRows] = React.useState<Customer[]>([]);
+  const [totalItems, setTotalItems] = React.useState(0);
+
   const [order, setOrder] = React.useState<Order>("asc");
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const [loading, setLoading] = React.useState(false);
 
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [targetUser, setTargetUser] = React.useState<Customer | null>(null);
 
-  const fmt = (v?: string | null) => (v && v.trim() !== "" ? v : "—");
-  const fmtDate = (iso?: string | null) => {
-    if (!iso) return "—";
-    try { return new Date(iso).toLocaleDateString("th-TH"); } catch { return "—"; }
-  };
-  const fmtGender = (g?: Gender | null) => g === "M" ? "ชาย" : g === "F" ? "หญิง" : g ? "อื่น ๆ" : "—";
-  const fmtMarital = (m?: MaritalStatus | null) =>
-    m === "SINGLE" ? "โสด" :
-    m === "MARRIED" ? "สมรส" :
-    m === "DIVORCED" ? "หย่า" :
-    m === "WIDOWED" ? "หม้าย" : "—";
+  const fetchPage = React.useCallback(async () => {
+    setLoading(true);
+    const currentPage = page + 1;
+    try {
+      const res = await fetch(`${API_BASE}/api/customers?page=${currentPage}&limit=${rowsPerPage}`, {
+        method: "GET",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+      const body = (await res.json().catch(() => ({}))) as Partial<ApiResponse>;
+      if (!res.ok) {
+        throw new Error(body?.message || `Failed to load data (HTTP ${res.status})`);
+      }
+      const items = Array.isArray(body?.data) ? body.data : [];
+      setRows(items.map(mapCustomer));
+      setTotalItems(body?.meta?.total_items ?? items.length);
+    } catch (e: unknown) {
+      setAlert({ open: true, msg: errorMessage(e) || "Network error", severity: "error" });
+      setRows([]);
+      setTotalItems(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, rowsPerPage, setAlert]);
+
+  React.useEffect(() => {
+    void fetchPage();
+  }, [fetchPage]);
 
   const sorted = React.useMemo(() => {
     const arr = [...rows];
@@ -95,43 +200,58 @@ export default function CustomersListPage() {
     return arr;
   }, [rows, order]);
 
-  const paged = React.useMemo(
-    () => sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-    [sorted, page, rowsPerPage]
-  );
-
   const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
+
   const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLInputElement>) => {
     setRowsPerPage(parseInt(e.target.value, 10));
     setPage(0);
   };
 
   const goEdit = (u: Customer) =>
-    router.push(`/admin/customer-management/edit?u=${encodeURIComponent(u.username)}`);
+    router.push(`/admin/customer-management/edit/${encodeURIComponent(u.username)}`);
 
   const askDelete = (u: Customer) => {
     setTargetUser(u);
     setConfirmOpen(true);
   };
 
-  const handleConfirmDelete = () => {
-    if (targetUser) {
-      setRows((prev) => prev.filter((r) => r.username !== targetUser.username));
-      // ✅ แจ้งผ่าน SnackProvider ตามมาตรฐานโปรเจ็กต์
-      setSnack({
-        open: true,
-        msg: `Username: ${targetUser.username} deleted successfully`,
-        severity: "success",
+  const handleConfirmDelete = async () => {
+    if (!targetUser) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/customers/${encodeURIComponent(targetUser.username)}`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
       });
+      let msg = `Customer: ${targetUser.username} deleted successfully`;
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        throw new Error(err?.message || `Delete failed (HTTP ${res.status})`);
+      } else if (res.status !== 204) {
+        const body = (await res.json().catch(() => ({}))) as { message?: string };
+        if (body?.message) msg = body.message;
+      }
+      setAlert({ open: true, msg, severity: "success" });
+      setConfirmOpen(false);
+      setTargetUser(null);
+      if (rows.length === 1 && page > 0) {
+        setPage((p) => p - 1);
+      } else {
+        await fetchPage();
+      }
+    } catch (e: unknown) {
+      setAlert({ open: true, msg: errorMessage(e) || "Delete failed", severity: "error" });
+      setConfirmOpen(false);
+      setTargetUser(null);
     }
-    setConfirmOpen(false);
-    setTargetUser(null);
   };
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
+    <Box sx={{ p: { xs: 2, md: TOKENS.spacing.sectionY } }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }} gap={2} flexWrap="wrap">
-        <Typography variant="h5" fontWeight={400}>Customer Accounts</Typography>
+        <Typography variant={TOKENS.heading.variant} fontWeight={TOKENS.heading.weight}>
+          Customer Accounts
+        </Typography>
       </Stack>
 
       <TableContainer component={Paper} sx={{ borderRadius: 3, overflowX: "auto" }}>
@@ -139,70 +259,84 @@ export default function CustomersListPage() {
           <TableHead>
             <TableRow>
               {COLUMNS.map((c) => (
-                <TableCell key={c.key as string} sx={{ fontWeight: 600, whiteSpace: "nowrap" }}>
+                <TableCell
+                  key={c.key as string}
+                  sx={{ fontWeight: TOKENS.table.headerFontWeight, whiteSpace: "nowrap", py: TOKENS.table.cellY }}
+                >
                   {c.key === "firstName" ? (
-                    <TableSortLabel
-                      active
-                      direction={order}
-                      onClick={() => setOrder((o) => (o === "asc" ? "desc" : "asc"))}
-                    >
+                    <TableSortLabel active direction={order} onClick={() => setOrder((o) => (o === "asc" ? "desc" : "asc"))}>
                       {c.label}
                     </TableSortLabel>
-                  ) : c.label}
+                  ) : (
+                    c.label
+                  )}
                 </TableCell>
               ))}
-              <TableCell sx={{ fontWeight: 600, whiteSpace: "nowrap", width: 140 }}>การจัดการ</TableCell>
+              <TableCell
+                sx={{
+                  fontWeight: TOKENS.table.headerFontWeight,
+                  whiteSpace: "nowrap",
+                  width: TOKENS.table.actionsColWidth,
+                  py: TOKENS.table.cellY,
+                }}
+              >
+                Actions
+              </TableCell>
             </TableRow>
           </TableHead>
 
           <TableBody>
-            {paged.map((u) => (
-              <TableRow key={u.username} hover>
-                <TableCell>{fmt(u.firstName)}</TableCell>
-                <TableCell>{fmt(u.lastName)}</TableCell>
-                <TableCell>{u.username}</TableCell>
-                <TableCell>{fmtGender(u.gender)}</TableCell>
-                <TableCell>{fmtDate(u.dateOfBirth)}</TableCell>
-                <TableCell>{fmt(u.phoneNumber)}</TableCell>
-                <TableCell>{fmt(u.gmail)}</TableCell>
-                <TableCell>{fmt(u.healthInfo)}</TableCell>
-                <TableCell>{fmt(u.address)}</TableCell>
-                <TableCell>{fmt(u.companyName)}</TableCell>
-                <TableCell>{fmt(u.companyPosition)}</TableCell>
-                <TableCell>{fmtMarital(u.maritalStatus)}</TableCell>
-                <TableCell>{fmt(u.emergencyContactName)}</TableCell>
-                <TableCell>{fmt(u.emergencyContactRelationship)}</TableCell>
-                <TableCell>{fmt(u.emergencyContactPhone)}</TableCell>
-                <TableCell>{fmt(u.marketingSource)}</TableCell>
-                <TableCell>
-                  <Chip
-                    size="small"
-                    label={u.isActive ? "Active" : "Inactive"}
-                    color={u.isActive ? "success" : "default"}
-                    variant={u.isActive ? "filled" : "outlined"}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Stack direction="row" spacing={1}>
-                    <Tooltip title="แก้ไข">
-                      <IconButton size="small" color="primary" onClick={() => goEdit(u)}>
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="ลบ">
-                      <IconButton size="small" color="error" onClick={() => askDelete(u)}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </Stack>
+            {loading && (
+              <TableRow>
+                <TableCell colSpan={COLUMNS.length + 1} align="center" sx={{ py: 6 }}>
+                  <CircularProgress size={28} />
                 </TableCell>
               </TableRow>
-            ))}
+            )}
 
-            {paged.length === 0 && (
+            {!loading &&
+              sorted.map((u) => (
+                <TableRow key={u.username} hover>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{fmt(u.firstName)}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{fmt(u.lastName)}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{u.username}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{fmtGender(u.gender)}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{fmtDate(u.dateOfBirth)}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{fmt(u.phoneNumber)}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{fmt(u.gmail)}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{fmt(u.healthInfo)}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{fmt(u.address)}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{fmt(u.companyName)}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{fmt(u.companyPosition)}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{fmtMarital(u.maritalStatus)}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{fmt(u.emergencyContactName)}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{fmt(u.emergencyContactRelationship)}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{fmt(u.emergencyContactPhone)}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{fmt(u.marketingSource)}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>
+                    <Chip size="small" label={u.isActive ? "Active" : "Inactive"} color={u.isActive ? "success" : "default"} variant={u.isActive ? "filled" : "outlined"} />
+                  </TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>
+                    <Stack direction="row" spacing={1}>
+                      <Tooltip title="Edit">
+                        <IconButton size="small" color="primary" onClick={() => goEdit(u)}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete">
+                        <IconButton size="small" color="error" onClick={() => askDelete(u)}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))}
+
+            {!loading && sorted.length === 0 && (
               <TableRow>
                 <TableCell colSpan={COLUMNS.length + 1} align="center" sx={{ py: 6, color: "text.secondary" }}>
-                  ไม่พบข้อมูล
+                  No data found
                 </TableCell>
               </TableRow>
             )}
@@ -213,23 +347,29 @@ export default function CustomersListPage() {
       <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
         <TablePagination
           component="div"
-          count={sorted.length}
+          count={totalItems}
           page={page}
           onPageChange={handleChangePage}
           rowsPerPage={rowsPerPage}
           onRowsPerPageChange={handleChangeRowsPerPage}
-          rowsPerPageOptions={[10]}
+          rowsPerPageOptions={[10, 20, 50]}
         />
       </Box>
 
       <ConfirmDialog
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
-        title="ยืนยันการลบลูกค้า"
+        title="Confirm Deletion"
         message={
-          targetUser
-            ? `Warning: Deleting this customer will permanently remove all associated data (memberships, sessions, logs, etc.). Are you sure you want to delete customer: ${targetUser.username}?`
-            : ""
+          targetUser ? (
+            <>
+              Warning: Deleting this customer will permanently remove all associated data (memberships, sessions, logs, etc.).
+              <br />
+              Are you sure you want to delete customer: <b>{targetUser.username}</b>?
+            </>
+          ) : (
+            ""
+          )
         }
         confirmText="Confirm"
         cancelText="Cancel"

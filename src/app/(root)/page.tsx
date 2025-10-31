@@ -25,20 +25,20 @@ export default function HomePage() {
           {
             img: "/hero-1.jpg",
             heading: "PRIVATE FITNESS\nMEMBERSHIPS",
-            sub: "เทรนเนอร์ส่วนตัว โปรแกรมเฉพาะคุณ เข้าถึงได้ทุกที่ ทุกเวลา",
-            ctaSecondary: { href: "/plans", label: "ดูแพ็กเกจ" },
+            sub: "Personal trainers, tailored programs. Access anywhere, anytime.",
+            ctaSecondary: { href: "/plans", label: "View Plans" },
           },
           {
             img: "/hero-2.jpg",
-            heading: "COACHING แบบ PERSONAL",
-            sub: "ติดตามผลและปรับโปรแกรมรายสัปดาห์",
+            heading: "TRULY PERSONAL COACHING",
+            sub: "Weekly check-ins and program adjustments to match your goals.",
           },
           {
             img: "/hero-3.jpg",
-            heading: "CLASS & PROGRAMS",
-            sub: "คาร์ดิโอ เวท โภชนาการ — ครบในที่เดียว",
-            ctaPrimary: { href: "/courses", label: "ดูคอร์ส" },
-            ctaSecondary: { href: "/login", label: "เข้าสู่ระบบ" },
+            heading: "CLASSES & PROGRAMS",
+            sub: "Cardio, strength, and nutrition — everything in one place.",
+            ctaPrimary: { href: "/courses", label: "Browse Courses" },
+            ctaSecondary: { href: "/login", label: "Sign In" },
           },
         ]}
         interval={5500}
@@ -53,7 +53,7 @@ export default function HomePage() {
           gutterBottom
           sx={{ mb: 4 }}
         >
-          สิทธิประโยชน์สมาชิก Private Fitness
+          Member Benefits at Private Fitness
         </Typography>
 
         <Stack
@@ -63,16 +63,16 @@ export default function HomePage() {
         >
           {[
             {
-              title: "เหมาะกับทุกไลฟ์สไตล์",
-              desc: "ปรับแผนให้เข้ากับตารางชีวิตและเป้าหมายของคุณ",
+              title: "Fits Every Lifestyle",
+              desc: "Flexible plans that adapt to your schedule and objectives.",
             },
             {
-              title: "สมาชิกใบเดียว",
-              desc: "เข้าได้หลายสาขา/หลายอุปกรณ์อย่างยืดหยุ่น",
+              title: "One Membership, Many Locations",
+              desc: "Access multiple branches and devices with a single pass.",
             },
             {
-              title: "ยืดหยุ่น ไม่ผูกมัด",
-              desc: "เลือกต่ออายุเป็นรอบ ๆ ปรับเปลี่ยนแพ็กเกจได้ตลอด",
+              title: "Flexible & Commitment-Free",
+              desc: "Renew by period and switch packages anytime.",
             },
           ].map((item, i) => (
             <Card
@@ -105,9 +105,9 @@ export default function HomePage() {
             alignItems="center"
           >
             {[
-              { value: "1,200+", label: "สมาชิกที่ไว้ใจเรา" },
-              { value: "50+", label: "คลาสรายสัปดาห์" },
-              { value: "20+", label: "โค้ชและเทรนเนอร์มืออาชีพ" },
+              { value: "1,200+", label: "Members trust us" },
+              { value: "50+", label: "Weekly classes" },
+              { value: "20+", label: "Certified coaches & trainers" },
             ].map((s, i) => (
               <Stack key={i} alignItems="center" spacing={1}>
                 <Typography variant="h4" fontWeight={600} color="primary">
@@ -123,7 +123,7 @@ export default function HomePage() {
       {/* CTA */}
       <Box className="container" sx={{ py: 8, textAlign: "center" }}>
         <Typography variant="h5" gutterBottom fontWeight={500}>
-          พร้อมเริ่มเส้นทางสุขภาพของคุณแล้วหรือยัง?
+          Ready to start your health & fitness journey?
         </Typography>
         <Stack
           direction="row"
@@ -144,7 +144,7 @@ export default function HomePage() {
               px: 4,
             }}
           >
-            สมัครสมาชิกวันนี้
+            Join Now
           </Button>
           <Button
             component={Link}
@@ -162,7 +162,7 @@ export default function HomePage() {
               },
             }}
           >
-            คุยกับเรา
+            Talk to Us
           </Button>
         </Stack>
       </Box>

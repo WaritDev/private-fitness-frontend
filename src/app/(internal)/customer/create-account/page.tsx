@@ -9,7 +9,7 @@ import Grid from '@mui/material/Grid';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { useRouter } from 'next/navigation';
-import { useSnack } from '@/components/snack/SnackProvider';
+import { useAlertPopUp } from '@/components/pop-up/AlertPopUpUI';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
@@ -61,7 +61,7 @@ type PendingOrder = {
 
 export default function CreateAccountPage() {
   const router = useRouter();
-  const { setSnack } = useSnack();
+  const { setAlert } = useAlertPopUp();
 
   const [orderData, setOrderData] = React.useState<PendingOrder | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -285,9 +285,9 @@ export default function CreateAccountPage() {
         sessionStorage.removeItem('pendingOrder');
         sessionStorage.removeItem('paymentVerified');
         
-        // ✅ แสดง Snackbar ตาม Use Case: "Customer: [Name] Register Successfully"
+        // ✅ แสดง Alert ตาม Use Case: "Customer: [Name] Register Successfully"
         const customerName = `${orderData.firstName} ${orderData.lastName}`;
-        setSnack({
+        setAlert({
           open: true,
           msg: `✅ Customer: ${customerName} Register Successfully! (Username: ${username})`,
           severity: 'success'

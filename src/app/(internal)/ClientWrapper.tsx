@@ -7,7 +7,7 @@ import { AuthProvider, useAuth } from '@/contexts/AuthProvider';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import InternalNavBar from '@/components/ui/InternalNavbar';
-import { SnackProvider } from '@/components/snack/SnackProvider'; // ⬅️ เพิ่ม
+import { AlertPopUpUI } from '@/components/pop-up/AlertPopUpUI'; // ⬅️ เพิ่ม
 
 function Guard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -29,14 +29,14 @@ export default function ClientWrapper({ children }: { children: React.ReactNode 
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <SnackProvider>
+      <AlertPopUpUI>
         <AuthProvider>
           <Guard>
             <InternalNavBar />
             <main className="site-main">{children}</main>
           </Guard>
         </AuthProvider>
-      </SnackProvider>
+      </AlertPopUpUI>
     </ThemeProvider>
   );
 }

@@ -18,18 +18,25 @@ import {
   Chip,
   IconButton,
   Tooltip,
+  CircularProgress,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useRouter } from "next/navigation";
-import ConfirmDialog from "@/components/pop-up/ConfirmDialog";
-import { useSnack } from "@/components/snack/SnackProvider";
+import ConfirmDialog from "@/components/pop-up/ConfirmPopUpUI";
+import { useAlertPopUp } from "@/components/pop-up/AlertPopUpUI";
 
 const PRIMARY = { main: "#38E07A", dark: "#2fbb65" } as const;
+const TOKENS = {
+  heading: { variant: "h5" as const, weight: 500 as const },
+  table: { headerFontWeight: 600 as const, actionsColWidth: 140, cellY: 1.25 },
+  button: { height: 40, borderRadius: 10 },
+  spacing: { sectionY: 3 },
+};
 
 type Role = "ADMIN" | "MANAGER" | "TRAINER" | "SALES";
-type Gender = "M" | "F" | "OTHER";
+type Gender = "MALE" | "FEMALE" | "OTHER";
 type Order = "asc" | "desc";
 
 type Staff = {
@@ -45,109 +52,235 @@ type Staff = {
   isActive: boolean;
 };
 
-const MOCK: Staff[] = [
-  { username: "jane.m", role: "MANAGER", firstName: "Jane", lastName: "Moon", gender: "F", dateOfBirth: "1990-03-11", phoneNumber: "080-111-2233", gmail: "jane.m@example.com", specialty: "Ops", isActive: true },
-  { username: "john.d", role: "ADMIN", firstName: "John", lastName: "Doe", gender: "M", dateOfBirth: "1989-07-22", phoneNumber: "081-222-3344", gmail: "john.d@example.com", specialty: "Infra", isActive: true },
-  { username: "alice.b", role: "TRAINER", firstName: "Alice", lastName: "Brown", gender: "F", dateOfBirth: "1996-01-09", phoneNumber: "089-777-8899", gmail: "alice.b@example.com", specialty: "Yoga", isActive: true },
-  { username: "mark.l", role: "TRAINER", firstName: "Mark", lastName: "Lee", gender: "M", dateOfBirth: "1993-12-30", phoneNumber: "086-333-4455", gmail: "mark.l@example.com", specialty: "Strength", isActive: false },
-  { username: "nina.p", role: "MANAGER", firstName: "Nina", lastName: "Park", gender: "F", dateOfBirth: "1992-04-15", phoneNumber: "085-555-6677", gmail: "nina.p@example.com", specialty: "Strategy", isActive: true },
-  { username: "bob.c", role: "SALES", firstName: "Bob", lastName: "Chan", gender: "M", dateOfBirth: "1995-10-08", phoneNumber: "084-999-0001", gmail: "bob.c@example.com", specialty: "B2B", isActive: false },
-  { username: "pam.s", role: "SALES", firstName: "Pam", lastName: "Somsri", gender: "F", dateOfBirth: "1998-02-02", phoneNumber: "083-666-7788", gmail: "pam.s@example.com", specialty: "Retail", isActive: true },
-  { username: "krit.t", role: "TRAINER", firstName: "Krit", lastName: "Tana", gender: "M", dateOfBirth: "1994-05-25", phoneNumber: "082-111-2223", gmail: "krit.t@example.com", specialty: "HIIT", isActive: true },
-  { username: "ploy.k", role: "TRAINER", firstName: "Ploy", lastName: "Kawin", gender: "F", dateOfBirth: "1997-06-14", phoneNumber: "081-999-1234", gmail: "ploy.k@example.com", specialty: "Pilates", isActive: false },
-  { username: "anong.m", role: "ADMIN", firstName: "Anong", lastName: "Manee", gender: "F", dateOfBirth: "1987-09-19", phoneNumber: "080-333-5544", gmail: "anong.m@example.com", specialty: "Security", isActive: true },
-  { username: "boss.z", role: "MANAGER", firstName: "Boss", lastName: "Zhang", gender: "M", dateOfBirth: "1985-11-03", phoneNumber: "089-212-4545", gmail: "boss.z@example.com", specialty: "Finance", isActive: true },
-  { username: "fon.w", role: "SALES", firstName: "Fon", lastName: "Wipa", gender: "F", dateOfBirth: "1999-08-08", phoneNumber: "086-120-3040", gmail: "fon.w@example.com", specialty: "Online", isActive: true },
-  { username: "ice.k", role: "TRAINER", firstName: "Ice", lastName: "Korn", gender: "OTHER", dateOfBirth: "1996-07-01", phoneNumber: "088-223-3344", gmail: "ice.k@example.com", specialty: "Mobility", isActive: true },
-  { username: "mike.t", role: "SALES", firstName: "Mike", lastName: "Tan", gender: "M", dateOfBirth: "1991-02-27", phoneNumber: "083-333-4445", gmail: "mike.t@example.com", specialty: "Partners", isActive: false },
-  { username: "noon.n", role: "TRAINER", firstName: "Noon", lastName: "Nita", gender: "F", dateOfBirth: "1994-03-03", phoneNumber: "087-888-9990", gmail: "noon.n@example.com", specialty: "Dance", isActive: true },
-  { username: "oak.r", role: "MANAGER", firstName: "Oak", lastName: "Rit", gender: "M", dateOfBirth: "1990-10-10", phoneNumber: "086-777-9090", gmail: "oak.r@example.com", specialty: "HR", isActive: true },
-  { username: "ploys.h", role: "SALES", firstName: "Ploys", lastName: "Hong", gender: "F", dateOfBirth: "1998-12-12", phoneNumber: "082-555-6666", gmail: "ploys.h@example.com", specialty: "Events", isActive: true },
-  { username: "yui.c", role: "TRAINER", firstName: "Yui", lastName: "Chaya", gender: "F", dateOfBirth: "1993-01-15", phoneNumber: "089-333-3232", gmail: "yui.c@example.com", specialty: "Cardio", isActive: true },
-];
-
 const COLUMNS = [
-  { key: "firstName", label: "ชื่อ", sortable: true },
-  { key: "lastName", label: "นามสกุล", sortable: false },
+  { key: "firstName", label: "First Name", sortable: true },
+  { key: "lastName", label: "Last Name", sortable: false },
   { key: "username", label: "Username", sortable: false },
-  { key: "role", label: "บทบาท", sortable: false },
-  { key: "gender", label: "เพศ", sortable: false },
-  { key: "dateOfBirth", label: "วันเกิด", sortable: false },
-  { key: "phoneNumber", label: "โทรศัพท์", sortable: false },
-  { key: "gmail", label: "Gmail", sortable: false },
-  { key: "specialty", label: "ความถนัด", sortable: false },
-  { key: "isActive", label: "สถานะ", sortable: false },
+  { key: "role", label: "Role", sortable: false },
+  { key: "gender", label: "Gender", sortable: false },
+  { key: "dateOfBirth", label: "Date of Birth", sortable: false },
+  { key: "phoneNumber", label: "Phone", sortable: false },
+  { key: "gmail", label: "Email", sortable: false },
+  { key: "specialty", label: "Specialty", sortable: false },
+  { key: "isActive", label: "Status", sortable: false },
 ] as const;
 
-export default function StaffAccountsMockOnlyFirstNameSort() {
-  const [rows, setRows] = React.useState<Staff[]>(MOCK);
-  const [order, setOrder] = React.useState<Order>("asc");
+type ApiNullString = { String: string; Valid: boolean };
+type ApiNullBool = { Bool: boolean; Valid: boolean };
+
+type ApiStaff = {
+  username: string;
+  role: Role;
+  firstName: string;
+  lastName: string;
+  gender: Gender;
+  dateOfBirth: string;
+  phoneNumber: string;
+  gmail: string;
+  specialty: ApiNullString;
+  isActive: ApiNullBool;
+};
+
+type ApiResponse = {
+  data: ApiStaff[];
+  message?: string;
+};
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+
+function renderGender(g?: Gender | null): string {
+  return g === "MALE" ? "Male" : g === "FEMALE" ? "Female" : g ? "Other" : "—";
+}
+
+function isApiStaffArray(x: unknown): x is ApiStaff[] {
+  if (!Array.isArray(x)) return false;
+  return x.every(
+    (o) =>
+      o &&
+      typeof o === "object" &&
+      typeof (o as ApiStaff).username === "string" &&
+      typeof (o as ApiStaff).firstName === "string" &&
+      typeof (o as ApiStaff).lastName === "string"
+  );
+}
+
+async function safeJson<T>(res: Response): Promise<T | null> {
+  try {
+    const v = (await res.json()) as unknown;
+    return v as T;
+  } catch {
+    return null;
+  }
+}
+
+function errorMessage(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
+function mapStaff(s: ApiStaff): Staff {
+  return {
+    username: s.username,
+    role: s.role,
+    firstName: s.firstName,
+    lastName: s.lastName,
+    gender: s.gender ?? null,
+    dateOfBirth: s.dateOfBirth ?? null,
+    phoneNumber: s.phoneNumber ?? null,
+    gmail: s.gmail ?? null,
+    specialty: s.specialty?.Valid ? s.specialty.String : null,
+    isActive: s.isActive?.Valid ? s.isActive.Bool : false,
+  };
+}
+
+export default function StaffAccounts(): React.JSX.Element {
+  const router = useRouter();
+  const { setAlert } = useAlertPopUp();
+
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(10);
-  const router = useRouter();
+
+  const [allRows, setAllRows] = React.useState<Staff[]>([]);
+  const totalItems = allRows.length;
+
+  const [order, setOrder] = React.useState<Order>("asc");
+  const [loading, setLoading] = React.useState(false);
 
   const [confirm, setConfirm] = React.useState<{ open: boolean; target?: Staff }>({ open: false });
 
-  const { setSnack } = useSnack();
+  const loadAllStaffAccounts = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/staffs`, {
+        method: "GET",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
 
-  const sorted = React.useMemo(() => {
-    const arr = [...rows];
+      if (!res.ok) {
+        const errBody = await safeJson<ApiResponse>(res);
+        throw new Error(errBody?.message ?? `Failed to load data (HTTP ${res.status})`);
+      }
+
+      const body = await safeJson<ApiResponse>(res);
+      const raw = body?.data ?? [];
+      if (!isApiStaffArray(raw)) {
+        throw new Error("Unexpected response shape");
+      }
+
+      const mapped = raw.map(mapStaff);
+      mapped.sort((a, b) => a.firstName.localeCompare(b.firstName, "en"));
+
+      setAllRows(mapped);
+
+      const maxPage = Math.max(0, Math.ceil(mapped.length / rowsPerPage) - 1);
+      setPage((p) => (p > maxPage ? maxPage : p));
+    } catch (e: unknown) {
+      setAlert({ open: true, msg: errorMessage(e), severity: "error" });
+      setAllRows([]);
+      setPage(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [rowsPerPage, setAlert]);
+
+  React.useEffect(() => {
+    void loadAllStaffAccounts();
+  }, [loadAllStaffAccounts]);
+
+  const sortedAll = React.useMemo(() => {
+    const arr = [...allRows];
     arr.sort((a, b) => {
-      const cmp = a.firstName.localeCompare(b.firstName, "th");
+      const cmp = a.firstName.localeCompare(b.firstName, "en");
       return order === "asc" ? cmp : -cmp;
     });
     return arr;
-  }, [rows, order]);
+  }, [allRows, order]);
 
-  const paged = React.useMemo(
-    () => sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-    [sorted, page, rowsPerPage]
-  );
+  const pagedRows = React.useMemo(() => {
+    const start = page * rowsPerPage;
+    const end = start + rowsPerPage;
+    return sortedAll.slice(start, end);
+  }, [sortedAll, page, rowsPerPage]);
 
-  const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
   const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(parseInt(e.target.value, 10));
+    const next = Number(e.target.value);
+    setRowsPerPage(next);
     setPage(0);
   };
 
-  const formatDOB = (iso?: string | null) => {
+  function formatDOB(iso?: string | null): string {
     if (!iso) return "—";
-    try { return new Date(iso).toLocaleDateString("th-TH"); } catch { return "—"; }
-  };
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("en-GB", { year: "numeric", month: "short", day: "2-digit" });
+  }
 
-  const goEdit = (u: Staff) => {
-    router.push(`/admin/user-management/edit?u=${encodeURIComponent(u.username)}`);
-  };
+  const goEdit = (u: Staff) =>
+    router.push(`/admin/user-management/edit/${encodeURIComponent(u.username)}`);
 
-  const onDeleteClick = (u: Staff) => setConfirm({ open: true, target: u });
+    const onDeleteClick = (u: Staff) => setConfirm({ open: true, target: u });
 
-  const doDelete = async () => {
-    await new Promise((r) => setTimeout(r, 300));
+    const deleteStaffAccount = async () => {
     const username = confirm.target?.username;
     if (!username) return;
 
-    setRows((prev) => prev.filter((it) => it.username !== username));
+    try {
+      const res = await fetch(`${API_BASE}/api/staffs/${encodeURIComponent(username)}`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
 
-    setSnack({
-      open: true,
-      msg: `Username: ${username} deleted successfully`,
-      severity: "success",
-    });
+      if (!res.ok && res.status !== 204) {
+        const body = await safeJson<{ message?: string }>(res);
+        throw new Error(body?.message ?? `Delete failed (HTTP ${res.status})`);
+      }
 
-    setConfirm({ open: false });
+      setAlert({
+        open: true,
+        msg: `Username: ${username} deleted successfully`,
+        severity: "success",
+      });
+
+      setConfirm({ open: false });
+
+      setAllRows((prev) => {
+        const next = prev.filter((r) => r.username !== username);
+        const maxPage = Math.max(0, Math.ceil(next.length / rowsPerPage) - 1);
+        setPage((p) => (p > maxPage ? maxPage : p));
+        return next;
+      });
+    } catch (e: unknown) {
+      setAlert({ open: true, msg: errorMessage(e), severity: "error" });
+    }
   };
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" gap={2} flexWrap="wrap" sx={{ mb: 2 }}>
-        <Typography variant="h5" fontWeight={400}>จัดการบัญชีผู้ใช้งาน</Typography>
+    <Box sx={{ p: { xs: 2, md: TOKENS.spacing.sectionY } }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        gap={2}
+        flexWrap="wrap"
+        sx={{ mb: 2 }}
+      >
+        <Typography variant={TOKENS.heading.variant} fontWeight={TOKENS.heading.weight}>
+          Staff Accounts
+        </Typography>
+
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          sx={{ backgroundColor: PRIMARY.main, "&:hover": { backgroundColor: PRIMARY.dark } }}
+          sx={{
+            height: TOKENS.button.height,
+            borderRadius: TOKENS.button.borderRadius,
+            backgroundColor: PRIMARY.main,
+            "&:hover": { backgroundColor: PRIMARY.dark },
+          }}
           onClick={() => router.push("/admin/user-management/add")}
         >
-          เพิ่มผู้ใช้งาน
+          Add Staff
         </Button>
       </Stack>
 
@@ -156,7 +289,10 @@ export default function StaffAccountsMockOnlyFirstNameSort() {
           <TableHead>
             <TableRow>
               {COLUMNS.map((c) => (
-                <TableCell key={c.key} sx={{ fontWeight: 600, whiteSpace: "nowrap" }}>
+                <TableCell
+                  key={c.key}
+                  sx={{ fontWeight: TOKENS.table.headerFontWeight, whiteSpace: "nowrap", py: TOKENS.table.cellY }}
+                >
                   {c.key === "firstName" ? (
                     <TableSortLabel
                       active
@@ -170,54 +306,72 @@ export default function StaffAccountsMockOnlyFirstNameSort() {
                   )}
                 </TableCell>
               ))}
-              <TableCell sx={{ fontWeight: 600, whiteSpace: "nowrap", width: 140 }}>
-                การจัดการ
+              <TableCell
+                sx={{
+                  fontWeight: TOKENS.table.headerFontWeight,
+                  whiteSpace: "nowrap",
+                  width: TOKENS.table.actionsColWidth,
+                  py: TOKENS.table.cellY,
+                }}
+              >
+                Actions
               </TableCell>
             </TableRow>
           </TableHead>
 
           <TableBody>
-            {paged.map((u) => (
-              <TableRow key={u.username} hover>
-                <TableCell>{u.firstName}</TableCell>
-                <TableCell>{u.lastName}</TableCell>
-                <TableCell>{u.username}</TableCell>
-                <TableCell>{u.role}</TableCell>
-                <TableCell>{u.gender === "M" ? "ชาย" : u.gender === "F" ? "หญิง" : u.gender ? "อื่น ๆ" : "—"}</TableCell>
-                <TableCell>{formatDOB(u.dateOfBirth)}</TableCell>
-                <TableCell>{u.phoneNumber || "—"}</TableCell>
-                <TableCell>{u.gmail || "—"}</TableCell>
-                <TableCell>{u.role === "TRAINER" ? (u.specialty || "—") : "ไม่มี"}</TableCell>
-                <TableCell>
-                  <Chip
-                    size="small"
-                    label={u.isActive ? "Active" : "Inactive"}
-                    color={u.isActive ? "success" : "default"}
-                    variant={u.isActive ? "filled" : "outlined"}
-                  />
-                </TableCell>
-
-                <TableCell>
-                  <Stack direction="row" spacing={1}>
-                    <Tooltip title="แก้ไข">
-                      <IconButton size="small" color="primary" onClick={() => goEdit(u)}>
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="ลบ">
-                      <IconButton size="small" color="error" onClick={() => onDeleteClick(u)}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </Stack>
+            {loading && (
+              <TableRow>
+                <TableCell colSpan={COLUMNS.length + 1} align="center" sx={{ py: 6 }}>
+                  <CircularProgress size={28} />
                 </TableCell>
               </TableRow>
-            ))}
+            )}
 
-            {paged.length === 0 && (
+            {!loading &&
+              pagedRows.map((u) => (
+                <TableRow key={u.username} hover>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{u.firstName}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{u.lastName}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{u.username}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{u.role}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{renderGender(u.gender)}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{formatDOB(u.dateOfBirth)}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{u.phoneNumber || "—"}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{u.gmail || "—"}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>
+                    {u.role === "TRAINER" ? u.specialty || "—" : "None"}
+                  </TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>
+                    <Chip
+                      size="small"
+                      label={u.isActive ? "Active" : "Inactive"}
+                      color={u.isActive ? "success" : "default"}
+                      variant={u.isActive ? "filled" : "outlined"}
+                    />
+                  </TableCell>
+
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>
+                    <Stack direction="row" spacing={1}>
+                      <Tooltip title="Edit">
+                        <IconButton size="small" color="primary" onClick={() => goEdit(u)}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete">
+                        <IconButton size="small" color="error" onClick={() => onDeleteClick(u)}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))}
+
+            {!loading && pagedRows.length === 0 && (
               <TableRow>
                 <TableCell colSpan={COLUMNS.length + 1} align="center" sx={{ py: 6, color: "text.secondary" }}>
-                  ไม่พบข้อมูล
+                  No data found
                 </TableCell>
               </TableRow>
             )}
@@ -226,9 +380,9 @@ export default function StaffAccountsMockOnlyFirstNameSort() {
 
         <TablePagination
           component="div"
-          count={rows.length}
+          count={totalItems}
           page={page}
-          onPageChange={handleChangePage}
+          onPageChange={(_, newPage) => setPage(newPage)}
           rowsPerPage={rowsPerPage}
           onRowsPerPageChange={handleChangeRowsPerPage}
           rowsPerPageOptions={[10]}
@@ -237,17 +391,16 @@ export default function StaffAccountsMockOnlyFirstNameSort() {
 
       <ConfirmDialog
         open={confirm.open}
-        title="ยืนยันการลบผู้ใช้งาน"
+        title="Confirm Deletion"
         message={
           <>
-            Warning: Are you sure you want to delete user: <b>{confirm.target?.username}</b> ?
-            <br />
-            บทบาท: <b>{confirm.target?.role}</b>
+            Warning: Are you sure you want to delete user: <b>{confirm.target?.username}</b>?<br />
+            Role: <b>{confirm.target?.role}</b>
           </>
         }
         confirmText="Confirm"
         cancelText="Cancel"
-        onConfirm={doDelete}
+        onConfirm={deleteStaffAccount}
         onClose={() => setConfirm({ open: false })}
       />
     </Box>

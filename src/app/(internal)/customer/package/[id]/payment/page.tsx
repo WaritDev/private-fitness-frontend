@@ -7,7 +7,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useRouter, useParams } from 'next/navigation';
 import Image from 'next/image';
-import { useSnack } from '@/components/snack/SnackProvider';
+import { useAlertPopUp } from '@/components/pop-up/AlertPopUpUI';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
@@ -43,7 +43,7 @@ type PaymentInfoResponse = {
 export default function PaymentPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
-  const { setSnack } = useSnack();
+  const { setAlert } = useAlertPopUp();
 
   // State management
   const [flowSource, setFlowSource] = React.useState<FlowSource | null>(null);
@@ -209,7 +209,7 @@ export default function PaymentPage() {
 
       if (result.status === 'success' && result.data?.verified) {
         // Success notification
-        setSnack({
+        setAlert({
           open: true,
           msg: '✅ Payment verified successfully. Your membership has been activated.',
           severity: 'success',
@@ -222,7 +222,7 @@ export default function PaymentPage() {
         }, 1500);
       } else {
         // Failed notification
-        setSnack({
+        setAlert({
           open: true,
           msg: '❌ Verification failed. Please upload a valid payment slip.',
           severity: 'error',

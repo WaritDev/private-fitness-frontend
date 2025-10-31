@@ -18,220 +18,322 @@ import {
   Chip,
   Avatar,
   Button,
+  CircularProgress,
+  Alert,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useRouter, useSearchParams } from "next/navigation";
-import ConfirmDialog from "@/components/pop-up/ConfirmDialog";
-import { useSnack } from "@/components/snack/SnackProvider";
+import ConfirmDialog from "@/components/pop-up/ConfirmPopUpUI";
+import { useAlertPopUp } from "@/components/pop-up/AlertPopUpUI";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+
+const PRIMARY = { main: "#38E07A", dark: "#2fbb65" } as const;
+const TOKENS = {
+  heading: { variant: "h5" as const, weight: 500 as const },
+  table: { headerFontWeight: 600 as const, actionsColWidth: 140, cellY: 1.25 },
+  button: { height: 40, borderRadius: 10 },
+  spacing: { sectionY: 3 },
+};
+
+type ApiItem = {
+  id: number;
+  accountName: string;
+  accountNumber: string;
+  bankName: string;
+  qrCodeUrl: string | null;
+  isActive: boolean;
+};
+type ApiResponse = {
+  data: ApiItem[];
+  message?: string;
+};
 
 type PaymentAccount = {
   Payment_Account_Id: number;
   Account_Name: string;
-  Account_Number: string; // โชว์แบบแมสก์
+  Account_Number: string;
   Bank_Name: string;
-  QR_Code_URL: string | null; // แสดง Avatar เล็ก ๆ ถ้ามี
+  QR_Code_URL: string | null;
   Is_Active: boolean;
 };
 
-const PRIMARY = { main: "#38E07A", dark: "#2fbb65" } as const;
-
-// ===== MOCK (แทนผล Q7A.1: ORDER BY Is_Active DESC, Payment_Account_Id DESC) =====
-const MOCK: PaymentAccount[] = [
-  {
-    Payment_Account_Id: 105,
-    Account_Name: "Gym Co.,Ltd - KBank",
-    Account_Number: "123-4-56789-0",
-    Bank_Name: "KASIKORNBANK",
-    QR_Code_URL: "https://fakeimg.pl/80x80/?text=QR1",
-    Is_Active: true,
-  },
-  {
-    Payment_Account_Id: 104,
-    Account_Name: "Gym Co.,Ltd - SCB",
-    Account_Number: "111-2-33333-4",
-    Bank_Name: "SCB",
-    QR_Code_URL: "https://fakeimg.pl/80x80/?text=QR2",
-    Is_Active: true,
-  },
-  {
-    Payment_Account_Id: 90,
-    Account_Name: "Gym Co.,Ltd - BBL",
-    Account_Number: "777-0-11111-2",
-    Bank_Name: "BANGKOK BANK",
-    QR_Code_URL: null,
-    Is_Active: false,
-  },
-];
-
 function maskAcct(acct: string) {
-  // 123-4-56789-0 -> 123-*-*****-0
   if (!acct) return "—";
-  return acct.replace(/\d(?=\d{2,3}(\D|$))/g, "*");
+  const digits = acct.replace(/\D/g, "");
+  if (digits.length < 5) return acct.replace(/\d/g, "*");
+  const head = digits.slice(0, 3);
+  const tail = digits.slice(-1);
+  return `${head}${"*".repeat(Math.max(1, digits.length - 4))}${tail}`;
 }
+
+const mapApiToUI = (r: ApiItem): PaymentAccount => ({
+  Payment_Account_Id: r.id,
+  Account_Name: r.accountName,
+  Account_Number: r.accountNumber,
+  Bank_Name: r.bankName,
+  QR_Code_URL: r.qrCodeUrl,
+  Is_Active: r.isActive,
+});
 
 export default function PaymentsManagementPage(): React.JSX.Element {
   const router = useRouter();
   const sp = useSearchParams();
-  const { setSnack } = useSnack();
+  const { setAlert } = useAlertPopUp();
 
-  // เรียงตาม Q7A.1: Active ก่อน แล้ว id มาก -> น้อย
-  const [rows, setRows] = React.useState<PaymentAccount[]>(
-    [...MOCK].sort((a, b) => (a.Is_Active === b.Is_Active ? 0 : a.Is_Active ? -1 : 1) || b.Payment_Account_Id - a.Payment_Account_Id)
-  );
-
-  // Pagination แบบเดียวกับหน้าที่คุณใช้ก่อนหน้า
+  const [allRows, setAllRows] = React.useState<PaymentAccount[]>([]);
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(10);
 
-  // Confirm ลบ
+  const [loading, setLoading] = React.useState(false);
+  const [globalErr, setGlobalErr] = React.useState("");
+
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [target, setTarget] = React.useState<PaymentAccount | null>(null);
 
-  // รับ toast จากหน้า add/edit ผ่าน query ?toast=
   React.useEffect(() => {
     const toast = sp.get("toast");
-    if (toast) setSnack({ open: true, msg: toast, severity: "success" });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sp]);
+    if (toast) setAlert({ open: true, msg: toast, severity: "success" });
+  }, [sp, setAlert]);
 
-  const paged = React.useMemo(
-    () => rows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-    [rows, page, rowsPerPage]
-  );
+  const fetchAll = React.useCallback(async () => {
+    setLoading(true);
+    setGlobalErr("");
+    try {
+      const res = await fetch(`${API_BASE}/api/payments`, {
+        method: "GET",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+      const body = (await res.json().catch(() => null)) as ApiResponse | null;
+      if (!res.ok) {
+        const msg = (body && body.message) || `Failed to load data (HTTP ${res.status})`;
+        throw new Error(msg);
+      }
+      const mapped = (body?.data ?? []).map(mapApiToUI);
+      mapped.sort(
+        (a, b) =>
+          (a.Is_Active === b.Is_Active ? 0 : a.Is_Active ? -1 : 1) ||
+          b.Payment_Account_Id - a.Payment_Account_Id
+      );
+      setAllRows(mapped);
+      setPage((p) => {
+        const maxPage = Math.max(0, Math.ceil(mapped.length / rowsPerPage) - 1);
+        return p > maxPage ? maxPage : p;
+      });
+    } catch (e) {
+      setGlobalErr(e instanceof Error ? e.message : String(e));
+      setAllRows([]);
+      setPage(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [rowsPerPage]);
+
+  React.useEffect(() => {
+    void fetchAll();
+  }, [fetchAll]);
+
+  const totalItems = allRows.length;
+  const pagedRows = React.useMemo(() => {
+    const start = page * rowsPerPage;
+    return allRows.slice(start, start + rowsPerPage);
+  }, [allRows, page, rowsPerPage]);
 
   const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
   const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(parseInt(e.target.value, 10));
+    const next = Number(e.target.value);
+    setRowsPerPage(next);
     setPage(0);
   };
 
   const goAdd = () => router.push("/admin/payments-management/add");
   const goEdit = (row: PaymentAccount) =>
-    router.push(`/admin/payments-management/edit?id=${encodeURIComponent(String(row.Payment_Account_Id))}`);
+    router.push(`/admin/payments-management/edit/${encodeURIComponent(String(row.Payment_Account_Id))}`);
 
   const askDelete = (row: PaymentAccount) => {
     setTarget(row);
     setConfirmOpen(true);
   };
 
-  const handleConfirmDelete = () => {
-    if (target) {
-      // MOCK ลบ
-      setRows((prev) => prev.filter((r) => r.Payment_Account_Id !== target.Payment_Account_Id));
-      setSnack({
+  const handleConfirmDelete = async () => {
+    if (!target) return;
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/payments/${encodeURIComponent(String(target.Payment_Account_Id))}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      if (!res.ok) {
+        const b = (await res.json().catch(() => null)) as { message?: string } | null;
+        const msg = b?.message || `Delete failed (HTTP ${res.status})`;
+        throw new Error(msg);
+      }
+
+      setAlert({
         open: true,
         msg: `Payment Account: ${target.Payment_Account_Id} deleted successfully`,
         severity: "success",
       });
+
+      setAllRows((prev) => {
+        const next = prev.filter((x) => x.Payment_Account_Id !== target.Payment_Account_Id);
+        const maxPage = Math.max(0, Math.ceil(next.length / rowsPerPage) - 1);
+        setPage((p) => (p > maxPage ? maxPage : p));
+        return next;
+      });
+    } catch (e) {
+      setAlert({
+        open: true,
+        msg: e instanceof Error ? e.message : String(e),
+        severity: "error",
+      });
+    } finally {
+      setConfirmOpen(false);
+      setTarget(null);
     }
-    setConfirmOpen(false);
-    setTarget(null);
   };
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-        <Typography variant="h5" fontWeight={400}>Payment Accounts</Typography>
+    <Box sx={{ p: { xs: 2, md: TOKENS.spacing.sectionY } }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }} gap={2} flexWrap="wrap">
+        <Typography variant={TOKENS.heading.variant} fontWeight={TOKENS.heading.weight}>
+          Payment Accounts
+        </Typography>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
           onClick={goAdd}
-          sx={{ backgroundColor: PRIMARY.main, "&:hover": { backgroundColor: PRIMARY.dark } }}
+          sx={{
+            height: TOKENS.button.height,
+            borderRadius: TOKENS.button.borderRadius,
+            backgroundColor: PRIMARY.main,
+            "&:hover": { backgroundColor: PRIMARY.dark },
+          }}
         >
           Add
         </Button>
       </Stack>
 
-      <TableContainer component={Paper} sx={{ borderRadius: 3, overflowX: "auto" }}>
-        <Table stickyHeader>
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ fontWeight: 600, whiteSpace: "nowrap" }}>ID</TableCell>
-              <TableCell sx={{ fontWeight: 600, whiteSpace: "nowrap" }}>Account Name</TableCell>
-              <TableCell sx={{ fontWeight: 600, whiteSpace: "nowrap" }}>Account Number</TableCell>
-              <TableCell sx={{ fontWeight: 600, whiteSpace: "nowrap" }}>Bank</TableCell>
-              <TableCell sx={{ fontWeight: 600, whiteSpace: "nowrap" }}>QR</TableCell>
-              <TableCell sx={{ fontWeight: 600, whiteSpace: "nowrap" }}>Active</TableCell>
-              <TableCell sx={{ fontWeight: 600, whiteSpace: "nowrap", width: 140 }}>การจัดการ</TableCell>
-            </TableRow>
-          </TableHead>
+      {globalErr && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {globalErr}
+        </Alert>
+      )}
 
-          <TableBody>
-            {paged.map((r) => (
-              <TableRow key={r.Payment_Account_Id} hover>
-                <TableCell>{r.Payment_Account_Id}</TableCell>
-                <TableCell>{r.Account_Name}</TableCell>
-                <TableCell>{maskAcct(r.Account_Number)}</TableCell>
-                <TableCell>{r.Bank_Name}</TableCell>
-                <TableCell>
-                  {r.QR_Code_URL ? (
-                    <Avatar
-                      src={r.QR_Code_URL}
-                      alt="qr"
-                      sx={{ width: 28, height: 28 }}
-                      variant="rounded"
-                    />
-                  ) : (
-                    "—"
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Chip
-                    label={r.Is_Active ? "Active" : "Inactive"}
-                    size="small"
-                    color={r.Is_Active ? "success" : "default"}
-                    variant={r.Is_Active ? "filled" : "outlined"}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Stack direction="row" spacing={1}>
-                    <Tooltip title="แก้ไข">
-                      <IconButton size="small" color="primary" onClick={() => goEdit(r)}>
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="ลบ">
-                      <IconButton size="small" color="error" onClick={() => askDelete(r)}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </Stack>
-                </TableCell>
-              </TableRow>
-            ))}
-
-            {paged.length === 0 && (
+      <TableContainer component={Paper} sx={{ borderRadius: 3, overflowX: "auto", position: "relative" }}>
+        {loading ? (
+          <Stack alignItems="center" justifyContent="center" sx={{ p: 4 }}>
+            <CircularProgress />
+          </Stack>
+        ) : (
+          <Table stickyHeader>
+            <TableHead>
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 6, color: "text.secondary" }}>
-                  ไม่พบข้อมูล
+                <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, whiteSpace: "nowrap", py: TOKENS.table.cellY }}>
+                  ID
+                </TableCell>
+                <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, whiteSpace: "nowrap", py: TOKENS.table.cellY }}>
+                  Account Name
+                </TableCell>
+                <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, whiteSpace: "nowrap", py: TOKENS.table.cellY }}>
+                  Account Number
+                </TableCell>
+                <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, whiteSpace: "nowrap", py: TOKENS.table.cellY }}>
+                  Bank
+                </TableCell>
+                <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, whiteSpace: "nowrap", py: TOKENS.table.cellY }}>
+                  QR
+                </TableCell>
+                <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, whiteSpace: "nowrap", py: TOKENS.table.cellY }}>
+                  Active
+                </TableCell>
+                <TableCell
+                  sx={{
+                    fontWeight: TOKENS.table.headerFontWeight,
+                    whiteSpace: "nowrap",
+                    width: TOKENS.table.actionsColWidth,
+                    py: TOKENS.table.cellY,
+                  }}
+                >
+                  Actions
                 </TableCell>
               </TableRow>
-            )}
-          </TableBody>
-        </Table>
+            </TableHead>
 
-        {/* ✅ Pagination แบบเดียวกับที่คุณใช้ */}
-        <TablePagination
-          component="div"
-          count={rows.length}
-          page={page}
-          onPageChange={handleChangePage}
-          rowsPerPage={rowsPerPage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          rowsPerPageOptions={[10]}
-        />
+            <TableBody>
+              {pagedRows.map((r) => (
+                <TableRow key={r.Payment_Account_Id} hover>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{r.Payment_Account_Id}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{r.Account_Name}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{maskAcct(r.Account_Number)}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{r.Bank_Name}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>
+                    {r.QR_Code_URL ? (
+                      <Avatar src={r.QR_Code_URL} alt="QR" sx={{ width: 28, height: 28 }} variant="rounded" />
+                    ) : (
+                      "—"
+                    )}
+                  </TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>
+                    <Chip
+                      label={r.Is_Active ? "Active" : "Inactive"}
+                      size="small"
+                      color={r.Is_Active ? "success" : "default"}
+                      variant={r.Is_Active ? "filled" : "outlined"}
+                    />
+                  </TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>
+                    <Stack direction="row" spacing={1}>
+                      <Tooltip title="Edit">
+                        <IconButton size="small" color="primary" onClick={() => goEdit(r)}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete">
+                        <IconButton size="small" color="error" onClick={() => askDelete(r)}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))}
+
+              {!loading && pagedRows.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} align="center" sx={{ py: 6, color: "text.secondary" }}>
+                    No data found
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        )}
       </TableContainer>
 
-      {/* Confirm ลบ */}
+      <TablePagination
+        component="div"
+        count={totalItems}
+        page={page}
+        onPageChange={handleChangePage}
+        rowsPerPage={rowsPerPage}
+        onRowsPerPageChange={handleChangeRowsPerPage}
+        rowsPerPageOptions={[10, 20, 50]}
+      />
+
       <ConfirmDialog
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
-        title="ยืนยันการลบบัญชีรับชำระเงิน"
+        title="Confirm Deletion"
         message={
           target
-            ? `Warning: Deleting payment account ${target.Payment_Account_Id} (${target.Account_Name}) is permanent. Continue?`
+            ? `Warning: Are you sure you want to permanently delete this payment account (ID: ${target.Payment_Account_Id})? This action is irreversible and may affect ongoing payments.`
             : ""
         }
         confirmText="Confirm"

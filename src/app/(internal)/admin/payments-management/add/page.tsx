@@ -9,47 +9,67 @@ import {
   MenuItem,
   Button,
   Paper,
+  Alert,
 } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useRouter } from "next/navigation";
-import { useSnack } from "@/components/snack/SnackProvider";
+import { useAlertPopUp } from "@/components/pop-up/AlertPopUpUI";
 
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 const PRIMARY = { main: "#38E07A", dark: "#2fbb65" } as const;
 
 const RE_URL =
   /^(https?:\/\/)([\w.-]+)(:\d+)?(\/[\w.\-~:/?#[\]@!$&'()*+,;=%]*)?$/i;
 
+type FormState = {
+  Account_Name: string;
+  Account_Number: string;
+  Bank_Name: string;
+  QR_Code_URL: string;
+  Is_Active: "true" | "false";
+};
+
+type CreateBody = {
+  accountName: string;
+  accountNumber: string;
+  bankName: string;
+  qrCodeUrl: string;
+  isActive: boolean;
+};
+
 export default function AddPaymentAccountPage(): React.JSX.Element {
   const router = useRouter();
-  const { setSnack } = useSnack();
+  const { setAlert } = useAlertPopUp();
 
-  const [form, setForm] = React.useState({
+  const [form, setForm] = React.useState<FormState>({
     Account_Name: "",
     Account_Number: "",
     Bank_Name: "",
     QR_Code_URL: "",
-    Is_Active: "true" as "true" | "false", // dropdown ตามโจทย์
+    Is_Active: "true",
   });
 
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [saving, setSaving] = React.useState(false);
+  const [globalErr, setGlobalErr] = React.useState("");
 
   const setField =
-    (k: keyof typeof form) =>
+    (k: keyof FormState) =>
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setForm((s) => ({ ...s, [k]: e.target.value }));
       setErrors((prev) => ({ ...prev, [k]: "" }));
+      setGlobalErr("");
     };
 
   const validate = (): boolean => {
     const e: Record<string, string> = {};
-    if (!form.Account_Name.trim()) e.Account_Name = "ห้ามว่าง";
-    if (!form.Account_Number.trim()) e.Account_Number = "ห้ามว่าง";
-    if (!form.Bank_Name.trim()) e.Bank_Name = "ห้ามว่าง";
-    if (!form.QR_Code_URL.trim()) e.QR_Code_URL = "ห้ามว่าง";
+    if (!form.Account_Name.trim()) e.Account_Name = "Required";
+    if (!form.Account_Number.trim()) e.Account_Number = "Required";
+    if (!form.Bank_Name.trim()) e.Bank_Name = "Required";
+    if (!form.QR_Code_URL.trim()) e.QR_Code_URL = "Required";
     else if (!RE_URL.test(form.QR_Code_URL))
-      e.QR_Code_URL = "รูปแบบ URL ไม่ถูกต้อง (ต้องขึ้นต้นด้วย http:// หรือ https://)";
+      e.QR_Code_URL = "Invalid URL (must start with http:// or https://).";
 
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -58,26 +78,46 @@ export default function AddPaymentAccountPage(): React.JSX.Element {
   const onSave = async () => {
     if (!validate()) return;
     setSaving(true);
+    setGlobalErr("");
 
     try {
-      // --- MOCK INSERT (แทน Q7A.A2) ---
-      // สร้างไอดีจำลอง
-      const newId = Math.floor(1000 + Math.random() * 90000);
+      const body: CreateBody = {
+        accountName: form.Account_Name.trim(),
+        accountNumber: form.Account_Number.trim(),
+        bankName: form.Bank_Name.trim(),
+        qrCodeUrl: form.QR_Code_URL.trim(),
+        isActive: form.Is_Active === "true",
+      };
 
-      // ปกติจะ call API ที่ทำ INSERT ตาม Q7A.A2:
-      // INSERT INTO "PAYMENT_ACCOUNTS" ("Account_Name","Account_Number","Bank_Name","QR_Code_URL","Is_Active")
-      // VALUES (${...});
-      // แล้ว backend จะคืน Payment_Account_Id กลับมา
-
-      // แสดง toast หลังกลับหน้า list
-      const toast = `Payment Account: ${newId} created successfully`;
-      router.push(`/admin/payments-management?toast=${encodeURIComponent(toast)}`);
-    } catch {
-      setSnack({
-        open: true,
-        msg: "เกิดข้อผิดพลาดระหว่างบันทึกข้อมูล",
-        severity: "error",
+      const res = await fetch(`${API_BASE}/api/payments/create`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
       });
+
+      if (!res.ok) {
+        let msg = `Create failed (HTTP ${res.status}).`;
+        try {
+          const rb: unknown = await res.json();
+          if (typeof rb === "object" && rb && "message" in rb) {
+            const m = (rb as { message?: string }).message;
+            if (m) msg = m;
+          }
+        } catch {}
+        throw new Error(msg);
+      }
+
+      setAlert({
+        open: true,
+        msg: "Payment Account created successfully",
+        severity: "success",
+      });
+      router.push("/admin/payments-management");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setGlobalErr(msg);
+      setAlert({ open: true, msg, severity: "error" });
     } finally {
       setSaving(false);
     }
@@ -94,11 +134,11 @@ export default function AddPaymentAccountPage(): React.JSX.Element {
         sx={{ mb: 2 }}
       >
         <Typography variant="h5" fontWeight={400}>
-          Add New Payment Accounts
+          Add New Payment Account
         </Typography>
         <Stack direction="row" spacing={1}>
           <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>
-            ยกเลิก
+            Cancel
           </Button>
           <Button
             variant="contained"
@@ -114,6 +154,12 @@ export default function AddPaymentAccountPage(): React.JSX.Element {
           </Button>
         </Stack>
       </Stack>
+
+      {globalErr && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {globalErr}
+        </Alert>
+      )}
 
       <Paper sx={{ p: 3, borderRadius: 3 }}>
         <Stack spacing={2}>
@@ -146,7 +192,7 @@ export default function AddPaymentAccountPage(): React.JSX.Element {
             value={form.QR_Code_URL}
             onChange={setField("QR_Code_URL")}
             error={!!errors.QR_Code_URL}
-            helperText={errors.QR_Code_URL || "เช่น https://example.com/qr.png"}
+            helperText={errors.QR_Code_URL || "e.g. https://cdn.example.com/qr/scb-main.png"}
             fullWidth
           />
           <TextField
@@ -156,15 +202,15 @@ export default function AddPaymentAccountPage(): React.JSX.Element {
             onChange={setField("Is_Active")}
             fullWidth
           >
-            <MenuItem value="true">true (ใช้งาน)</MenuItem>
-            <MenuItem value="false">false (ปิดใช้งาน)</MenuItem>
+            <MenuItem value="true">true (Active)</MenuItem>
+            <MenuItem value="false">false (Inactive)</MenuItem>
           </TextField>
         </Stack>
       </Paper>
 
       <Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ mt: 2 }}>
         <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>
-          ยกเลิก
+          Cancel
         </Button>
         <Button
           variant="contained"
