@@ -19,7 +19,6 @@ import { useSnack } from "@/components/snack/SnackProvider";
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 const PRIMARY = { main: "#38E07A", dark: "#2fbb65" } as const;
 
-// ต้องขึ้นต้น http:// หรือ https://
 const RE_URL =
   /^(https?:\/\/)([\w.-]+)(:\d+)?(\/[\w.\-~:/?#[\]@!$&'()*+,;=%]*)?$/i;
 
@@ -65,12 +64,12 @@ export default function AddPaymentAccountPage(): React.JSX.Element {
 
   const validate = (): boolean => {
     const e: Record<string, string> = {};
-    if (!form.Account_Name.trim()) e.Account_Name = "ห้ามว่าง";
-    if (!form.Account_Number.trim()) e.Account_Number = "ห้ามว่าง";
-    if (!form.Bank_Name.trim()) e.Bank_Name = "ห้ามว่าง";
-    if (!form.QR_Code_URL.trim()) e.QR_Code_URL = "ห้ามว่าง";
+    if (!form.Account_Name.trim()) e.Account_Name = "Required";
+    if (!form.Account_Number.trim()) e.Account_Number = "Required";
+    if (!form.Bank_Name.trim()) e.Bank_Name = "Required";
+    if (!form.QR_Code_URL.trim()) e.QR_Code_URL = "Required";
     else if (!RE_URL.test(form.QR_Code_URL))
-      e.QR_Code_URL = "รูปแบบ URL ไม่ถูกต้อง (ต้องขึ้นต้น http:// หรือ https://)";
+      e.QR_Code_URL = "Invalid URL (must start with http:// or https://).";
 
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -97,18 +96,15 @@ export default function AddPaymentAccountPage(): React.JSX.Element {
         body: JSON.stringify(body),
       });
 
-      // พยายามอ่าน message error อย่างปลอดภัย
       if (!res.ok) {
-        let msg = `สร้างบัญชีรับชำระเงินไม่สำเร็จ (HTTP ${res.status})`;
+        let msg = `Create failed (HTTP ${res.status}).`;
         try {
           const rb: unknown = await res.json();
           if (typeof rb === "object" && rb && "message" in rb) {
             const m = (rb as { message?: string }).message;
             if (m) msg = m;
           }
-        } catch {
-          /* ignore */
-        }
+        } catch {}
         throw new Error(msg);
       }
 
@@ -142,7 +138,7 @@ export default function AddPaymentAccountPage(): React.JSX.Element {
         </Typography>
         <Stack direction="row" spacing={1}>
           <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>
-            ยกเลิก
+            Cancel
           </Button>
           <Button
             variant="contained"
@@ -196,7 +192,7 @@ export default function AddPaymentAccountPage(): React.JSX.Element {
             value={form.QR_Code_URL}
             onChange={setField("QR_Code_URL")}
             error={!!errors.QR_Code_URL}
-            helperText={errors.QR_Code_URL || "เช่น https://cdn.example.com/qr/scb-main.png"}
+            helperText={errors.QR_Code_URL || "e.g. https://cdn.example.com/qr/scb-main.png"}
             fullWidth
           />
           <TextField
@@ -206,15 +202,15 @@ export default function AddPaymentAccountPage(): React.JSX.Element {
             onChange={setField("Is_Active")}
             fullWidth
           >
-            <MenuItem value="true">true (ใช้งาน)</MenuItem>
-            <MenuItem value="false">false (ปิดใช้งาน)</MenuItem>
+            <MenuItem value="true">true (Active)</MenuItem>
+            <MenuItem value="false">false (Inactive)</MenuItem>
           </TextField>
         </Stack>
       </Paper>
 
       <Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ mt: 2 }}>
         <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>
-          ยกเลิก
+          Cancel
         </Button>
         <Button
           variant="contained"

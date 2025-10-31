@@ -62,14 +62,14 @@ export default function EditCustomerLogPage(): React.JSX.Element {
   const params = useParams<{ id?: string }>();
   const { setSnack } = useSnack();
 
-  // ✅ อ่าน id จาก path ก่อน แล้วค่อย fallback เป็น query (?id=)
+  // Prefer path param, fallback to query (?id=...)
   const idParam = (params?.id ?? sp.get("id") ?? "").toString();
 
   const [loading, setLoading] = React.useState(true);
   const [notFound, setNotFound] = React.useState(false);
   const [globalErr, setGlobalErr] = React.useState("");
 
-  // form states
+  // form state
   const [logId, setLogId] = React.useState<string>("");
   const [custU, setCustU] = React.useState<string>("");
   const [custFN, setCustFN] = React.useState<string>("");
@@ -79,11 +79,10 @@ export default function EditCustomerLogPage(): React.JSX.Element {
   const [logType, setLogType] = React.useState<LogType>("CHECK_IN");
   const [tsError, setTsError] = React.useState<string>("");
 
-  // ---- fetch one ----
+  // fetch one
   React.useEffect(() => {
     let cancelled = false;
     const run = async () => {
-      // ❗️ถ้าไม่มี id ใน URL/QS: ไม่ถือเป็น 404 แค่หยุดโหลดและปล่อยให้ UI แสดงคำเตือน
       if (!idParam) { setLoading(false); return; }
       setLoading(true);
       setGlobalErr("");
@@ -98,7 +97,7 @@ export default function EditCustomerLogPage(): React.JSX.Element {
         const body = (await res.json().catch(() => ({}))) as ApiGet | ApiError | Record<string, unknown>;
 
         if (!res.ok) {
-          const msg = (body as ApiError).message ?? `โหลดข้อมูลล้มเหลว (HTTP ${res.status})`;
+          const msg = (body as ApiError).message ?? `Load failed (HTTP ${res.status})`;
           if (res.status === 404) { setNotFound(true); return; }
           throw new Error(msg);
         }
@@ -110,7 +109,7 @@ export default function EditCustomerLogPage(): React.JSX.Element {
         setCustU(row.customerUsername);
         setCustFN(row.customerFirstName);
         setCustLN(row.customerLastName);
-        setTimestampLocal(isoToDatetimeLocal(row.createdAt)); // ใช้ createdAt เป็นค่าเริ่มต้น
+        setTimestampLocal(isoToDatetimeLocal(row.createdAt)); // default from createdAt
         setLogType(row.logType);
 
       } catch (e: unknown) {
@@ -128,7 +127,7 @@ export default function EditCustomerLogPage(): React.JSX.Element {
   const onSave = async () => {
     const ts = datetimeLocalToUsecase(timestampLocal);
     if (!isValidUsecaseTimestamp(ts)) {
-      setTsError("รูปแบบเวลาไม่ถูกต้อง (ต้องเป็น YYYY-MM-DD HH:MM:SS)");
+      setTsError("Invalid format. Use YYYY-MM-DD HH:MM:SS");
       return;
     }
     setTsError("");
@@ -147,7 +146,7 @@ export default function EditCustomerLogPage(): React.JSX.Element {
       const body = (await res.json().catch(() => ({}))) as ApiError | Record<string, unknown>;
 
       if (!res.ok) {
-        const msg = (body as ApiError).message ?? `บันทึกล้มเหลว (HTTP ${res.status})`;
+        const msg = (body as ApiError).message ?? `Update failed (HTTP ${res.status})`;
         throw new Error(msg);
       }
 
@@ -158,16 +157,15 @@ export default function EditCustomerLogPage(): React.JSX.Element {
     }
   };
 
-  // ---- UI ----
+  // UI states
   if (!idParam && !loading) {
-    // ไม่มีพารามิเตอร์ id ใน URL
     return (
       <Box sx={{ p: { xs: 2, md: 3 } }}>
         <Typography variant="h6" sx={{ mb: 1 }}>Edit Customer Log</Typography>
         <Alert severity="warning" sx={{ mb: 2 }}>
-          ไม่พบพารามิเตอร์ <b>id</b> ใน URL (ตัวอย่าง: <code>/admin/customer-log/edit/9004</code>)
+          Missing <b>id</b> parameter in URL (example: <code>/admin/customer-log/edit/9004</code>)
         </Alert>
-        <Button variant="outlined" onClick={goBack}>กลับหน้า Customer Log</Button>
+        <Button variant="outlined" onClick={goBack}>Back to Customer Log</Button>
       </Box>
     );
   }
@@ -185,9 +183,9 @@ export default function EditCustomerLogPage(): React.JSX.Element {
       <Box sx={{ p: { xs: 2, md: 3 } }}>
         <Typography variant="h6" sx={{ mb: 1 }}>Edit Customer Log</Typography>
         <Alert severity="error" sx={{ mb: 2 }}>
-          ไม่พบ Log ที่ต้องการแก้ไข (id: {idParam})
+          Log not found (id: {idParam})
         </Alert>
-        <Button variant="outlined" onClick={goBack}>กลับหน้า Customer Log</Button>
+        <Button variant="outlined" onClick={goBack}>Back to Customer Log</Button>
       </Box>
     );
   }
@@ -197,7 +195,7 @@ export default function EditCustomerLogPage(): React.JSX.Element {
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Typography variant="h5" fontWeight={500}>Edit Customer Log</Typography>
         <Stack direction="row" spacing={1}>
-          <Button variant="outlined" onClick={goBack}>ยกเลิก</Button>
+          <Button variant="outlined" onClick={goBack}>Cancel</Button>
           <Button variant="contained" onClick={onSave}>Save</Button>
         </Stack>
       </Stack>
@@ -219,7 +217,7 @@ export default function EditCustomerLogPage(): React.JSX.Element {
           onChange={(e) => setTimestampLocal(e.target.value)}
           InputLabelProps={{ shrink: true }}
           error={!!tsError}
-          helperText={tsError || "จะบันทึกเป็นรูปแบบ YYYY-MM-DD HH:MM:SS"}
+          helperText={tsError || "Will be saved as YYYY-MM-DD HH:MM:SS"}
           fullWidth
         />
 
@@ -236,11 +234,8 @@ export default function EditCustomerLogPage(): React.JSX.Element {
             <MenuItem value="BOOK_SESSION">BOOK_SESSION</MenuItem>
             <MenuItem value="CANCEL_SESSION">CANCEL_SESSION</MenuItem>
           </Select>
-          <FormHelperText>เลือกประเภท Log</FormHelperText>
+          <FormHelperText>Select the log action</FormHelperText>
         </FormControl>
-
-        <Stack direction="row" spacing={1}>
-        </Stack>
       </Stack>
     </Box>
   );

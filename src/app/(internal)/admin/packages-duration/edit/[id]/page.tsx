@@ -2,8 +2,17 @@
 
 import * as React from "react";
 import {
-  Box, Stack, Typography, TextField, MenuItem, Button, Paper,
-  FormHelperText, CircularProgress, Alert, InputAdornment, Chip
+  Box,
+  Stack,
+  Typography,
+  TextField,
+  MenuItem,
+  Button,
+  Paper,
+  Alert,
+  InputAdornment,
+  Chip,
+  CircularProgress,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SaveIcon from "@mui/icons-material/Save";
@@ -22,8 +31,8 @@ type ApiItem = {
   purchaseDate: string; // "YYYY-MM-DD"
   startDate: string;    // "YYYY-MM-DD"
   endDate: string;      // "YYYY-MM-DD"
-  pricePaid: number;        // สตางค์
-  discountAmount: number;   // สตางค์
+  pricePaid: number;        // satang
+  discountAmount: number;   // satang
   status: Status;
 };
 
@@ -33,7 +42,7 @@ type ErrBody = { message?: string };
 const pad2 = (n: number) => String(n).padStart(2, "0");
 const isYMD = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
 
-// รับ "YYYY-MM-DD" หรือ ISO → คืน "YYYY-MM-DD"
+// Accepts "YYYY-MM-DD" or ISO → returns "YYYY-MM-DD"
 const toYMD = (s?: string) => {
   if (!s) return "";
   if (isYMD(s)) return s;
@@ -64,8 +73,7 @@ const addDaysYMD = (ymd: string, days: number) => {
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
 };
 
-// คำนวณจำนวนวันแบบรวมปลายทาง (inclusive)
-// เช่น 2025-10-11 → 2025-11-09 ได้ 30 วัน (11…09)
+// Inclusive day diff: e.g., 2025-10-11 → 2025-11-09 = 30 days
 const diffDaysInclusive = (startYMD: string, endYMD: string) => {
   if (!isYMD(startYMD) || !isYMD(endYMD)) return undefined;
   const [ys, ms, ds] = startYMD.split("-").map(Number);
@@ -74,21 +82,20 @@ const diffDaysInclusive = (startYMD: string, endYMD: string) => {
   const e = new Date(ye, me - 1, de);
   const msDiff = e.getTime() - s.getTime();
   if (Number.isNaN(msDiff)) return undefined;
-  // floor ต่างวัน “ระหว่าง” แล้ว +1 เพื่อรวมวันปลายทาง
   const days = Math.floor(msDiff / (1000 * 60 * 60 * 24)) + 1;
   return days > 0 ? days : undefined;
 };
 
 const isNonNegNumberStr = (v: string) => /^\d+(\.\d+)?$/.test(v) && Number(v) >= 0;
 
-// สตางค์ -> บาท (string สำหรับ input)
+// satang -> baht (for inputs)
 const satangToBahtStr = (n?: number) =>
   typeof n === "number" && Number.isFinite(n) ? (n / 100).toString() : "";
 
-// บาท(string) -> int บาท (ตามสเปค POST ที่คุณยกตัวอย่าง)
+// baht(string) -> integer baht (per POST spec)
 const bahtStrToIntBaht = (s: string) => Math.round(Number(s || "0"));
 
-// ---------- Tiny layout components (named for ESLint) ----------
+// ---------- Tiny layout components ----------
 const Row2 = React.memo(function Row2({ children }: { children: React.ReactNode }) {
   return (
     <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mb: 2 }}>
@@ -114,15 +121,15 @@ export default function EditCustomerDurationPackagePage(): React.JSX.Element {
   const [notFound, setNotFound] = React.useState(false);
   const [globalErr, setGlobalErr] = React.useState("");
 
-  // อ่านอย่างเดียว
+  // read-only references
   const [customerUsername, setCustomerUsername] = React.useState("");
   const [productId, setProductId] = React.useState<string>("");
   const [purchaseDate, setPurchaseDate] = React.useState("");
 
-  // ฟอร์มแก้ไข
+  // editable form state
   const [startDate, setStartDate] = React.useState("");
-  const [initialEndDate, setInitialEndDate] = React.useState(""); // จาก GET
-  const [durationDays, setDurationDays] = React.useState<number | undefined>(undefined); // ← เก็บจำนวนวันรวมปลาย
+  const [initialEndDate, setInitialEndDate] = React.useState("");
+  const [durationDays, setDurationDays] = React.useState<number | undefined>(undefined);
   const [pricePaid, setPricePaid] = React.useState("");
   const [discountAmount, setDiscountAmount] = React.useState("");
   const [status, setStatus] = React.useState<Status>("ACTIVE");
@@ -162,7 +169,6 @@ export default function EditCustomerDurationPackagePage(): React.JSX.Element {
         setDiscountAmount(satangToBahtStr(row.discountAmount));
         setStatus(row.status);
 
-        // ⏱️ คำนวณ duration_day จาก start/end ที่มาจาก BE
         const dd = sY && eY ? diffDaysInclusive(sY, eY) : undefined;
         setDurationDays(dd);
       } catch (e: unknown) {
@@ -177,10 +183,9 @@ export default function EditCustomerDurationPackagePage(): React.JSX.Element {
 
   const goBack = () => router.push("/admin/packages-duration");
 
-  // ---------- End_Date preview (เปลี่ยนตาม startDate โดยยึด durationDays เดิม) ----------
+  // ---------- End_Date preview (recomputed from Start_Date with fixed durationDays) ----------
   const computedEndDate = React.useMemo(() => {
     if (!startDate || !isYMD(startDate) || !durationDays || durationDays <= 0) return "";
-    // end = start + (durationDays - 1)
     return addDaysYMD(startDate, durationDays - 1);
   }, [startDate, durationDays]);
 
@@ -188,16 +193,16 @@ export default function EditCustomerDurationPackagePage(): React.JSX.Element {
   const validate = () => {
     const e: Record<string, string> = {};
 
-    if (!startDate.trim()) e.startDate = "ห้ามว่าง";
-    else if (!isYMD(startDate)) e.startDate = "รูปแบบต้องเป็น YYYY-MM-DD";
+    if (!startDate.trim()) e.startDate = "Required";
+    else if (!isYMD(startDate)) e.startDate = "Format must be YYYY-MM-DD";
 
-    if (pricePaid.trim() === "") e.pricePaid = "ห้ามว่าง";
-    else if (!isNonNegNumberStr(pricePaid)) e.pricePaid = "ต้องเป็นตัวเลข ≥ 0";
+    if (pricePaid.trim() === "") e.pricePaid = "Required";
+    else if (!isNonNegNumberStr(pricePaid)) e.pricePaid = "Must be a number ≥ 0";
 
-    if (discountAmount.trim() === "") e.discountAmount = "ห้ามว่าง";
-    else if (!isNonNegNumberStr(discountAmount)) e.discountAmount = "ต้องเป็นตัวเลข ≥ 0";
+    if (discountAmount.trim() === "") e.discountAmount = "Required";
+    else if (!isNonNegNumberStr(discountAmount)) e.discountAmount = "Must be a number ≥ 0";
 
-    if (!status) e.status = "ห้ามว่าง";
+    if (!status) e.status = "Required";
 
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -208,8 +213,8 @@ export default function EditCustomerDurationPackagePage(): React.JSX.Element {
     if (!validate()) return;
     const payload = {
       startDate,                                     // "YYYY-MM-DD"
-      pricePaid: bahtStrToIntBaht(pricePaid),        // int (บาท) ตามตัวอย่างสเปค POST
-      discountAmount: bahtStrToIntBaht(discountAmount), // int (บาท)
+      pricePaid: bahtStrToIntBaht(pricePaid),        // integer baht
+      discountAmount: bahtStrToIntBaht(discountAmount), // integer baht
       status,
     };
 
@@ -247,9 +252,9 @@ export default function EditCustomerDurationPackagePage(): React.JSX.Element {
     return (
       <Box sx={{ p: { xs: 2, md: 3 } }}>
         <Typography variant="h6" sx={{ mb: 1 }}>Edit Customer Duration Package</Typography>
-        <Alert severity="error" sx={{ mb: 2 }}>ไม่พบแพ็กเกจที่ต้องการแก้ไข (ID: {id})</Alert>
+        <Alert severity="error" sx={{ mb: 2 }}>Package not found (ID: {id})</Alert>
         <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>
-          กลับหน้า Customer Duration Packages
+          Back to Customer Duration Packages
         </Button>
       </Box>
     );
@@ -272,7 +277,7 @@ export default function EditCustomerDurationPackagePage(): React.JSX.Element {
         </Typography>
         <Stack direction="row" spacing={1}>
           <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>
-            ยกเลิก
+            Cancel
           </Button>
           <Button variant="contained" startIcon={<SaveIcon />} onClick={onSave} disabled={saveDisabled}>
             Save
@@ -282,11 +287,11 @@ export default function EditCustomerDurationPackagePage(): React.JSX.Element {
 
       {globalErr && <Alert severity="error" sx={{ mb: 2 }}>{globalErr}</Alert>}
 
-      {/* ข้อมูลอ้างอิงอ่านอย่างเดียว */}
+      {/* read-only references */}
       <Paper sx={{ p: 2, borderRadius: 3, mb: 2 }}>
         <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
           <Typography variant="body2"><b>ID:</b> {id}</Typography>
-          <Chip size="small" sx={{ ml: 1 }} label={`Duration: ${durationDays ?? "—"} วัน`} />
+          <Chip size="small" sx={{ ml: 1 }} label={`Duration: ${durationDays ?? "—"} days`} />
         </Stack>
         <Typography variant="body2"><b>Customer_Username:</b> {customerUsername || "—"}</Typography>
         <Typography variant="body2"><b>Product_Id:</b> {productId || "—"}</Typography>
@@ -306,9 +311,12 @@ export default function EditCustomerDurationPackagePage(): React.JSX.Element {
               fullWidth
               InputLabelProps={{ shrink: true }}
               error={!!errors.startDate}
-              helperText={errors.startDate || (durationDays
-                ? `เมื่อปรับ Start_Date ระบบจะคำนวณ End_Date ใหม่อัตโนมัติด้วย Duration = ${durationDays} วัน`
-                : "รูปแบบ YYYY-MM-DD")}
+              helperText={
+                errors.startDate ||
+                (durationDays
+                  ? `When Start_Date changes, End_Date is recalculated automatically with Duration = ${durationDays} day(s).`
+                  : "Format: YYYY-MM-DD")
+              }
             />
           </Col>
           <Col>
@@ -317,12 +325,9 @@ export default function EditCustomerDurationPackagePage(): React.JSX.Element {
               value={computedEndDate ? toDMY(computedEndDate) : toDMY(initialEndDate)}
               fullWidth
               InputProps={{
-                  readOnly: true,
-                  sx: {
-                    bgcolor: "#f5f5f5",
-                    pointerEvents: "none"
-                  }
-                }}
+                readOnly: true,
+                sx: { bgcolor: "#f5f5f5", pointerEvents: "none" },
+              }}
               helperText={
                 durationDays
                   ? (computedEndDate ? `End = Start + (${durationDays} - 1)` : "—")
@@ -342,7 +347,7 @@ export default function EditCustomerDurationPackagePage(): React.JSX.Element {
               inputMode="decimal"
               InputProps={{ startAdornment: <InputAdornment position="start">THB</InputAdornment> }}
               error={!!errors.pricePaid}
-              helperText={errors.pricePaid || "จำนวนเงินเป็น “บาท” (ระบบจะส่งเป็นจำนวนเต็มบาทไปยัง BE)"}
+              helperText={errors.pricePaid || "Amount in baht (will be sent as an integer baht)."}
             />
           </Col>
           <Col>
@@ -354,7 +359,7 @@ export default function EditCustomerDurationPackagePage(): React.JSX.Element {
               inputMode="decimal"
               InputProps={{ startAdornment: <InputAdornment position="start">THB</InputAdornment> }}
               error={!!errors.discountAmount}
-              helperText={errors.discountAmount || "ส่วนลดเป็น “บาท” (ส่งเป็นจำนวนเต็มบาท)"}
+              helperText={errors.discountAmount || "Discount in baht (sent as an integer baht)."}
             />
           </Col>
         </Row2>
@@ -376,9 +381,7 @@ export default function EditCustomerDurationPackagePage(): React.JSX.Element {
               <MenuItem value="CANCELLED">CANCELLED</MenuItem>
             </TextField>
           </Col>
-          <Col>
-            <FormHelperText />
-          </Col>
+          <Col />
         </Row2>
       </Paper>
     </Box>

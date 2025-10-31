@@ -30,11 +30,11 @@ type FormState = {
   name: string;
   productType: ProductType | "";
   productCategory: ProductCategory | "";
-  listPrice: string;       // บาท (string ใน input)
-  durationDays: string;    // DURATION เท่านั้น
-  sessionAmount: string;   // SESSION เท่านั้น
+  listPrice: string;
+  durationDays: string;
+  sessionAmount: string;
   isActive: boolean;
-  paymentAccountId: string; // number (string ใน input)
+  paymentAccountId: string;
 };
 
 export default function AddProductPage(): React.JSX.Element {
@@ -71,33 +71,33 @@ export default function AddProductPage(): React.JSX.Element {
   const validate = (): boolean => {
     const e: Record<string, string> = {};
 
-    if (!form.name.trim()) e.name = "ห้ามว่าง";
-    if (!form.productType) e.productType = "เลือกประเภทสินค้า";
-    if (!form.productCategory) e.productCategory = "เลือกหมวดหมู่";
+    if (!form.name.trim()) e.name = "Name is required.";
+    if (!form.productType) e.productType = "Select a product type.";
+    if (!form.productCategory) e.productCategory = "Select a product category.";
 
     const priceNum = Number(form.listPrice);
-    if (form.listPrice.trim() === "") e.listPrice = "ห้ามว่าง";
-    else if (!Number.isFinite(priceNum) || priceNum < 0) e.listPrice = "กรอกจำนวนเงิน ≥ 0";
+    if (form.listPrice.trim() === "") e.listPrice = "List price is required.";
+    else if (!Number.isFinite(priceNum) || priceNum < 0) e.listPrice = "Enter a number ≥ 0.";
 
     const payAcc = Number(form.paymentAccountId);
-    if (form.paymentAccountId.trim() === "") e.paymentAccountId = "ห้ามว่าง";
-    else if (!Number.isInteger(payAcc) || payAcc <= 0) e.paymentAccountId = "ต้องเป็นจำนวนเต็มบวก";
+    if (form.paymentAccountId.trim() === "") e.paymentAccountId = "Payment Account ID is required.";
+    else if (!Number.isInteger(payAcc) || payAcc <= 0) e.paymentAccountId = "Must be a positive integer.";
 
     if (form.productType === "DURATION") {
       const days = Number(form.durationDays);
-      if (form.durationDays.trim() === "") e.durationDays = "กรอกจำนวนวัน";
-      else if (!Number.isInteger(days) || days <= 0) e.durationDays = "ต้องเป็นจำนวนเต็มบวก (> 0)";
-      if (form.sessionAmount.trim() !== "") e.sessionAmount = "ไม่ต้องกรอกสำหรับ DURATION";
+      if (form.durationDays.trim() === "") e.durationDays = "Duration (days) is required.";
+      else if (!Number.isInteger(days) || days <= 0) e.durationDays = "Must be a positive integer (> 0).";
+      if (form.sessionAmount.trim() !== "") e.sessionAmount = "Leave blank for DURATION type.";
     } else if (form.productType === "SESSION") {
       const sess = Number(form.sessionAmount);
-      if (form.sessionAmount.trim() === "") e.sessionAmount = "กรอกจำนวนครั้ง";
-      else if (!Number.isInteger(sess) || sess <= 0) e.sessionAmount = "ต้องเป็นจำนวนเต็มบวก (> 0)";
-      if (form.durationDays.trim() !== "") e.durationDays = "ไม่ต้องกรอกสำหรับ SESSION";
+      if (form.sessionAmount.trim() === "") e.sessionAmount = "Session amount is required.";
+      else if (!Number.isInteger(sess) || sess <= 0) e.sessionAmount = "Must be a positive integer (> 0).";
+      if (form.durationDays.trim() !== "") e.durationDays = "Leave blank for SESSION type.";
     }
 
     setErrors(e);
     return Object.keys(e).length === 0;
-    };
+  };
 
   const onSave = async () => {
     if (!validate()) return;
@@ -106,7 +106,7 @@ export default function AddProductPage(): React.JSX.Element {
       name: string;
       productType: ProductType;
       productCategory: ProductCategory | string;
-      listPrice: number; // บาท
+      listPrice: number;
       durationDays?: number;
       sessionAmount?: number;
       isActive: boolean;
@@ -136,25 +136,15 @@ export default function AddProductPage(): React.JSX.Element {
       });
       if (!res.ok) {
         const b = (await res.json().catch(() => ({}))) as ErrBody;
-        throw new Error(b?.message || `Create failed (HTTP ${res.status})`);
+        throw new Error(b?.message || `Create failed (HTTP ${res.status}).`);
       }
 
-      setSnack({
-        open: true,
-        msg: `Product created successfully`,
-        severity: "success",
-      });
-
-      router.push(
-        `/admin/products-management?toast=${encodeURIComponent("Product created successfully")}`
-      );
+      setSnack({ open: true, msg: "Product created successfully", severity: "success" });
+      router.push(`/admin/products-management?toast=${encodeURIComponent("Product created successfully")}`);
     } catch (e: unknown) {
-      setGlobalErr(e instanceof Error ? e.message : String(e));
-      setSnack({
-        open: true,
-        msg: e instanceof Error ? e.message : String(e),
-        severity: "error",
-      });
+      const msg = e instanceof Error ? e.message : String(e);
+      setGlobalErr(msg);
+      setSnack({ open: true, msg, severity: "error" });
     } finally {
       setSubmitting(false);
     }
@@ -167,7 +157,7 @@ export default function AddProductPage(): React.JSX.Element {
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Typography variant="h5" fontWeight={400}>Add Product</Typography>
         <Stack direction="row" spacing={1}>
-          <Button onClick={onCancel} disabled={submitting}>ยกเลิก</Button>
+          <Button onClick={onCancel} disabled={submitting}>Cancel</Button>
           <Button
             variant="contained"
             onClick={onSave}
@@ -228,11 +218,11 @@ export default function AddProductPage(): React.JSX.Element {
 
           <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
             <TextField
-              label="List Price (บาท)"
+              label="List Price (baht)"
               value={form.listPrice}
               onChange={(e) => setField("listPrice", e.target.value)}
               error={!!errors.listPrice}
-              helperText={errors.listPrice || "กรอกจำนวนเงิน ≥ 0"}
+              helperText={errors.listPrice || "Enter an amount ≥ 0"}
               fullWidth
               inputMode="numeric"
             />
@@ -241,7 +231,7 @@ export default function AddProductPage(): React.JSX.Element {
               value={form.paymentAccountId}
               onChange={(e) => setField("paymentAccountId", e.target.value)}
               error={!!errors.paymentAccountId}
-              helperText={errors.paymentAccountId || "เช่น 1 หรือ 2"}
+              helperText={errors.paymentAccountId || "e.g. 1 or 2"}
               fullWidth
               inputMode="numeric"
             />
@@ -249,11 +239,11 @@ export default function AddProductPage(): React.JSX.Element {
 
           {form.productType === "DURATION" && (
             <TextField
-              label="Duration Days"
+              label="Duration (days)"
               value={form.durationDays}
               onChange={(e) => setField("durationDays", e.target.value)}
               error={!!errors.durationDays}
-              helperText={errors.durationDays || "จำนวนวันของแพ็กเกจ (> 0)"}
+              helperText={errors.durationDays || "Positive integer (> 0)"}
               fullWidth
               inputMode="numeric"
             />
@@ -265,7 +255,7 @@ export default function AddProductPage(): React.JSX.Element {
               value={form.sessionAmount}
               onChange={(e) => setField("sessionAmount", e.target.value)}
               error={!!errors.sessionAmount}
-              helperText={errors.sessionAmount || "จำนวนครั้งของแพ็กเกจ (> 0)"}
+              helperText={errors.sessionAmount || "Positive integer (> 0)"}
               fullWidth
               inputMode="numeric"
             />
@@ -285,7 +275,7 @@ export default function AddProductPage(): React.JSX.Element {
       </Paper>
 
       <Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ mt: 2 }}>
-        <Button onClick={onCancel} disabled={submitting}>ยกเลิก</Button>
+        <Button onClick={onCancel} disabled={submitting}>Cancel</Button>
         <Button
           variant="contained"
           onClick={onSave}

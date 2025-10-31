@@ -2,9 +2,22 @@
 
 import * as React from "react";
 import {
-  Box, Paper, Stack, Typography,
-  Table, TableHead, TableBody, TableRow, TableCell, TableContainer,
-  TablePagination, IconButton, Tooltip, Chip, CircularProgress, Alert
+  Box,
+  Paper,
+  Stack,
+  Typography,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableContainer,
+  TablePagination,
+  IconButton,
+  Tooltip,
+  Chip,
+  CircularProgress,
+  Alert,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -14,9 +27,14 @@ import { useSnack } from "@/components/snack/SnackProvider";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
+const TOKENS = {
+  heading: { variant: "h5" as const, weight: 500 as const },
+  table: { headerFontWeight: 600 as const, actionsColWidth: 140, cellY: 1.25 },
+  spacing: { sectionY: 3 },
+};
+
 type Status = "ACTIVE" | "EXPIRED" | "FROZEN" | "CANCELLED" | "COMPLETED";
 
-// ---------- API types ----------
 type ApiNullString = { String: string; Valid: boolean };
 type ApiNullInt32 = { Int32: number; Valid: boolean };
 
@@ -25,27 +43,21 @@ type ApiRow = {
   customerUsername?: ApiNullString;
   customerFirstName: string;
   customerLastName: string;
-
   trainerUsername?: ApiNullString;
   trainerFirstName: string;
   trainerLastName: string;
-
   productId?: ApiNullInt32;
   productName: string;
   type: "SESSION" | "DURATION";
   category: string;
-
   sessionAmount?: ApiNullInt32;
   salesUsername?: ApiNullString;
-
-  purchaseDate: string;           // ISO
+  purchaseDate: string;
   totalSessions: number;
   usedSessions?: ApiNullInt32;
   remainingSessions: number;
-
-  pricePaid: string;              // "4500.00"
-  discountAmount?: ApiNullString; // "0.00"
-
+  pricePaid: string;
+  discountAmount?: ApiNullString;
   status: Status;
 };
 
@@ -64,7 +76,6 @@ type ApiResponse = {
 
 type ErrResponse = { message?: string };
 
-// ---------- UI Row ----------
 type UIRow = {
   Session_Id: number;
   Customer_Username: string;
@@ -79,7 +90,7 @@ type UIRow = {
   Product_Category: string;
   Session_Amount: number | null;
   Sales_Username: string;
-  Purchase_Date: string;         // YYYY-MM-DD
+  Purchase_Date: string;
   Total_Sessions: number;
   Used_Sessions: number;
   Remaining_Sessions: number;
@@ -88,7 +99,6 @@ type UIRow = {
   Status: Status;
 };
 
-// ---------- Helpers ----------
 const ns = (v?: ApiNullString | null) => (v && v.Valid ? v.String : "");
 const ni = (v?: ApiNullInt32 | null) => (v && v.Valid ? v.Int32 : undefined);
 
@@ -114,7 +124,6 @@ const isoToYMD = (iso?: string) => {
 const fmtBaht = (n: number) =>
   new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", maximumFractionDigits: 0 }).format(n);
 
-// บอกคีย์กับเลเบลด้วยชนิดคงที่ (ไม่ใช่ any)
 const COLUMNS: ReadonlyArray<{ key: keyof UIRow; label: string }> = [
   { key: "Session_Id", label: "Session ID" },
   { key: "Customer_Username", label: "Customer" },
@@ -133,18 +142,14 @@ export default function CustomerSessionCoursesPage(): React.JSX.Element {
   const router = useRouter();
   const { setSnack } = useSnack();
 
-  // table states
   const [rows, setRows] = React.useState<UIRow[]>([]);
   const [totalItems, setTotalItems] = React.useState(0);
+  const [page, setPage] = React.useState(0);
+  const rowsPerPage = 10;
 
-  const [page, setPage] = React.useState(0); // 0-based
-  const rowsPerPage = 10; // fixed
-
-  // ui states
   const [loading, setLoading] = React.useState(false);
   const [globalErr, setGlobalErr] = React.useState("");
 
-  // confirm delete
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [target, setTarget] = React.useState<UIRow | null>(null);
 
@@ -153,28 +158,21 @@ export default function CustomerSessionCoursesPage(): React.JSX.Element {
     Customer_Username: ns(r.customerUsername),
     Customer_First_Name: r.customerFirstName || "",
     Customer_Last_Name: r.customerLastName || "",
-
     Trainer_Username: ns(r.trainerUsername),
     Trainer_First_Name: r.trainerFirstName || "",
     Trainer_Last_Name: r.trainerLastName || "",
-
     Product_Id: String(ni(r.productId) ?? ""),
     Product_Name: r.productName || "",
     Product_Type: r.type,
     Product_Category: r.category,
-
     Session_Amount: ni(r.sessionAmount) ?? null,
     Sales_Username: ns(r.salesUsername),
-
     Purchase_Date: isoToYMD(r.purchaseDate),
     Total_Sessions: r.totalSessions ?? 0,
     Used_Sessions: ni(r.usedSessions) ?? 0,
-    Remaining_Sessions:
-      r.remainingSessions ?? Math.max(0, (r.totalSessions ?? 0) - (ni(r.usedSessions) ?? 0)),
-
+    Remaining_Sessions: r.remainingSessions ?? Math.max(0, (r.totalSessions ?? 0) - (ni(r.usedSessions) ?? 0)),
     Price_Paid_Baht: moneyStrToIntBaht(r.pricePaid),
     Discount_Baht: moneyStrToIntBaht(ns(r.discountAmount)),
-
     Status: r.status,
   });
 
@@ -182,15 +180,16 @@ export default function CustomerSessionCoursesPage(): React.JSX.Element {
     setLoading(true);
     setGlobalErr("");
     try {
-      const apiPage = page + 1; // API 1-based
-      const res = await fetch(
-        `${API_BASE}/api/customer-sessions?page=${apiPage}&limit=${rowsPerPage}`,
-        { method: "GET", credentials: "include", headers: { "Content-Type": "application/json" } }
-      );
+      const apiPage = page + 1;
+      const res = await fetch(`${API_BASE}/api/customer-sessions?page=${apiPage}&limit=${rowsPerPage}`, {
+        method: "GET",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
 
       if (!res.ok) {
         const err: ErrResponse | null = await res.json().catch(() => null);
-        throw new Error(err?.message ?? `โหลดข้อมูลล้มเหลว (HTTP ${res.status})`);
+        throw new Error(err?.message ?? `Failed to load data (HTTP ${res.status})`);
       }
 
       const body: ApiResponse = await res.json();
@@ -236,7 +235,6 @@ export default function CustomerSessionCoursesPage(): React.JSX.Element {
 
       setSnack({ open: true, msg: `Session: ${target.Session_Id} deleted successfully`, severity: "success" });
 
-      // ถ้าลบแถวสุดท้ายของหน้าและมีหน้าก่อนหน้า → ถอยหน้า แล้วค่อยรีเฟช
       if (rows.length === 1 && page > 0) {
         setPage((p) => p - 1);
       } else {
@@ -251,12 +249,18 @@ export default function CustomerSessionCoursesPage(): React.JSX.Element {
   };
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
+    <Box sx={{ p: { xs: 2, md: TOKENS.spacing.sectionY } }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }} gap={2} flexWrap="wrap">
-        <Typography variant="h5" fontWeight={400}>Customer Session Courses</Typography>
+        <Typography variant={TOKENS.heading.variant} fontWeight={TOKENS.heading.weight}>
+          Customer Session Courses
+        </Typography>
       </Stack>
 
-      {globalErr && <Alert severity="error" sx={{ mb: 2 }}>{globalErr}</Alert>}
+      {globalErr && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {globalErr}
+        </Alert>
+      )}
 
       <TableContainer component={Paper} sx={{ borderRadius: 3, overflowX: "auto" }}>
         {loading ? (
@@ -268,79 +272,82 @@ export default function CustomerSessionCoursesPage(): React.JSX.Element {
             <TableHead>
               <TableRow>
                 {COLUMNS.map((c) => (
-                  <TableCell key={String(c.key)} sx={{ fontWeight: 600, whiteSpace: "nowrap" }}>
+                  <TableCell
+                    key={String(c.key)}
+                    sx={{ fontWeight: TOKENS.table.headerFontWeight, whiteSpace: "nowrap", py: TOKENS.table.cellY }}
+                  >
                     {c.label}
                   </TableCell>
                 ))}
-                <TableCell sx={{ fontWeight: 600, whiteSpace: "nowrap", width: 140 }}>การจัดการ</TableCell>
+                <TableCell
+                  sx={{
+                    fontWeight: TOKENS.table.headerFontWeight,
+                    whiteSpace: "nowrap",
+                    width: TOKENS.table.actionsColWidth,
+                    py: TOKENS.table.cellY,
+                  }}
+                >
+                  Actions
+                </TableCell>
               </TableRow>
             </TableHead>
 
             <TableBody>
               {rows.map((r) => (
                 <TableRow key={r.Session_Id} hover>
-                  <TableCell>{r.Session_Id}</TableCell>
-
-                  <TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{r.Session_Id}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>
                     {r.Customer_First_Name} {r.Customer_Last_Name}
                     <Typography variant="caption" display="block" color="text.secondary">
                       {r.Customer_Username}
                     </Typography>
                   </TableCell>
-
-                  <TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>
                     {r.Trainer_First_Name} {r.Trainer_Last_Name}
                     <Typography variant="caption" display="block" color="text.secondary">
                       {r.Trainer_Username || "—"}
                     </Typography>
                   </TableCell>
-
-                  <TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>
                     {r.Product_Name}
                     <Typography variant="caption" display="block" color="text.secondary">
                       {r.Product_Category} • {r.Product_Type}
                     </Typography>
                   </TableCell>
-
-                  <TableCell>{r.Session_Amount ?? "—"}</TableCell>
-                  <TableCell>{r.Total_Sessions}</TableCell>
-                  <TableCell>{r.Used_Sessions}</TableCell>
-
-                  <TableCell>
-                    <Chip
-                      size="small"
-                      label={r.Remaining_Sessions}
-                      color={r.Remaining_Sessions > 0 ? "success" : "default"}
-                      variant="outlined"
-                    />
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{r.Session_Amount ?? "—"}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{r.Total_Sessions}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{r.Used_Sessions}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>
+                    <Chip size="small" label={r.Remaining_Sessions} color={r.Remaining_Sessions > 0 ? "success" : "default"} variant="outlined" />
                   </TableCell>
-
-                  <TableCell>{fmtBaht(r.Price_Paid_Baht)}</TableCell>
-                  <TableCell>{fmtBaht(r.Discount_Baht)}</TableCell>
-
-                  <TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{fmtBaht(r.Price_Paid_Baht)}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{fmtBaht(r.Discount_Baht)}</TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>
                     <Chip
                       size="small"
                       label={r.Status}
                       color={
-                        r.Status === "ACTIVE" ? "success"
-                        : r.Status === "FROZEN" ? "warning"
-                        : r.Status === "CANCELLED" ? "error"
-                        : r.Status === "COMPLETED" ? "primary"
-                        : "default"
+                        r.Status === "ACTIVE"
+                          ? "success"
+                          : r.Status === "FROZEN"
+                          ? "warning"
+                          : r.Status === "CANCELLED"
+                          ? "error"
+                          : r.Status === "COMPLETED"
+                          ? "primary"
+                          : "default"
                       }
                       variant="outlined"
                     />
                   </TableCell>
-
-                  <TableCell>
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>
                     <Stack direction="row" spacing={1}>
-                      <Tooltip title="แก้ไข">
+                      <Tooltip title="Edit">
                         <IconButton size="small" color="primary" onClick={() => goEdit(r)}>
                           <EditIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="ลบ">
+                      <Tooltip title="Delete">
                         <IconButton size="small" color="error" onClick={() => askDelete(r)}>
                           <DeleteIcon fontSize="small" />
                         </IconButton>
@@ -353,7 +360,7 @@ export default function CustomerSessionCoursesPage(): React.JSX.Element {
               {!loading && rows.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={COLUMNS.length + 1} align="center" sx={{ py: 6, color: "text.secondary" }}>
-                    ไม่พบข้อมูล
+                    No data found
                   </TableCell>
                 </TableRow>
               )}
@@ -375,7 +382,7 @@ export default function CustomerSessionCoursesPage(): React.JSX.Element {
       <ConfirmDialog
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
-        title="ยืนยันการลบ Session Course"
+        title="Confirm Deletion"
         message={
           target
             ? `Warning: Deleting this session course (ID: ${target.Session_Id}) for customer ${target.Customer_Username} is permanent. Continue?`

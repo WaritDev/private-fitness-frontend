@@ -23,14 +23,14 @@ type ApiItem = {
   purchaseDate: string; // "YYYY-MM-DD"
   totalSessions: number;
   usedSessions: number;
-  pricePaid: number;      // สตางค์
-  discountAmount: number; // สตางค์
+  pricePaid: number;      // satang
+  discountAmount: number; // satang
   status: Status;
 };
 
 type ErrBody = { message?: string };
 
-// ---- helpers (ไม่บังคับ number format ระหว่างพิมพ์ เพื่อกัน “พิมพ์ได้ทีละตัว”) ----
+// --- helpers ---
 const pad2 = (n: number) => String(n).padStart(2, "0");
 const toYMD = (s?: string) => {
   if (!s) return "";
@@ -41,7 +41,8 @@ const toYMD = (s?: string) => {
 };
 const satangToBahtStr = (satang?: number) =>
   typeof satang === "number" && Number.isFinite(satang) ? (satang / 100).toString() : "";
-const isNonNegNumberStr = (v: string) => v.trim() !== "" && /^\d+(\.\d+)?$/.test(v) && Number(v) >= 0;
+const isNonNegNumberStr = (v: string) =>
+  v.trim() !== "" && /^\d+(\.\d+)?$/.test(v) && Number(v) >= 0;
 const bahtStrToIntBaht = (s: string) => Math.round(Number(s || "0"));
 
 export default function EditCustomerSessionCoursePage(): React.JSX.Element {
@@ -56,7 +57,7 @@ export default function EditCustomerSessionCoursePage(): React.JSX.Element {
   const [notFound, setNotFound] = React.useState(false);
   const [globalErr, setGlobalErr] = React.useState("");
 
-  // อ่านอย่างเดียว
+  // read-only info
   const [customerUsername, setCustomerUsername] = React.useState("");
   const [productId, setProductId] = React.useState("");
   const [salesUsername, setSalesUsername] = React.useState("");
@@ -64,15 +65,15 @@ export default function EditCustomerSessionCoursePage(): React.JSX.Element {
   const [totalSessions, setTotalSessions] = React.useState(0);
   const [usedSessions, setUsedSessions] = React.useState(0);
 
-  // ฟอร์มแก้ไขได้
+  // editable
   const [trainerUsername, setTrainerUsername] = React.useState("");
-  const [pricePaid, setPricePaid] = React.useState("");         // บาท (string)
-  const [discountAmount, setDiscountAmount] = React.useState(""); // บาท (string)
+  const [pricePaid, setPricePaid] = React.useState("");           // baht (string)
+  const [discountAmount, setDiscountAmount] = React.useState(""); // baht (string)
   const [status, setStatus] = React.useState<Status>("ACTIVE");
 
   const [errors, setErrors] = React.useState<Record<string, string>>({});
 
-  // FETCH ONE
+  // fetch one
   React.useEffect(() => {
     let cancelled = false;
     const run = async () => {
@@ -93,7 +94,6 @@ export default function EditCustomerSessionCoursePage(): React.JSX.Element {
         const row = (await res.json()) as ApiItem;
         if (cancelled) return;
 
-        // map to states
         setCustomerUsername(row.customerUsername || "");
         setProductId(row.productId || "");
         setSalesUsername(row.salesUsername || "");
@@ -117,25 +117,25 @@ export default function EditCustomerSessionCoursePage(): React.JSX.Element {
 
   const goBack = () => router.push("/admin/courses-sessions");
 
-  // VALIDATE
+  // validate
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!trainerUsername.trim()) e.trainerUsername = "ห้ามว่าง";
-    if (!isNonNegNumberStr(pricePaid)) e.pricePaid = "ต้องเป็นตัวเลข ≥ 0";
-    if (!isNonNegNumberStr(discountAmount)) e.discountAmount = "ต้องเป็นตัวเลข ≥ 0";
-    if (!status) e.status = "ห้ามว่าง";
+    if (!trainerUsername.trim()) e.trainerUsername = "Required";
+    if (!isNonNegNumberStr(pricePaid)) e.pricePaid = "Must be a number ≥ 0";
+    if (!isNonNegNumberStr(discountAmount)) e.discountAmount = "Must be a number ≥ 0";
+    if (!status) e.status = "Required";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  // SAVE
+  // save
   const onSave = async () => {
     if (!validate()) return;
 
     const payload = {
       trainerUsername: trainerUsername.trim(),
-      pricePaid: bahtStrToIntBaht(pricePaid),         // ฝั่งคุณต้องการ “บาท (จำนวนเต็ม)” ตามตัวอย่าง
-      discountAmount: bahtStrToIntBaht(discountAmount),
+      pricePaid: bahtStrToIntBaht(pricePaid),           // integer baht
+      discountAmount: bahtStrToIntBaht(discountAmount), // integer baht
       status,
     };
 
@@ -160,7 +160,7 @@ export default function EditCustomerSessionCoursePage(): React.JSX.Element {
     }
   };
 
-  // RENDER
+  // render
   if (loading) {
     return (
       <Box sx={{ p: { xs: 3, md: 4 }, display: "flex", justifyContent: "center" }}>
@@ -172,8 +172,8 @@ export default function EditCustomerSessionCoursePage(): React.JSX.Element {
     return (
       <Box sx={{ p: { xs: 2, md: 3 } }}>
         <Typography variant="h6" sx={{ mb: 1 }}>Edit Customer Session Course</Typography>
-        <Alert severity="error" sx={{ mb: 2 }}>ไม่พบข้อมูล (ID: {id})</Alert>
-        <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>กลับรายการ</Button>
+        <Alert severity="error" sx={{ mb: 2 }}>Record not found (ID: {id})</Alert>
+        <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>Back</Button>
       </Box>
     );
   }
@@ -185,28 +185,30 @@ export default function EditCustomerSessionCoursePage(): React.JSX.Element {
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Typography variant="h5" fontWeight={500}>Edit Customer Session Course</Typography>
         <Stack direction="row" spacing={1}>
-          <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>ยกเลิก</Button>
+          <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>Cancel</Button>
           <Button variant="contained" startIcon={<SaveIcon />} onClick={onSave}>Save</Button>
         </Stack>
       </Stack>
 
       {globalErr && <Alert severity="error" sx={{ mb: 2 }}>{globalErr}</Alert>}
 
-      {/* Info (read-only) */}
+      {/* Read-only info */}
       <Paper sx={{ p: 2, borderRadius: 3, mb: 2 }}>
         <Typography variant="body2"><b>ID:</b> {id}</Typography>
         <Typography variant="body2"><b>Customer:</b> {customerUsername || "—"}</Typography>
-        <Typography variant="body2"><b>Product_Id:</b> {productId || "—"}</Typography>
+        <Typography variant="body2"><b>Product ID:</b> {productId || "—"}</Typography>
         <Typography variant="body2"><b>Sales:</b> {salesUsername || "—"}</Typography>
         <Typography variant="body2"><b>Purchased:</b> {toYMD(purchaseDate) || "—"}</Typography>
-        <Typography variant="body2"><b>Total / Used / Remaining:</b> {totalSessions} / {usedSessions} / {remaining}</Typography>
+        <Typography variant="body2">
+          <b>Total / Used / Remaining:</b> {totalSessions} / {usedSessions} / {remaining}
+        </Typography>
       </Paper>
 
-      {/* Editable */}
+      {/* Editable fields */}
       <Paper sx={{ p: 2, borderRadius: 3 }}>
         <Stack spacing={2}>
           <TextField
-            label="Trainer_Username"
+            label="Trainer Username"
             value={trainerUsername}
             onChange={(e) => setTrainerUsername(e.target.value)}
             error={!!errors.trainerUsername}
@@ -216,7 +218,7 @@ export default function EditCustomerSessionCoursePage(): React.JSX.Element {
 
           <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
             <TextField
-              label="Price_Paid (บาท)"
+              label="Price Paid (THB)"
               value={pricePaid}
               onChange={(e) => setPricePaid(e.target.value)}
               error={!!errors.pricePaid}
@@ -225,7 +227,7 @@ export default function EditCustomerSessionCoursePage(): React.JSX.Element {
               inputMode="decimal"
             />
             <TextField
-              label="Discount_Amount (บาท)"
+              label="Discount Amount (THB)"
               value={discountAmount}
               onChange={(e) => setDiscountAmount(e.target.value)}
               error={!!errors.discountAmount}
