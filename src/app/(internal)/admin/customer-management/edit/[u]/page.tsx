@@ -31,7 +31,6 @@ type ApiCustomer = {
   gmail: string;
   isActive: ApiNullBool;
 
-  // ส่วนที่เป็น optional ใน BE (มักเป็น NullString)
   healthInfo: ApiNullString;
   address: ApiNullString;
   companyName: ApiNullString;
@@ -83,10 +82,9 @@ export default function EditCustomerPage(): React.JSX.Element {
   const [phoneNumber, setPhoneNumber] = React.useState("");
   const [gmail, setGmail] = React.useState("");
 
-  // Is_Active เป็น dropdown
   const [isActive, setIsActive] = React.useState<boolean>(true);
 
-  // เสริม
+  // optional
   const [healthInfo, setHealthInfo] = React.useState("");
   const [address, setAddress] = React.useState("");
   const [companyName, setCompanyName] = React.useState("");
@@ -104,14 +102,14 @@ export default function EditCustomerPage(): React.JSX.Element {
   // errors
   const [errors, setErrors] = React.useState<Record<string, string>>({});
 
-  // อายุ > 14
+  // age > 14
   const cutoff = React.useMemo(() => {
     const now = new Date();
     const d = new Date(now.getFullYear() - 14, now.getMonth(), now.getDate());
     const y = d.getFullYear();
     const m = `${d.getMonth() + 1}`.padStart(2, "0");
     const dd = `${d.getDate()}`.padStart(2, "0");
-    return { date: d, ymd: `${y}-${m}-${dd}`, th: d.toLocaleDateString("th-TH") };
+    return { date: d, ymd: `${y}-${m}-${dd}`, en: d.toLocaleDateString("en-GB") };
   }, []);
 
   // ---------- Fetch one customer ----------
@@ -170,24 +168,24 @@ export default function EditCustomerPage(): React.JSX.Element {
     setGlobalErr("");
 
     if (newPassword || confirmNewPassword) {
-      if (!RE_PASSWORD.test(newPassword)) e.newPassword = "รหัสผ่านต้องยาว ≥ 8 ตัว มี a-z, A-Z, ตัวเลข และอักขระพิเศษ";
-      if (confirmNewPassword !== newPassword) e.confirmNewPassword = "รหัสยืนยันไม่ตรงกับรหัสผ่านใหม่";
+      if (!RE_PASSWORD.test(newPassword)) e.newPassword = "Password must be ≥ 8 chars and include a-z, A-Z, 0-9 and a special character.";
+      if (confirmNewPassword !== newPassword) e.confirmNewPassword = "Confirm password does not match.";
     }
 
-    if (!firstName.trim()) e.firstName = "ห้ามว่าง";
-    if (!lastName.trim())  e.lastName  = "ห้ามว่าง";
+    if (!firstName.trim()) e.firstName = "Required";
+    if (!lastName.trim())  e.lastName  = "Required";
 
-    if (!phoneNumber.trim()) e.phoneNumber = "ห้ามว่าง";
-    else if (!RE_PHONE10.test(phoneNumber)) e.phoneNumber = "กรอกเป็นตัวเลข 10 หลัก";
+    if (!phoneNumber.trim()) e.phoneNumber = "Required";
+    else if (!RE_PHONE10.test(phoneNumber)) e.phoneNumber = "Must be 10 digits.";
 
-    if (!gmail.trim()) e.gmail = "ห้ามว่าง";
-    else if (!RE_EMAIL.test(gmail.toLowerCase())) e.gmail = "อีเมลไม่ถูกต้อง";
+    if (!gmail.trim()) e.gmail = "Required";
+    else if (!RE_EMAIL.test(gmail.toLowerCase())) e.gmail = "Invalid email address.";
 
     if (dateOfBirth) {
-      if (!RE_DATE.test(dateOfBirth)) e.dateOfBirth = "รูปแบบวันที่ YYYY-MM-DD";
+      if (!RE_DATE.test(dateOfBirth)) e.dateOfBirth = "Use format YYYY-MM-DD.";
       else {
         const dob = new Date(`${dateOfBirth}T00:00:00`);
-        if (!(dob < cutoff.date)) e.dateOfBirth = `อายุต้องมากกว่า 14 ปี (ก่อน ${cutoff.th})`;
+        if (!(dob < cutoff.date)) e.dateOfBirth = `Must be older than 14 years (before ${cutoff.en}).`;
       }
     }
 
@@ -195,11 +193,10 @@ export default function EditCustomerPage(): React.JSX.Element {
     return Object.keys(e).length === 0;
   };
 
-  // ---------- Save (เฉพาะฟิลด์ที่อนุญาต) ----------
+  // ---------- Save ----------
   const onSave = async () => {
     if (!validate()) return;
 
-    // ส่งเฉพาะฟิลด์ที่อนุญาตเท่านั้น
     const payload: Record<string, unknown> = {
       ...(newPassword && { newPassword, confirmNewPassword }),
       firstName: firstName.trim(),
@@ -208,7 +205,7 @@ export default function EditCustomerPage(): React.JSX.Element {
       dateOfBirth: dateOfBirth || undefined,
       phoneNumber: phoneNumber.trim(),
       gmail:       gmail.trim().toLowerCase(),
-      isActive, // boolean
+      isActive,
 
       healthInfo:  healthInfo.trim(),
       companyName: companyName.trim(),
@@ -261,9 +258,9 @@ export default function EditCustomerPage(): React.JSX.Element {
   if (notFound) {
     return (
       <Container maxWidth="md" sx={{ py: 3 }}>
-        <Alert severity="error" sx={{ mb: 2 }}>ไม่พบผู้ใช้ {username}</Alert>
+        <Alert severity="error" sx={{ mb: 2 }}>Customer not found: {username}</Alert>
         <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>
-          กลับ
+          Back
         </Button>
       </Container>
     );
@@ -281,9 +278,9 @@ export default function EditCustomerPage(): React.JSX.Element {
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-        <Typography variant="h5" fontWeight={400}>Edit Customer: {username}</Typography>
+        <Typography variant="h5" fontWeight={400}>Edit Customer Accounts</Typography>
         <Stack direction="row" spacing={1}>
-          <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>ยกเลิก</Button>
+          <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>Cancel</Button>
           <Button
             variant="contained"
             startIcon={<SaveIcon />}
@@ -311,7 +308,7 @@ export default function EditCustomerPage(): React.JSX.Element {
             <TextField
               label="New Password" type="password" value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              fullWidth placeholder="≥ 8 ตัว รวม a-z, A-Z, ตัวเลข, อักขระพิเศษ"
+              fullWidth placeholder="≥ 8 chars with a-z, A-Z, 0-9 and special character"
               error={!!errors.newPassword} helperText={errors.newPassword}
             />
           </Col>
@@ -324,7 +321,7 @@ export default function EditCustomerPage(): React.JSX.Element {
           </Col>
         </Row2>
 
-        <Typography variant="subtitle1" sx={{ mt: 1, mb: 1 }}>ข้อมูลส่วนตัว</Typography>
+        <Typography variant="subtitle1" sx={{ mt: 1, mb: 1 }}>Personal Information</Typography>
         <Row2>
           <Col>
             <TextField
@@ -361,34 +358,33 @@ export default function EditCustomerPage(): React.JSX.Element {
               onChange={(e) => setDateOfBirth(e.target.value)}
               fullWidth InputLabelProps={{ shrink: true }}
               inputProps={{ max: cutoff.ymd }}
-              helperText={errors.dateOfBirth || `ต้องเกิดก่อน ${cutoff.th}`}
+              helperText={errors.dateOfBirth || `Must be before ${cutoff.en}`}
               error={!!errors.dateOfBirth}
             />
           </Col>
         </Row2>
 
-        {/* Is_Active: dropdown true/false */}
         <Row2>
           <Col>
             <TextField
-              select label="สถานะการใช้งาน (Is Active)" value={String(isActive)}
+              select label="Is Active" value={String(isActive)}
               onChange={(e) => setIsActive(e.target.value === "true")}
               fullWidth
             >
-              <MenuItem value="true">ใช้งาน (true)</MenuItem>
-              <MenuItem value="false">ปิดใช้งาน (false)</MenuItem>
+              <MenuItem value="true">Active (true)</MenuItem>
+              <MenuItem value="false">Inactive (false)</MenuItem>
             </TextField>
           </Col>
           <Col />
         </Row2>
 
-        <Typography variant="subtitle1" sx={{ mt: 1, mb: 1 }}>การติดต่อ</Typography>
+        <Typography variant="subtitle1" sx={{ mt: 1, mb: 1 }}>Contact</Typography>
         <Row2>
           <Col>
             <TextField
               label="Phone Number" value={phoneNumber}
               onChange={(e) => setPhoneNumber(e.target.value)} fullWidth
-              placeholder="ตัวเลข 10 หลัก" error={!!errors.phoneNumber} helperText={errors.phoneNumber}
+              placeholder="10 digits" error={!!errors.phoneNumber} helperText={errors.phoneNumber}
               InputProps={{ startAdornment: <InputAdornment position="start">+66</InputAdornment> }}
             />
           </Col>
@@ -405,13 +401,13 @@ export default function EditCustomerPage(): React.JSX.Element {
           <TextField label="Address" value={address} onChange={(e) => setAddress(e.target.value)} fullWidth multiline minRows={2} />
         </Box>
 
-        <Typography variant="subtitle1" sx={{ mt: 1, mb: 1 }}>ข้อมูลการทำงาน</Typography>
+        <Typography variant="subtitle1" sx={{ mt: 1, mb: 1 }}>Employment</Typography>
         <Row2>
           <Col><TextField label="Company Name" value={companyName} onChange={(e) => setCompanyName(e.target.value)} fullWidth /></Col>
           <Col><TextField label="Company Position" value={companyPosition} onChange={(e) => setCompanyPosition(e.target.value)} fullWidth /></Col>
         </Row2>
 
-        <Typography variant="subtitle1" sx={{ mt: 1, mb: 1 }}>สุขภาพ & การตลาด</Typography>
+        <Typography variant="subtitle1" sx={{ mt: 1, mb: 1 }}>Health & Marketing</Typography>
         <Box sx={{ mb: 2 }}>
           <TextField label="Health Info" value={healthInfo} onChange={(e) => setHealthInfo(e.target.value)} fullWidth multiline minRows={2} />
         </Box>
@@ -434,7 +430,7 @@ export default function EditCustomerPage(): React.JSX.Element {
           </Col>
         </Row2>
 
-        <Typography variant="subtitle1" sx={{ mt: 1, mb: 1 }}>ผู้ติดต่อฉุกเฉิน</Typography>
+        <Typography variant="subtitle1" sx={{ mt: 1, mb: 1 }}>Emergency Contact</Typography>
         <Row2>
           <Col><TextField label="Name" value={emergencyContactName} onChange={(e) => setEmergencyContactName(e.target.value)} fullWidth /></Col>
           <Col><TextField label="Relationship" value={emergencyContactRelationship} onChange={(e) => setEmergencyContactRelationship(e.target.value)} fullWidth /></Col>
@@ -446,7 +442,7 @@ export default function EditCustomerPage(): React.JSX.Element {
       </Paper>
 
       <Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ mt: 2 }}>
-        <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>ยกเลิก</Button>
+        <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>Cancel</Button>
         <Button
           variant="contained"
           startIcon={<SaveIcon />}

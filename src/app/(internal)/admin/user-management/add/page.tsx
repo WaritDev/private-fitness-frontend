@@ -2,73 +2,44 @@
 
 import * as React from "react";
 import {
-  Box, Stack, Typography, TextField, Button, MenuItem,
-  FormControl, InputLabel, Select, Card, CardContent
+  Box,
+  Stack,
+  Typography,
+  TextField,
+  Button,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Select,
+  Card,
+  CardContent,
 } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { useSnack } from "@/components/snack/SnackProvider";
 
 type Role = "ADMIN" | "MANAGER" | "TRAINER" | "SALES";
-type Gender = "Male" | "Female" | "Other";
-type Staff = {
-  username: string;
-  password: string;
-  role: Role;
-  firstName: string;
-  lastName: string;
-  gender: Gender;
-  phoneNumber: string;
-  gmail: string;
-  specialty: string | null;
-  isActive: boolean;
-};
+type Gender = "MALE" | "FEMALE" | "OTHER";
 
-const STORAGE_KEY = "staff_mock";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
 const RE_USERNAME = /^[A-Za-z][A-Za-z0-9]{3,29}$/;
-const RE_PASSWORD = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+const RE_PASSWORD = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.])[A-Za-z\d@$!%*?&.]{8,}$/;
 const RE_PHONE = /^[0-9]{10}$/;
-const RE_GMAIL = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/;
-
-function ensureSeed() {
-  if (typeof window === "undefined") return;
-  const has = localStorage.getItem(STORAGE_KEY);
-  if (has) return;
-  const seed: Staff[] = [
-    { username: "jane.m",  password: "Mock@1234", role: "MANAGER", firstName: "Jane",  lastName: "Moon",  gender: "Female", phoneNumber: "0801112233", gmail: "jane.m@example.com",  specialty: null,   isActive: true },
-    { username: "alice.b", password: "Mock@1234", role: "TRAINER", firstName: "Alice", lastName: "Brown", gender: "Female", phoneNumber: "0897778899", gmail: "alice.b@example.com", specialty: "Yoga",  isActive: true },
-    { username: "bob.c",   password: "Mock@1234", role: "SALES",   firstName: "Bob",   lastName: "Chan",  gender: "Male",   phoneNumber: "0849990001", gmail: "bob.c@example.com",   specialty: null,   isActive: false },
-    { username: "john.d",  password: "Mock@1234", role: "ADMIN",   firstName: "John",  lastName: "Doe",   gender: "Male",   phoneNumber: "0812223344", gmail: "john.d@example.com",  specialty: null,   isActive: true },
-  ];
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(seed));
-}
-function loadAll(): Staff[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Staff[]) : [];
-  } catch {
-    return [];
-  }
-}
-function saveAll(list: Staff[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-}
+const RE_EMAIL = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/;
 
 export default function AddStaffPage(): React.ReactElement {
   const router = useRouter();
   const { setSnack } = useSnack();
 
-  React.useEffect(() => { ensureSeed(); }, []);
-
   const [form, setForm] = React.useState({
     username: "",
     password: "",
-    confirm: "",
+    confirmPassword: "",
     role: "" as Role | "",
     firstName: "",
     lastName: "",
     gender: "" as Gender | "",
+    dateOfBirth: "",
     phoneNumber: "",
     gmail: "",
     specialty: "",
@@ -81,39 +52,48 @@ export default function AddStaffPage(): React.ReactElement {
     setForm((s) => ({ ...s, [k]: v }));
 
   const validateField = (key: keyof typeof form): string => {
-    const v = form[key] as string;
+    const v = (form[key] as string) ?? "";
     switch (key) {
       case "username":
-        if (!v) return "จำเป็น";
-        if (!RE_USERNAME.test(v)) return "รูปแบบไม่ถูกต้อง (A-Za-z ตามด้วย a-z0-9 ความยาว 4–30)";
+        if (!v.trim()) return "Required";
+        if (!RE_USERNAME.test(v.trim())) return "Use 4–30 chars: start with A–Z, then letters/digits.";
         return "";
       case "password":
-        if (!v) return "จำเป็น";
-        if (!RE_PASSWORD.test(v)) return "อย่างน้อย 8 ตัว มี a-z, A-Z, 0-9 และอักขระพิเศษ";
+        if (!v) return "Required";
+        if (!RE_PASSWORD.test(v)) return "Min 8 chars with a-z, A-Z, 0-9, and a special char.";
         return "";
-      case "confirm":
-        if (!v) return "จำเป็น";
-        if (v !== form.password) return "ต้องตรงกับ Password";
+      case "confirmPassword": {
+        const pass = form.password.trim();
+        const conf = v.trim();
+        if (!conf) return "Required";
+        if (conf !== pass) return "Passwords do not match.";
         return "";
+      }
       case "role":
-        if (!form.role) return "จำเป็น";
-        return "";
+        return form.role ? "" : "Required";
       case "firstName":
-        return v ? "" : "จำเป็น";
+        return v.trim() ? "" : "Required";
       case "lastName":
-        return v ? "" : "จำเป็น";
+        return v.trim() ? "" : "Required";
+      case "gender":
+        return form.gender ? "" : "Required";
+      case "dateOfBirth": {
+        if (!v) return "Required";
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return "Use YYYY-MM-DD.";
+        const d = new Date(v);
+        if (Number.isNaN(d.getTime())) return "Invalid date.";
+        return "";
+      }
       case "phoneNumber":
-        if (!v) return "จำเป็น";
-        if (!RE_PHONE.test(v)) return "ต้องเป็นตัวเลข 10 หลัก";
+        if (!v.trim()) return "Required";
+        if (!RE_PHONE.test(v.trim())) return "10 digits only.";
         return "";
       case "gmail":
-        if (!v) return "จำเป็น";
-        if (!RE_GMAIL.test(v.toLowerCase())) return "อีเมลไม่ถูกต้อง";
+        if (!v.trim()) return "Required";
+        if (!RE_EMAIL.test(v.trim().toLowerCase())) return "Invalid email.";
         return "";
-      case "gender":
-        return form.gender ? "" : "จำเป็น";
       case "specialty":
-        if (form.role === "TRAINER" && !v) return "จำเป็นสำหรับ TRAINER";
+        if (form.role === "TRAINER" && !v.trim()) return "Required for TRAINER.";
         return "";
       default:
         return "";
@@ -127,43 +107,54 @@ export default function AddStaffPage(): React.ReactElement {
       const msg = validateField(k);
       if (msg) next[k] = msg;
     });
-
-    const list = loadAll();
-    if (!next.username && list.some((u) => u.username.toLowerCase() === form.username.toLowerCase())) {
-      next.username = "มี Username นี้อยู่แล้ว";
-    }
-    if (!next.gmail && list.some((u) => u.gmail.toLowerCase() === form.gmail.toLowerCase())) {
-      next.gmail = "มี Gmail นี้อยู่แล้ว";
-    }
-
     setErrors(next);
     return Object.keys(next).length === 0;
   };
+
+  React.useEffect(() => {
+    setErrors((prev) => ({
+      ...prev,
+      password: validateField("password"),
+      confirmPassword: validateField("confirmPassword"),
+    }));
+  }, [form.password, form.confirmPassword]);
 
   const onSave = async () => {
     if (!validateAll()) return;
     setSaving(true);
     try {
-      const list = loadAll();
-      const newRow: Staff = {
-        username: form.username,
-        password: form.password,
+      const payload = {
+        username: form.username.trim(),
+        password: form.password.trim(),
+        confirmPassword: form.confirmPassword.trim(),
         role: form.role as Role,
-        firstName: form.firstName,
-        lastName: form.lastName,
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
         gender: form.gender as Gender,
-        phoneNumber: form.phoneNumber,
-        gmail: form.gmail.toLowerCase(),
-        specialty: form.role === "TRAINER" ? form.specialty : null,
+        dateOfBirth: form.dateOfBirth,
+        phoneNumber: form.phoneNumber.trim(),
+        gmail: form.gmail.trim().toLowerCase(),
+        specialty: form.role === "TRAINER" ? (form.specialty || "").trim() || null : null,
         isActive: true,
       };
-      saveAll([newRow, ...list]);
 
-      setSnack({ open: true, msg: `User: ${form.username} created successfully`, severity: "success" });
+      const res = await fetch(`${API_BASE}/api/staffs/create`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        throw new Error(err?.message || `Create failed (HTTP ${res.status})`);
+      }
+
+      setSnack({ open: true, msg: `User: ${payload.username} created successfully`, severity: "success" });
       router.push("/admin/user-management");
-    } catch {
-      setSnack({ open: true, msg: "เกิดข้อผิดพลาดในการบันทึก", severity: "error" });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Create failed";
+      setSnack({ open: true, msg, severity: "error" });
     } finally {
       setSaving(false);
     }
@@ -171,7 +162,7 @@ export default function AddStaffPage(): React.ReactElement {
 
   return (
     <Box sx={{ p: { xs: 2, md: 3 } }}>
-      <Typography variant="h5" fontWeight={400} sx={{ mb: 2 }}>
+      <Typography variant="h5" fontWeight={500} sx={{ mb: 2 }}>
         Add New Staff
       </Typography>
 
@@ -210,21 +201,23 @@ export default function AddStaffPage(): React.ReactElement {
               <TextField
                 label="Password"
                 type="password"
+                autoComplete="new-password"
                 value={form.password}
                 onChange={(e) => setField("password", e.target.value)}
                 onBlur={() => setErrors((s) => ({ ...s, password: validateField("password") }))}
-                helperText={errors.password || "ต้องมี a-z, A-Z, 0-9 และอักขระพิเศษ ความยาว ≥ 8"}
+                helperText={errors.password || "Min 8 chars with a-z, A-Z, 0-9, and a special char."}
                 error={!!errors.password}
                 fullWidth
               />
               <TextField
                 label="Confirm Password"
                 type="password"
-                value={form.confirm}
-                onChange={(e) => setField("confirm", e.target.value)}
-                onBlur={() => setErrors((s) => ({ ...s, confirm: validateField("confirm") }))}
-                helperText={errors.confirm}
-                error={!!errors.confirm}
+                autoComplete="new-password"
+                value={form.confirmPassword}
+                onChange={(e) => setField("confirmPassword", e.target.value)}
+                onBlur={() => setErrors((s) => ({ ...s, confirmPassword: validateField("confirmPassword") }))}
+                helperText={errors.confirmPassword}
+                error={!!errors.confirmPassword}
                 fullWidth
               />
             </Stack>
@@ -260,12 +253,27 @@ export default function AddStaffPage(): React.ReactElement {
                   onChange={(e) => setField("gender", e.target.value as Gender)}
                   onBlur={() => setErrors((s) => ({ ...s, gender: validateField("gender") }))}
                 >
-                  <MenuItem value="Male">Male</MenuItem>
-                  <MenuItem value="Female">Female</MenuItem>
-                  <MenuItem value="Other">Other</MenuItem>
+                  <MenuItem value="MALE">Male</MenuItem>
+                  <MenuItem value="FEMALE">Female</MenuItem>
+                  <MenuItem value="OTHER">Other</MenuItem>
                 </Select>
                 {errors.gender && <Typography variant="caption" color="error">{errors.gender}</Typography>}
               </FormControl>
+
+              <TextField
+                label="Date of Birth"
+                type="date"
+                value={form.dateOfBirth}
+                onChange={(e) => setField("dateOfBirth", e.target.value)}
+                onBlur={() => setErrors((s) => ({ ...s, dateOfBirth: validateField("dateOfBirth") }))}
+                helperText={errors.dateOfBirth || "YYYY-MM-DD"}
+                error={!!errors.dateOfBirth}
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+              />
+            </Stack>
+
+            <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
               <TextField
                 label="Phone Number"
                 value={form.phoneNumber}
@@ -275,17 +283,16 @@ export default function AddStaffPage(): React.ReactElement {
                 error={!!errors.phoneNumber}
                 fullWidth
               />
+              <TextField
+                label="Email"
+                value={form.gmail}
+                onChange={(e) => setField("gmail", e.target.value)}
+                onBlur={() => setErrors((s) => ({ ...s, gmail: validateField("gmail") }))}
+                helperText={errors.gmail}
+                error={!!errors.gmail}
+                fullWidth
+              />
             </Stack>
-
-            <TextField
-              label="Gmail"
-              value={form.gmail}
-              onChange={(e) => setField("gmail", e.target.value)}
-              onBlur={() => setErrors((s) => ({ ...s, gmail: validateField("gmail") }))}
-              helperText={errors.gmail}
-              error={!!errors.gmail}
-              fullWidth
-            />
 
             {form.role === "TRAINER" && (
               <TextField
@@ -300,7 +307,9 @@ export default function AddStaffPage(): React.ReactElement {
             )}
 
             <Stack direction="row" gap={2} justifyContent="flex-end" sx={{ pt: 1 }}>
-              <Button variant="outlined" onClick={() => router.back()} disabled={saving}>ยกเลิก</Button>
+              <Button variant="outlined" onClick={() => router.back()} disabled={saving}>
+                Cancel
+              </Button>
               <Button variant="contained" onClick={onSave} disabled={saving}>
                 {saving ? "Saving..." : "Save"}
               </Button>

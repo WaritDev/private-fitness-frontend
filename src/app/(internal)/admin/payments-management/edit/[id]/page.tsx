@@ -20,17 +20,15 @@ import { useSnack } from "@/components/snack/SnackProvider";
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 const PRIMARY = { main: "#38E07A", dark: "#2fbb65" } as const;
 
-// ✅ URL ต้องขึ้นต้น http:// หรือ https://
 const RE_URL =
   /^(https?:\/\/)([\w.-]+)(:\d+)?(\/[\w.\-~:/?#[\]@!$&'()*+,;=%]*)?$/i;
 
-// ---------- API Types ----------
 type ApiGetItem = {
   id: string;
   accountName: string;
   accountNumber: string;
   bankName: string;
-  qrCodeImageUrl: string; // GET ใช้ชื่อ *qrCodeImageUrl*
+  qrCodeImageUrl: string;
   isActive: boolean;
 };
 
@@ -38,7 +36,7 @@ type UpdateBody = {
   accountName: string;
   accountNumber: string;
   bankName: string;
-  qrCodeUrl: string; // POST ใช้ชื่อ *qrCodeUrl*
+  qrCodeUrl: string;
   isActive: boolean;
 };
 
@@ -49,12 +47,10 @@ export default function EditPaymentAccountPage(): React.JSX.Element {
 
   const id = params?.id ?? "";
 
-  // ui states
   const [loading, setLoading] = React.useState(true);
   const [notFound, setNotFound] = React.useState(false);
   const [globalErr, setGlobalErr] = React.useState("");
 
-  // form states
   const [accountName, setAccountName] = React.useState("");
   const [accountNumber, setAccountNumber] = React.useState("");
   const [bankName, setBankName] = React.useState("");
@@ -64,7 +60,6 @@ export default function EditPaymentAccountPage(): React.JSX.Element {
 
   const [errors, setErrors] = React.useState<Record<string, string>>({});
 
-  // ---------- Fetch one ----------
   React.useEffect(() => {
     let cancelled = false;
 
@@ -89,17 +84,14 @@ export default function EditPaymentAccountPage(): React.JSX.Element {
             setNotFound(true);
             return;
           }
-          // พยายามอ่าน message อย่างปลอดภัย
-          let msg = `โหลดข้อมูลล้มเหลว (HTTP ${res.status})`;
+          let msg = `Failed to load (HTTP ${res.status}).`;
           try {
             const body: unknown = await res.json();
             if (typeof body === "object" && body && "message" in body) {
               const m = (body as { message?: string }).message;
               if (m) msg = m;
             }
-          } catch {
-            /* ignore */
-          }
+          } catch {}
           throw new Error(msg);
         }
 
@@ -109,7 +101,6 @@ export default function EditPaymentAccountPage(): React.JSX.Element {
         setAccountName(row.accountName ?? "");
         setAccountNumber(row.accountNumber ?? "");
         setBankName(row.bankName ?? "");
-        // GET ใช้ qrCodeImageUrl → ใส่ลงช่องแก้ไขที่เราจะส่งกลับเป็น qrCodeUrl
         setQrCodeUrl(row.qrCodeImageUrl ?? "");
         setIsActive(row.isActive ? "true" : "false");
       } catch (e) {
@@ -129,19 +120,17 @@ export default function EditPaymentAccountPage(): React.JSX.Element {
 
   const goBack = () => router.push("/admin/payments-management");
 
-  // ---------- Validate ----------
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!accountName.trim()) e.accountName = "ห้ามว่าง";
-    if (!accountNumber.trim()) e.accountNumber = "ห้ามว่าง";
-    if (!bankName.trim()) e.bankName = "ห้ามว่าง";
-    if (!qrCodeUrl.trim()) e.qrCodeUrl = "ห้ามว่าง";
-    else if (!RE_URL.test(qrCodeUrl)) e.qrCodeUrl = "URL ไม่ถูกต้อง (ต้องขึ้นต้น http:// หรือ https://)";
+    if (!accountName.trim()) e.accountName = "Required";
+    if (!accountNumber.trim()) e.accountNumber = "Required";
+    if (!bankName.trim()) e.bankName = "Required";
+    if (!qrCodeUrl.trim()) e.qrCodeUrl = "Required";
+    else if (!RE_URL.test(qrCodeUrl)) e.qrCodeUrl = "Invalid URL (must start with http:// or https://).";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  // ---------- Save ----------
   const onSave = async () => {
     if (!validate()) return;
 
@@ -151,7 +140,7 @@ export default function EditPaymentAccountPage(): React.JSX.Element {
         accountName: accountName.trim(),
         accountNumber: accountNumber.trim(),
         bankName: bankName.trim(),
-        qrCodeUrl: qrCodeUrl.trim(), // ชื่อฟิลด์ตามสเปก POST
+        qrCodeUrl: qrCodeUrl.trim(),
         isActive: isActive === "true",
       };
 
@@ -166,16 +155,14 @@ export default function EditPaymentAccountPage(): React.JSX.Element {
       );
 
       if (!res.ok) {
-        let msg = `บันทึกล้มเหลว (HTTP ${res.status})`;
+        let msg = `Save failed (HTTP ${res.status}).`;
         try {
           const rb: unknown = await res.json();
           if (typeof rb === "object" && rb && "message" in rb) {
             const m = (rb as { message?: string }).message;
             if (m) msg = m;
           }
-        } catch {
-          /* ignore */
-        }
+        } catch {}
         throw new Error(msg);
       }
 
@@ -196,7 +183,6 @@ export default function EditPaymentAccountPage(): React.JSX.Element {
     }
   };
 
-  // ---------- UI ----------
   if (loading) {
     return (
       <Box sx={{ p: { xs: 3, md: 4 }, display: "flex", justifyContent: "center" }}>
@@ -209,10 +195,10 @@ export default function EditPaymentAccountPage(): React.JSX.Element {
     return (
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 720, mx: "auto" }}>
         <Alert severity="error" sx={{ mb: 2 }}>
-          ไม่พบบัญชีที่ต้องการแก้ไข (id={id || "—"})
+          Payment account not found (id={id || "—"})
         </Alert>
         <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>
-          กลับ
+          Back
         </Button>
       </Box>
     );
@@ -232,7 +218,7 @@ export default function EditPaymentAccountPage(): React.JSX.Element {
         </Typography>
         <Stack direction="row" spacing={1}>
           <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>
-            ยกเลิก
+            Cancel
           </Button>
           <Button
             variant="contained"
@@ -295,7 +281,7 @@ export default function EditPaymentAccountPage(): React.JSX.Element {
               setErrors((p) => ({ ...p, qrCodeUrl: "" }));
             }}
             error={!!errors.qrCodeUrl}
-            helperText={errors.qrCodeUrl || "เช่น https://cdn.example.com/qr/xxx.png"}
+            helperText={errors.qrCodeUrl || "e.g. https://cdn.example.com/qr/xxx.png"}
             fullWidth
           />
           <TextField
@@ -305,15 +291,15 @@ export default function EditPaymentAccountPage(): React.JSX.Element {
             onChange={(e) => setIsActive(e.target.value as "true" | "false")}
             fullWidth
           >
-            <MenuItem value="true">true (ใช้งาน)</MenuItem>
-            <MenuItem value="false">false (ปิดใช้งาน)</MenuItem>
+            <MenuItem value="true">true (Active)</MenuItem>
+            <MenuItem value="false">false (Inactive)</MenuItem>
           </TextField>
         </Stack>
       </Paper>
 
       <Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ mt: 2 }}>
         <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>
-          ยกเลิก
+          Cancel
         </Button>
         <Button
           variant="contained"
