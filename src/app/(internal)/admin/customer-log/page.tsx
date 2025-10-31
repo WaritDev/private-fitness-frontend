@@ -38,6 +38,7 @@ type LogType = "CHECK_IN" | "CHECK_OUT" | "BOOK_SESSION" | "CANCEL_SESSION";
 type ApiNullString = { String: string; Valid: boolean };
 type ApiNullTime = { Time: string; Valid: boolean };
 
+// ---- API row (ตามตัวอย่างที่ให้มา) ----
 type ApiRow = {
   logId: number;
   customerUsername?: ApiNullString;
@@ -47,17 +48,16 @@ type ApiRow = {
   logType: LogType;
 };
 
-type ApiResp = {
-  data: ApiRow[];
-  meta: { page: number; limit: number; total_items: number; total_pages: number };
-};
+// ---- API response: เป็น array ล้วน ๆ ----
+type ApiResp = ApiRow[];
 
+// ---- UI row หลัง map ----
 type UIRow = {
   logId: number;
   customerUsername: string;
   customerFirstName: string;
   customerLastName: string;
-  timestampISO: string;
+  timestampISO: string; // เอา Time มาเก็บเป็น ISO string ถ้ามี
   logType: LogType;
 };
 
@@ -73,6 +73,8 @@ const COLUMNS = [
 const ns = (v?: ApiNullString | null) => (v && v.Valid ? v.String : "");
 const nt = (v?: ApiNullTime | null) => (v && v.Valid ? v.Time : "");
 
+// แสดงวันที่/เวลาแบบไทย (02/11/2568 14:05:00)
+// ถ้าต้องการ “YYYY-MM-DD HH:mm:ss” ก็สามารถเปลี่ยนเป็น manual formatter ได้
 const formatDateTimeTH = (iso?: string) => {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -87,14 +89,18 @@ const formatDateTimeTH = (iso?: string) => {
   });
 };
 
+function errorMessage(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
 export default function CustomerLogPage(): React.JSX.Element {
   const router = useRouter();
   const { setAlert } = useAlertPopUp();
 
-  const [rows, setRows] = React.useState<UIRow[]>([]);
-  const [totalItems, setTotalItems] = React.useState(0);
+  // เก็บทั้งหมด แล้วค่อย slice เป็นหน้า ๆ
+  const [allRows, setAllRows] = React.useState<UIRow[]>([]);
   const [page, setPage] = React.useState(0);
-  const rowsPerPage = 10;
+  const [rowsPerPage] = React.useState(10);
 
   const [loading, setLoading] = React.useState(false);
   const [globalErr, setGlobalErr] = React.useState("");
@@ -111,43 +117,61 @@ export default function CustomerLogPage(): React.JSX.Element {
     logType: r.logType,
   });
 
-  const fetchPage = React.useCallback(async () => {
+  const fetchAll = React.useCallback(async () => {
     setLoading(true);
     setGlobalErr("");
     try {
-      const apiPage = page + 1;
-      const res = await fetch(`${API_BASE}/api/customer-logs?page=${apiPage}&limit=${rowsPerPage}`, {
+      // <-- ดึงทั้งหมด ไม่มี page/limit ใน query string
+      const res = await fetch(`${API_BASE}/api/customer-logs`, {
         method: "GET",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
       });
-      const body = (await res.json().catch(() => ({}))) as Partial<ApiResp> & { message?: string };
-      if (!res.ok) {
-        throw new Error(body?.message ?? `Failed to load data (HTTP ${res.status})`);
+
+      // พยายาม parse เป็น array
+      const body = (await res.json().catch(() => null)) as ApiResp | null;
+      if (!res.ok || !Array.isArray(body)) {
+        throw new Error(`Failed to load data (HTTP ${res.status})`);
       }
-      const items = Array.isArray(body?.data) ? body.data : [];
-      const mapped = items.map(mapRow).sort((a, b) => {
-        const t = (b.timestampISO || "").localeCompare(a.timestampISO || "");
-        return t !== 0 ? t : b.logId - a.logId;
+
+      const mapped = body.map(mapRow);
+
+      // เรียงจากใหม่ไปเก่า: createdAt DESC, ถ้าเท่ากัน fallback logId DESC
+      mapped.sort((a, b) => {
+        const ta = a.timestampISO || "";
+        const tb = b.timestampISO || "";
+        const cmp = tb.localeCompare(ta);
+        return cmp !== 0 ? cmp : b.logId - a.logId;
       });
-      setRows(mapped);
-      setTotalItems(body?.meta?.total_items ?? mapped.length);
+
+      setAllRows(mapped);
+      setPage(0);
     } catch (e: unknown) {
-      setGlobalErr(e instanceof Error ? e.message : String(e));
-      setRows([]);
-      setTotalItems(0);
+      const msg = errorMessage(e);
+      setGlobalErr(msg);
+      setAlert({ open: true, msg, severity: "error" });
+      setAllRows([]);
+      setPage(0);
     } finally {
       setLoading(false);
     }
-  }, [page]);
+  }, [setAlert]);
 
   React.useEffect(() => {
-    fetchPage();
-  }, [fetchPage]);
+    void fetchAll();
+  }, [fetchAll]);
+
+  const totalItems = allRows.length;
+  const pagedRows = React.useMemo(() => {
+    const start = page * rowsPerPage;
+    const end = start + rowsPerPage;
+    return allRows.slice(start, end);
+  }, [allRows, page, rowsPerPage]);
 
   const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
 
-  const goEdit = (r: UIRow) => router.push(`/admin/customer-log/edit/${encodeURIComponent(String(r.logId))}`);
+  const goEdit = (r: UIRow) =>
+    router.push(`/admin/customer-log/edit/${encodeURIComponent(String(r.logId))}`);
 
   const askDelete = (r: UIRow) => {
     setTarget(r);
@@ -157,23 +181,31 @@ export default function CustomerLogPage(): React.JSX.Element {
   const handleConfirmDelete = async () => {
     if (!target) return;
     try {
-      const res = await fetch(`${API_BASE}/api/customer-logs/${encodeURIComponent(String(target.logId))}`, {
-        method: "DELETE",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-      });
+      const res = await fetch(
+        `${API_BASE}/api/customer-logs/${encodeURIComponent(String(target.logId))}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
       if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
+        const errBody = (await res.json().catch(() => ({}))) as { message?: string };
         throw new Error(errBody?.message || `Delete failed (HTTP ${res.status})`);
       }
+
       setAlert({ open: true, msg: `Log: ${target.logId} deleted successfully`, severity: "success" });
-      if (rows.length === 1 && page > 0) {
-        setPage((p) => p - 1);
-      } else {
-        await fetchPage();
-      }
+
+      // อัปเดตฝั่ง client + จัดการ page ถ้าหน้าเกิน
+      setAllRows((prev) => {
+        const next = prev.filter((x) => x.logId !== target.logId);
+        const maxPage = Math.max(0, Math.ceil(next.length / rowsPerPage) - 1);
+        setPage((p) => (p > maxPage ? maxPage : p));
+        return next;
+      });
     } catch (e: unknown) {
-      setAlert({ open: true, msg: e instanceof Error ? e.message : String(e), severity: "error" });
+      setAlert({ open: true, msg: errorMessage(e), severity: "error" });
     } finally {
       setConfirmOpen(false);
       setTarget(null);
@@ -225,7 +257,7 @@ export default function CustomerLogPage(): React.JSX.Element {
             </TableHead>
 
             <TableBody>
-              {rows.map((r) => (
+              {pagedRows.map((r) => (
                 <TableRow key={r.logId} hover>
                   <TableCell sx={{ py: TOKENS.table.cellY }}>{r.logId}</TableCell>
                   <TableCell sx={{ py: TOKENS.table.cellY }}>{r.customerUsername || "—"}</TableCell>
@@ -265,7 +297,7 @@ export default function CustomerLogPage(): React.JSX.Element {
                 </TableRow>
               ))}
 
-              {!loading && rows.length === 0 && (
+              {!loading && pagedRows.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={COLUMNS.length + 1} align="center" sx={{ py: 6, color: "text.secondary" }}>
                     No data found

@@ -16,7 +16,6 @@ import {
   IconButton,
   Tooltip,
   Chip,
-  Avatar,
   Button,
   CircularProgress,
   Alert,
@@ -38,16 +37,19 @@ const TOKENS = {
   spacing: { sectionY: 3 },
 };
 
-type ApiItem = {
+type ApiWireItem = {
   id: number;
   accountName: string;
   accountNumber: string;
   bankName: string;
-  qrCodeUrl: string | null;
-  isActive: boolean;
+  qrCodeImageUrl?: string | null;
+  qrCodeUrl?: string | null;
+  column6?: boolean;
+  isActive?: boolean;
 };
-type ApiResponse = {
-  data: ApiItem[];
+
+type ApiWireEnvelope = {
+  data?: ApiWireItem[];
   message?: string;
 };
 
@@ -69,14 +71,25 @@ function maskAcct(acct: string) {
   return `${head}${"*".repeat(Math.max(1, digits.length - 4))}${tail}`;
 }
 
-const mapApiToUI = (r: ApiItem): PaymentAccount => ({
-  Payment_Account_Id: r.id,
-  Account_Name: r.accountName,
-  Account_Number: r.accountNumber,
-  Bank_Name: r.bankName,
-  QR_Code_URL: r.qrCodeUrl,
-  Is_Active: r.isActive,
-});
+function mapApiToUI(r: ApiWireItem): PaymentAccount {
+  const active = typeof r.column6 === "boolean" ? r.column6 : !!r.isActive;
+  const qr = r.qrCodeImageUrl ?? r.qrCodeUrl ?? null;
+  return {
+    Payment_Account_Id: r.id,
+    Account_Name: r.accountName,
+    Account_Number: r.accountNumber,
+    Bank_Name: r.bankName,
+    QR_Code_URL: qr,
+    Is_Active: active,
+  };
+}
+
+function parseWire(resp: unknown): ApiWireItem[] {
+  if (Array.isArray(resp)) return resp;
+  const env = resp as ApiWireEnvelope | null;
+  if (env && Array.isArray(env.data)) return env.data;
+  return [];
+}
 
 export default function PaymentsManagementPage(): React.JSX.Element {
   const router = useRouter();
@@ -86,10 +99,8 @@ export default function PaymentsManagementPage(): React.JSX.Element {
   const [allRows, setAllRows] = React.useState<PaymentAccount[]>([]);
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(10);
-
   const [loading, setLoading] = React.useState(false);
   const [globalErr, setGlobalErr] = React.useState("");
-
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [target, setTarget] = React.useState<PaymentAccount | null>(null);
 
@@ -107,17 +118,21 @@ export default function PaymentsManagementPage(): React.JSX.Element {
         credentials: "include",
         headers: { "Content-Type": "application/json" },
       });
-      const body = (await res.json().catch(() => null)) as ApiResponse | null;
+      const raw = (await res.json().catch(() => null)) as unknown;
+
       if (!res.ok) {
-        const msg = (body && body.message) || `Failed to load data (HTTP ${res.status})`;
+        const msg = (raw as { message?: string } | null)?.message || `Failed to load data (HTTP ${res.status})`;
         throw new Error(msg);
       }
-      const mapped = (body?.data ?? []).map(mapApiToUI);
+
+      const wireItems = parseWire(raw);
+      const mapped = wireItems.map(mapApiToUI);
       mapped.sort(
         (a, b) =>
           (a.Is_Active === b.Is_Active ? 0 : a.Is_Active ? -1 : 1) ||
           b.Payment_Account_Id - a.Payment_Account_Id
       );
+
       setAllRows(mapped);
       setPage((p) => {
         const maxPage = Math.max(0, Math.ceil(mapped.length / rowsPerPage) - 1);
@@ -152,7 +167,6 @@ export default function PaymentsManagementPage(): React.JSX.Element {
   const goAdd = () => router.push("/admin/payments-management/add");
   const goEdit = (row: PaymentAccount) =>
     router.push(`/admin/payments-management/edit/${encodeURIComponent(String(row.Payment_Account_Id))}`);
-
   const askDelete = (row: PaymentAccount) => {
     setTarget(row);
     setConfirmOpen(true);
@@ -235,52 +249,45 @@ export default function PaymentsManagementPage(): React.JSX.Element {
           <Table stickyHeader>
             <TableHead>
               <TableRow>
-                <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, whiteSpace: "nowrap", py: TOKENS.table.cellY }}>
-                  ID
-                </TableCell>
-                <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, whiteSpace: "nowrap", py: TOKENS.table.cellY }}>
-                  Account Name
-                </TableCell>
-                <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, whiteSpace: "nowrap", py: TOKENS.table.cellY }}>
-                  Account Number
-                </TableCell>
-                <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, whiteSpace: "nowrap", py: TOKENS.table.cellY }}>
-                  Bank
-                </TableCell>
-                <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, whiteSpace: "nowrap", py: TOKENS.table.cellY }}>
-                  QR
-                </TableCell>
-                <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, whiteSpace: "nowrap", py: TOKENS.table.cellY }}>
-                  Active
-                </TableCell>
-                <TableCell
-                  sx={{
-                    fontWeight: TOKENS.table.headerFontWeight,
-                    whiteSpace: "nowrap",
-                    width: TOKENS.table.actionsColWidth,
-                    py: TOKENS.table.cellY,
-                  }}
-                >
-                  Actions
-                </TableCell>
+                <TableCell>ID</TableCell>
+                <TableCell>Account Name</TableCell>
+                <TableCell>Account Number</TableCell>
+                <TableCell>Bank</TableCell>
+                <TableCell>QR (URL)</TableCell>
+                <TableCell>Active</TableCell>
+                <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
 
             <TableBody>
               {pagedRows.map((r) => (
                 <TableRow key={r.Payment_Account_Id} hover>
-                  <TableCell sx={{ py: TOKENS.table.cellY }}>{r.Payment_Account_Id}</TableCell>
-                  <TableCell sx={{ py: TOKENS.table.cellY }}>{r.Account_Name}</TableCell>
-                  <TableCell sx={{ py: TOKENS.table.cellY }}>{maskAcct(r.Account_Number)}</TableCell>
-                  <TableCell sx={{ py: TOKENS.table.cellY }}>{r.Bank_Name}</TableCell>
-                  <TableCell sx={{ py: TOKENS.table.cellY }}>
+                  <TableCell>{r.Payment_Account_Id}</TableCell>
+                  <TableCell>{r.Account_Name}</TableCell>
+                  <TableCell>{maskAcct(r.Account_Number)}</TableCell>
+                  <TableCell>{r.Bank_Name}</TableCell>
+
+                  {/* ✅ Show QR URL directly */}
+                  <TableCell>
                     {r.QR_Code_URL ? (
-                      <Avatar src={r.QR_Code_URL} alt="QR" sx={{ width: 28, height: 28 }} variant="rounded" />
+                      <a
+                        href={r.QR_Code_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          color: "#1976d2",
+                          textDecoration: "none",
+                          wordBreak: "break-all",
+                        }}
+                      >
+                        {r.QR_Code_URL}
+                      </a>
                     ) : (
                       "—"
                     )}
                   </TableCell>
-                  <TableCell sx={{ py: TOKENS.table.cellY }}>
+
+                  <TableCell>
                     <Chip
                       label={r.Is_Active ? "Active" : "Inactive"}
                       size="small"
@@ -288,7 +295,7 @@ export default function PaymentsManagementPage(): React.JSX.Element {
                       variant={r.Is_Active ? "filled" : "outlined"}
                     />
                   </TableCell>
-                  <TableCell sx={{ py: TOKENS.table.cellY }}>
+                  <TableCell>
                     <Stack direction="row" spacing={1}>
                       <Tooltip title="Edit">
                         <IconButton size="small" color="primary" onClick={() => goEdit(r)}>
@@ -333,7 +340,7 @@ export default function PaymentsManagementPage(): React.JSX.Element {
         title="Confirm Deletion"
         message={
           target
-            ? `Warning: Are you sure you want to permanently delete this payment account (ID: ${target.Payment_Account_Id})? This action is irreversible and may affect ongoing payments.`
+            ? `Warning: Are you sure you want to permanently delete this payment account (ID: ${target.Payment_Account_Id})?`
             : ""
         }
         confirmText="Confirm"

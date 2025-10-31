@@ -34,9 +34,10 @@ type ApiCustomer = {
   firstName: string;
   lastName: string;
   gender: GenderAPI;
-  dateOfBirth: string;
+  dateOfBirth: string; // e.g. "1995-08-08T00:00:00+07:00"
   phoneNumber: string;
   gmail: string;
+  isActive: { Bool: boolean; Valid: boolean };
   healthInfo: string;
   address: string;
   companyName: string;
@@ -46,13 +47,6 @@ type ApiCustomer = {
   emergencyContactRelationship: string;
   emergencyContactPhone: string;
   marketingSource: string;
-  isActive: { Bool: boolean; Valid: boolean };
-};
-
-type ApiResponse = {
-  data: ApiCustomer[];
-  meta: { page: number; limit: number; total_items: number; total_pages: number };
-  message?: string;
 };
 
 type Customer = {
@@ -60,7 +54,7 @@ type Customer = {
   firstName: string;
   lastName: string;
   gender?: GenderAPI | null;
-  dateOfBirth?: string | null;
+  dateOfBirth?: string | null; // YYYY-MM-DD (ตัดมาจาก ISO)
   phoneNumber: string;
   gmail: string;
   healthInfo?: string | null;
@@ -104,35 +98,38 @@ const COLUMNS = [
 ] as const;
 
 function errorMessage(e: unknown): string {
-  if (e instanceof Error) return e.message;
-  try {
-    return JSON.stringify(e);
-  } catch {
-    return String(e);
-  }
+  return e instanceof Error ? e.message : String(e);
 }
 
 const fmt = (v?: string | null) => (v && v.trim() !== "" ? v : "—");
 
 const fmtDate = (iso?: string | null) => {
   if (!iso) return "—";
-  const d = /\d{4}-\d{2}-\d{2}$/.test(iso) ? new Date(`${iso}T00:00:00`) : new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("th-TH");
+  // รับทั้ง "...T...+07:00" หรือ "YYYY-MM-DD"
+  const dateOnly = iso.length >= 10 ? iso.slice(0, 10) : iso;
+  return /^\d{4}-\d{2}-\d{2}$/.test(dateOnly) ? dateOnly : "—";
 };
 
 const fmtGender = (g?: GenderAPI | null) =>
   g === "MALE" ? "Male" : g === "FEMALE" ? "Female" : g ? "Other" : "—";
 
 const fmtMarital = (m?: MaritalStatus | null) =>
-  m === "SINGLE" ? "Single" : m === "MARRIED" ? "Married" : m === "DIVORCED" ? "Divorced" : m === "WIDOWED" ? "Widowed" : "—";
+  m === "SINGLE"
+    ? "Single"
+    : m === "MARRIED"
+    ? "Married"
+    : m === "DIVORCED"
+    ? "Divorced"
+    : m === "WIDOWED"
+    ? "Widowed"
+    : "—";
 
 const mapCustomer = (c: ApiCustomer): Customer => ({
   username: c.username,
   firstName: c.firstName,
   lastName: c.lastName,
   gender: c.gender ?? null,
-  dateOfBirth: c.dateOfBirth ?? null,
+  dateOfBirth: c.dateOfBirth ? c.dateOfBirth.slice(0, 10) : null, // → YYYY-MM-DD
   phoneNumber: c.phoneNumber,
   gmail: c.gmail,
   healthInfo: c.healthInfo || null,
@@ -151,9 +148,7 @@ export default function CustomersListPage(): React.JSX.Element {
   const router = useRouter();
   const { setAlert } = useAlertPopUp();
 
-  const [rows, setRows] = React.useState<Customer[]>([]);
-  const [totalItems, setTotalItems] = React.useState(0);
-
+  const [allRows, setAllRows] = React.useState<Customer[]>([]);
   const [order, setOrder] = React.useState<Order>("asc");
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(10);
@@ -162,43 +157,53 @@ export default function CustomersListPage(): React.JSX.Element {
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [targetUser, setTargetUser] = React.useState<Customer | null>(null);
 
-  const fetchPage = React.useCallback(async () => {
+  const totalItems = allRows.length;
+
+  const fetchAll = React.useCallback(async () => {
     setLoading(true);
-    const currentPage = page + 1;
     try {
-      const res = await fetch(`${API_BASE}/api/customers?page=${currentPage}&limit=${rowsPerPage}`, {
+      // API ส่งเป็น "array" ตรงๆ
+      const res = await fetch(`${API_BASE}/api/customers`, {
         method: "GET",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
       });
-      const body = (await res.json().catch(() => ({}))) as Partial<ApiResponse>;
-      if (!res.ok) {
-        throw new Error(body?.message || `Failed to load data (HTTP ${res.status})`);
+      const body = (await res.json().catch(() => null)) as ApiCustomer[] | null;
+      if (!res.ok || !Array.isArray(body)) {
+        throw new Error(`Failed to load data (HTTP ${res.status})`);
       }
-      const items = Array.isArray(body?.data) ? body.data : [];
-      setRows(items.map(mapCustomer));
-      setTotalItems(body?.meta?.total_items ?? items.length);
+      const mapped = body.map(mapCustomer);
+      // เรียง default ตาม firstName asc
+      mapped.sort((a, b) => a.firstName.localeCompare(b.firstName, "th"));
+      setAllRows(mapped);
+      setPage(0);
     } catch (e: unknown) {
       setAlert({ open: true, msg: errorMessage(e) || "Network error", severity: "error" });
-      setRows([]);
-      setTotalItems(0);
+      setAllRows([]);
+      setPage(0);
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, setAlert]);
+  }, [setAlert]);
 
   React.useEffect(() => {
-    void fetchPage();
-  }, [fetchPage]);
+    void fetchAll();
+  }, [fetchAll]);
 
   const sorted = React.useMemo(() => {
-    const arr = [...rows];
+    const arr = [...allRows];
     arr.sort((a, b) => {
       const cmp = a.firstName.localeCompare(b.firstName, "th");
       return order === "asc" ? cmp : -cmp;
     });
     return arr;
-  }, [rows, order]);
+  }, [allRows, order]);
+
+  const pagedRows = React.useMemo(() => {
+    const start = page * rowsPerPage;
+    const end = start + rowsPerPage;
+    return sorted.slice(start, end);
+  }, [sorted, page, rowsPerPage]);
 
   const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
 
@@ -223,22 +228,29 @@ export default function CustomersListPage(): React.JSX.Element {
         credentials: "include",
         headers: { "Content-Type": "application/json" },
       });
-      let msg = `Customer: ${targetUser.username} deleted successfully`;
-      if (!res.ok) {
+
+      if (!res.ok && res.status !== 204) {
         const err = (await res.json().catch(() => ({}))) as { message?: string };
         throw new Error(err?.message || `Delete failed (HTTP ${res.status})`);
-      } else if (res.status !== 204) {
-        const body = (await res.json().catch(() => ({}))) as { message?: string };
-        if (body?.message) msg = body.message;
       }
-      setAlert({ open: true, msg, severity: "success" });
+
+      setAlert({
+        open: true,
+        msg: `Customer: ${targetUser.username} deleted successfully`,
+        severity: "success",
+      });
+
       setConfirmOpen(false);
       setTargetUser(null);
-      if (rows.length === 1 && page > 0) {
-        setPage((p) => p - 1);
-      } else {
-        await fetchPage();
-      }
+
+      // อัปเดตรายการฝั่ง client
+      setAllRows((prev) => {
+        const next = prev.filter((r) => r.username !== targetUser.username);
+        // ถ้าหน้าปัจจุบันเกิน ให้ถอยกลับ
+        const maxPage = Math.max(0, Math.ceil(next.length / rowsPerPage) - 1);
+        setPage((p) => (p > maxPage ? maxPage : p));
+        return next;
+      });
     } catch (e: unknown) {
       setAlert({ open: true, msg: errorMessage(e) || "Delete failed", severity: "error" });
       setConfirmOpen(false);
@@ -264,7 +276,11 @@ export default function CustomersListPage(): React.JSX.Element {
                   sx={{ fontWeight: TOKENS.table.headerFontWeight, whiteSpace: "nowrap", py: TOKENS.table.cellY }}
                 >
                   {c.key === "firstName" ? (
-                    <TableSortLabel active direction={order} onClick={() => setOrder((o) => (o === "asc" ? "desc" : "asc"))}>
+                    <TableSortLabel
+                      active
+                      direction={order}
+                      onClick={() => setOrder((o) => (o === "asc" ? "desc" : "asc"))}
+                    >
                       {c.label}
                     </TableSortLabel>
                   ) : (
@@ -295,7 +311,7 @@ export default function CustomersListPage(): React.JSX.Element {
             )}
 
             {!loading &&
-              sorted.map((u) => (
+              pagedRows.map((u) => (
                 <TableRow key={u.username} hover>
                   <TableCell sx={{ py: TOKENS.table.cellY }}>{fmt(u.firstName)}</TableCell>
                   <TableCell sx={{ py: TOKENS.table.cellY }}>{fmt(u.lastName)}</TableCell>
@@ -314,7 +330,12 @@ export default function CustomersListPage(): React.JSX.Element {
                   <TableCell sx={{ py: TOKENS.table.cellY }}>{fmt(u.emergencyContactPhone)}</TableCell>
                   <TableCell sx={{ py: TOKENS.table.cellY }}>{fmt(u.marketingSource)}</TableCell>
                   <TableCell sx={{ py: TOKENS.table.cellY }}>
-                    <Chip size="small" label={u.isActive ? "Active" : "Inactive"} color={u.isActive ? "success" : "default"} variant={u.isActive ? "filled" : "outlined"} />
+                    <Chip
+                      size="small"
+                      label={u.isActive ? "Active" : "Inactive"}
+                      color={u.isActive ? "success" : "default"}
+                      variant={u.isActive ? "filled" : "outlined"}
+                    />
                   </TableCell>
                   <TableCell sx={{ py: TOKENS.table.cellY }}>
                     <Stack direction="row" spacing={1}>
@@ -333,7 +354,7 @@ export default function CustomersListPage(): React.JSX.Element {
                 </TableRow>
               ))}
 
-            {!loading && sorted.length === 0 && (
+            {!loading && pagedRows.length === 0 && (
               <TableRow>
                 <TableCell colSpan={COLUMNS.length + 1} align="center" sx={{ py: 6, color: "text.secondary" }}>
                   No data found

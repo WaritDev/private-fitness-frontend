@@ -2,21 +2,8 @@
 
 import * as React from "react";
 import {
-  Box,
-  Paper,
-  Stack,
-  Typography,
-  Table,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableCell,
-  TableContainer,
-  TablePagination,
-  IconButton,
-  Tooltip,
-  Chip,
-  CircularProgress,
+  Box, Paper, Stack, Typography, Table, TableHead, TableBody, TableRow,
+  TableCell, TableContainer, TablePagination, IconButton, Tooltip, Chip, CircularProgress
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -34,10 +21,12 @@ const TOKENS = {
 
 const PAGE_SIZE = 10;
 
+// ---------- API shapes (fit ตัวอย่าง) ----------
 type NullString = { String: string; Valid: boolean };
-type NullInt32 = { Int32: number; Valid: boolean };
+type NullInt32  = { Int32: number; Valid: boolean };
 
 type Status = "ACTIVE" | "EXPIRED" | "SUSPENDED" | "REFUNDED" | "CANCELLED";
+type ProductType = "DURATION" | "SESSION";
 
 type ApiRow = {
   id: number;
@@ -46,62 +35,42 @@ type ApiRow = {
   customerLastName: string;
   productId: NullInt32;
   productName: string;
-  type: "DURATION" | "SESSION";
+  type: ProductType;
   category: string;
   durationDays: NullInt32;
   salesUsername: NullString;
-  purchaseDate: string;
-  startDate: string;
-  endDate: string;
-  pricePaid: string;
-  discountAmount: NullString;
+  purchaseDate: string;   // ISO
+  startDate: string;      // ISO
+  endDate: string;        // ISO
+  pricePaid: string;      // "1200.00"
+  discountAmount: NullString; // { String:"100.00", Valid:true }
   status: Status;
 };
 
-type ApiResp = {
-  data: ApiRow[];
-  message?: string;
-};
+type ApiResp = { data: ApiRow[]; message?: string };
 
+// ---------- UI model ----------
 type Row = {
   id: number;
   customerUsername: string;
   customerName: string;
   productId?: number | null;
   productName: string;
-  productType: string;
+  productType: ProductType;
   productCategory: string;
   durationDays?: number | null;
   salesUsername: string;
   purchaseDate: string;
   startDate: string;
   endDate: string;
-  pricePaid: number;
-  discountAmount: number;
+  pricePaid: number;       // parsed from string
+  discountAmount: number;  // parsed from nullable string
   status: Status;
 };
 
-const ns = (v?: NullString | null) => (v && v.Valid ? v.String : "");
-const ni32 = (v?: NullInt32 | null) => (v && v.Valid ? v.Int32 : null);
-
-const fmtTH = (iso?: string) => {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime())
-    ? "—"
-    : d.toLocaleString("th-TH", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-};
-
-const money = (n?: number | null) =>
-  typeof n === "number" && !Number.isNaN(n)
-    ? new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", maximumFractionDigits: 0 }).format(n)
-    : "—";
+// ---------- helpers ----------
+const ns   = (v?: NullString | null) => (v && v.Valid ? v.String : "");
+const ni32 = (v?: NullInt32  | null) => (v && v.Valid ? v.Int32  : null);
 
 const parseDecimal = (s?: string | null) => {
   if (!s) return 0;
@@ -109,12 +78,27 @@ const parseDecimal = (s?: string | null) => {
   return Number.isFinite(n) ? n : 0;
 };
 
+const fmtTH = (iso?: string) => {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? "—"
+    : d.toLocaleString("th-TH", { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit" });
+};
+
+const money = (n?: number | null) =>
+  typeof n === "number" && !Number.isNaN(n)
+    ? new Intl.NumberFormat("th-TH", {
+        style: "currency", currency: "THB", minimumFractionDigits: 2, maximumFractionDigits: 2
+      }).format(n)
+    : "—";
+
+// ---------- component ----------
 export default function CustomerDurationPackagesPage(): React.JSX.Element {
   const router = useRouter();
   const { setAlert } = useAlertPopUp();
 
   const [allRows, setAllRows] = React.useState<Row[]>([]);
-  const totalItems = allRows.length;
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(PAGE_SIZE);
   const [loading, setLoading] = React.useState(false);
@@ -139,38 +123,49 @@ export default function CustomerDurationPackagesPage(): React.JSX.Element {
   });
 
   const fetchAll = React.useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/api/customer-durations`, {
-        method: "GET",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-      });
-      const body = (await res.json().catch(() => null)) as ApiResp | null;
-      if (!res.ok) {
-        throw new Error((body as { message?: string } | null)?.message || `Failed to load data (HTTP ${res.status})`);
-      }
-      const items = Array.isArray(body?.data) ? body!.data : [];
-      const mapped = items.map(mapRow).sort((a, b) => b.id - a.id);
-      setAllRows(mapped);
-      setPage((p) => {
-        const maxPage = Math.max(0, Math.ceil(mapped.length / rowsPerPage) - 1);
-        return p > maxPage ? maxPage : p;
-      });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setAlert({ open: true, msg, severity: "error" });
-      setAllRows([]);
-      setPage(0);
-    } finally {
-      setLoading(false);
+  setLoading(true);
+  try {
+    const res = await fetch(`${API_BASE}/api/customer-durations`, {
+      method: "GET",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    // รองรับทั้งสองรูปแบบ: { data: [...] } หรือ [...]
+    const raw = await res.json().catch(() => null) as unknown;
+    const items: ApiRow[] = Array.isArray(raw)
+      ? raw as ApiRow[]
+      : Array.isArray((raw as { data?: unknown })?.data)
+        ? (raw as { data: ApiRow[] }).data
+        : [];
+
+    if (!res.ok) {
+      const msg = (raw as { message?: string } | null)?.message || `Failed to load data (HTTP ${res.status})`;
+      throw new Error(msg);
     }
-  }, [rowsPerPage, setAlert]);
 
-  React.useEffect(() => {
-    void fetchAll();
-  }, [fetchAll]);
+    const mapped = items.map(mapRow).sort((a, b) => b.id - a.id);
+    setAllRows(mapped);
 
+    // sync page ให้ไม่เกินหน้าสุดท้าย
+    setPage((p) => {
+      const maxPage = Math.max(0, Math.ceil(mapped.length / rowsPerPage) - 1);
+      return p > maxPage ? maxPage : p;
+    });
+
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    setAlert({ open: true, msg, severity: "error" });
+    setAllRows([]);
+    setPage(0);
+  } finally {
+    setLoading(false);
+  }
+}, [rowsPerPage, setAlert]);
+
+  React.useEffect(() => { void fetchAll(); }, [fetchAll]);
+
+  const totalItems = allRows.length;
   const pagedRows = React.useMemo(() => {
     const start = page * rowsPerPage;
     return allRows.slice(start, start + rowsPerPage);
@@ -178,9 +173,7 @@ export default function CustomerDurationPackagesPage(): React.JSX.Element {
 
   const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
   const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const next = Number(e.target.value);
-    setRowsPerPage(next);
-    setPage(0);
+    setRowsPerPage(Number(e.target.value)); setPage(0);
   };
 
   const goEdit = (r: Row) => router.push(`/admin/packages-duration/edit/${r.id}`);
@@ -197,8 +190,8 @@ export default function CustomerDurationPackagesPage(): React.JSX.Element {
         headers: { "Content-Type": "application/json" },
       });
       if (!res.ok && res.status !== 204) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error((body as { message?: string }).message || `Delete failed (HTTP ${res.status})`);
+        const body = (await res.json().catch(() => ({}))) as { message?: string };
+        throw new Error(body?.message || `Delete failed (HTTP ${res.status})`);
       }
       setAlert({ open: true, msg: `Duration Package ID: ${id} deleted successfully`, severity: "success" });
       setAllRows((prev) => {
@@ -208,8 +201,7 @@ export default function CustomerDurationPackagesPage(): React.JSX.Element {
         return next;
       });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setAlert({ open: true, msg, severity: "error" });
+      setAlert({ open: true, msg: e instanceof Error ? e.message : String(e), severity: "error" });
     }
   };
 
@@ -225,20 +217,20 @@ export default function CustomerDurationPackagesPage(): React.JSX.Element {
         <Table stickyHeader>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>Duration_Id</TableCell>
+              <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>Duration Id</TableCell>
               <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>Customer Username</TableCell>
               <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>Customer Name</TableCell>
-              <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>Product_Id</TableCell>
-              <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>Product_Name</TableCell>
-              <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>Product_Type</TableCell>
-              <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>Product_Category</TableCell>
-              <TableCell align="right" sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>Duration_Days</TableCell>
-              <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>Sales_Username</TableCell>
-              <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>Purchase_Date</TableCell>
-              <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>Start_Date</TableCell>
-              <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>End_Date</TableCell>
-              <TableCell align="right" sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>Price_Paid</TableCell>
-              <TableCell align="right" sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>Discount_Amount</TableCell>
+              <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>Product Id</TableCell>
+              <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>Product Name</TableCell>
+              <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>Product Type</TableCell>
+              <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>Product Category</TableCell>
+              <TableCell align="right" sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>Duration Days</TableCell>
+              <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>Sales Username</TableCell>
+              <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>Purchase Date</TableCell>
+              <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>Start Date</TableCell>
+              <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>End Date</TableCell>
+              <TableCell align="right" sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>Price Paid</TableCell>
+              <TableCell align="right" sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>Discount Amount</TableCell>
               <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY }}>Status</TableCell>
               <TableCell sx={{ fontWeight: TOKENS.table.headerFontWeight, py: TOKENS.table.cellY, whiteSpace: "nowrap", width: TOKENS.table.actionsColWidth }}>
                 Actions
@@ -255,57 +247,51 @@ export default function CustomerDurationPackagesPage(): React.JSX.Element {
               </TableRow>
             )}
 
-            {!loading &&
-              pagedRows.map((r) => (
-                <TableRow key={r.id} hover>
-                  <TableCell sx={{ py: TOKENS.table.cellY }}>{r.id}</TableCell>
-                  <TableCell sx={{ py: TOKENS.table.cellY }}>{r.customerUsername || "—"}</TableCell>
-                  <TableCell sx={{ py: TOKENS.table.cellY }}>{r.customerName || "—"}</TableCell>
-                  <TableCell sx={{ py: TOKENS.table.cellY }}>{r.productId ?? "—"}</TableCell>
-                  <TableCell sx={{ py: TOKENS.table.cellY }}>{r.productName || "—"}</TableCell>
-                  <TableCell sx={{ py: TOKENS.table.cellY }}>{r.productType}</TableCell>
-                  <TableCell sx={{ py: TOKENS.table.cellY }}>{r.productCategory}</TableCell>
-                  <TableCell align="right" sx={{ py: TOKENS.table.cellY }}>{r.durationDays ?? "—"}</TableCell>
-                  <TableCell sx={{ py: TOKENS.table.cellY }}>{r.salesUsername || "—"}</TableCell>
-                  <TableCell sx={{ py: TOKENS.table.cellY }}>{fmtTH(r.purchaseDate)}</TableCell>
-                  <TableCell sx={{ py: TOKENS.table.cellY }}>{fmtTH(r.startDate)}</TableCell>
-                  <TableCell sx={{ py: TOKENS.table.cellY }}>{fmtTH(r.endDate)}</TableCell>
-                  <TableCell align="right" sx={{ py: TOKENS.table.cellY }}>{money(r.pricePaid)}</TableCell>
-                  <TableCell align="right" sx={{ py: TOKENS.table.cellY }}>{money(r.discountAmount)}</TableCell>
-                  <TableCell sx={{ py: TOKENS.table.cellY }}>
-                    <Chip
-                      size="small"
-                      label={r.status}
-                      color={
-                        r.status === "ACTIVE"
-                          ? "success"
-                          : r.status === "EXPIRED"
-                          ? "default"
-                          : r.status === "SUSPENDED"
-                          ? "warning"
-                          : r.status === "REFUNDED"
-                          ? "info"
-                          : "error"
-                      }
-                      variant="outlined"
-                    />
-                  </TableCell>
-                  <TableCell sx={{ py: TOKENS.table.cellY }}>
-                    <Stack direction="row" spacing={1}>
-                      <Tooltip title="Edit">
-                        <IconButton size="small" color="primary" onClick={() => goEdit(r)}>
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete">
-                        <IconButton size="small" color="error" onClick={() => onDeleteClick(r)}>
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              ))}
+            {!loading && pagedRows.map((r) => (
+              <TableRow key={r.id} hover>
+                <TableCell sx={{ py: TOKENS.table.cellY }}>{r.id}</TableCell>
+                <TableCell sx={{ py: TOKENS.table.cellY }}>{r.customerUsername || "—"}</TableCell>
+                <TableCell sx={{ py: TOKENS.table.cellY }}>{r.customerName || "—"}</TableCell>
+                <TableCell sx={{ py: TOKENS.table.cellY }}>{r.productId ?? "—"}</TableCell>
+                <TableCell sx={{ py: TOKENS.table.cellY }}>{r.productName || "—"}</TableCell>
+                <TableCell sx={{ py: TOKENS.table.cellY }}>{r.productType}</TableCell>
+                <TableCell sx={{ py: TOKENS.table.cellY }}>{r.productCategory}</TableCell>
+                <TableCell align="right" sx={{ py: TOKENS.table.cellY }}>{r.durationDays ?? "—"}</TableCell>
+                <TableCell sx={{ py: TOKENS.table.cellY }}>{r.salesUsername || "—"}</TableCell>
+                <TableCell sx={{ py: TOKENS.table.cellY }}>{fmtTH(r.purchaseDate)}</TableCell>
+                <TableCell sx={{ py: TOKENS.table.cellY }}>{fmtTH(r.startDate)}</TableCell>
+                <TableCell sx={{ py: TOKENS.table.cellY }}>{fmtTH(r.endDate)}</TableCell>
+                <TableCell align="right" sx={{ py: TOKENS.table.cellY }}>{money(r.pricePaid)}</TableCell>
+                <TableCell align="right" sx={{ py: TOKENS.table.cellY }}>{money(r.discountAmount)}</TableCell>
+                <TableCell sx={{ py: TOKENS.table.cellY }}>
+                  <Chip
+                    size="small"
+                    label={r.status}
+                    color={
+                      r.status === "ACTIVE"   ? "success" :
+                      r.status === "EXPIRED"  ? "default" :
+                      r.status === "SUSPENDED"? "warning" :
+                      r.status === "REFUNDED" ? "info"    : "error"
+                    }
+                    variant="outlined"
+                  />
+                </TableCell>
+                <TableCell sx={{ py: TOKENS.table.cellY }}>
+                  <Stack direction="row" spacing={1}>
+                    <Tooltip title="Edit">
+                      <IconButton size="small" color="primary" onClick={() => goEdit(r)}>
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Delete">
+                      <IconButton size="small" color="error" onClick={() => onDeleteClick(r)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Stack>
+                </TableCell>
+              </TableRow>
+            ))}
 
             {!loading && pagedRows.length === 0 && (
               <TableRow>
