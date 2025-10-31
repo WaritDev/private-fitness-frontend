@@ -33,7 +33,7 @@ export const SnackProvider: React.FC<React.PropsWithChildren> = ({ children }) =
       {children}
       <Snackbar
         open={snack.open}
-        autoHideDuration={3000}
+        autoHideDuration={4000}
         onClose={() => setSnack((s) => ({ ...s, open: false }))}
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
         sx={{ mt: 2 }}
