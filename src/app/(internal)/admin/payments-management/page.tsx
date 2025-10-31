@@ -25,8 +25,8 @@ import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useRouter, useSearchParams } from "next/navigation";
-import ConfirmDialog from "@/components/pop-up/ConfirmDialog";
-import { useSnack } from "@/components/snack/SnackProvider";
+import ConfirmDialog from "@/components/pop-up/ConfirmPopUpUI";
+import { useAlertPopUp } from "@/components/pop-up/AlertPopUpUI";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
@@ -81,7 +81,7 @@ const mapApiToUI = (r: ApiItem): PaymentAccount => ({
 export default function PaymentsManagementPage(): React.JSX.Element {
   const router = useRouter();
   const sp = useSearchParams();
-  const { setSnack } = useSnack();
+  const { setAlert } = useAlertPopUp();
 
   const [allRows, setAllRows] = React.useState<PaymentAccount[]>([]);
   const [page, setPage] = React.useState(0);
@@ -95,8 +95,8 @@ export default function PaymentsManagementPage(): React.JSX.Element {
 
   React.useEffect(() => {
     const toast = sp.get("toast");
-    if (toast) setSnack({ open: true, msg: toast, severity: "success" });
-  }, [sp, setSnack]);
+    if (toast) setAlert({ open: true, msg: toast, severity: "success" });
+  }, [sp, setAlert]);
 
   const fetchAll = React.useCallback(async () => {
     setLoading(true);
@@ -175,7 +175,7 @@ export default function PaymentsManagementPage(): React.JSX.Element {
         throw new Error(msg);
       }
 
-      setSnack({
+      setAlert({
         open: true,
         msg: `Payment Account: ${target.Payment_Account_Id} deleted successfully`,
         severity: "success",
@@ -188,7 +188,7 @@ export default function PaymentsManagementPage(): React.JSX.Element {
         return next;
       });
     } catch (e) {
-      setSnack({
+      setAlert({
         open: true,
         msg: e instanceof Error ? e.message : String(e),
         severity: "error",

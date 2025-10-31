@@ -21,8 +21,8 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useRouter } from "next/navigation";
-import ConfirmDialog from "@/components/pop-up/ConfirmDialog";
-import { useSnack } from "@/components/snack/SnackProvider";
+import ConfirmDialog from "@/components/pop-up/ConfirmPopUpUI";
+import { useAlertPopUp } from "@/components/pop-up/AlertPopUpUI";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
@@ -111,7 +111,7 @@ const parseDecimal = (s?: string | null) => {
 
 export default function CustomerDurationPackagesPage(): React.JSX.Element {
   const router = useRouter();
-  const { setSnack } = useSnack();
+  const { setAlert } = useAlertPopUp();
 
   const [allRows, setAllRows] = React.useState<Row[]>([]);
   const totalItems = allRows.length;
@@ -159,13 +159,13 @@ export default function CustomerDurationPackagesPage(): React.JSX.Element {
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setSnack({ open: true, msg, severity: "error" });
+      setAlert({ open: true, msg, severity: "error" });
       setAllRows([]);
       setPage(0);
     } finally {
       setLoading(false);
     }
-  }, [rowsPerPage, setSnack]);
+  }, [rowsPerPage, setAlert]);
 
   React.useEffect(() => {
     void fetchAll();
@@ -200,7 +200,7 @@ export default function CustomerDurationPackagesPage(): React.JSX.Element {
         const body = await res.json().catch(() => ({}));
         throw new Error((body as { message?: string }).message || `Delete failed (HTTP ${res.status})`);
       }
-      setSnack({ open: true, msg: `Duration Package ID: ${id} deleted successfully`, severity: "success" });
+      setAlert({ open: true, msg: `Duration Package ID: ${id} deleted successfully`, severity: "success" });
       setAllRows((prev) => {
         const next = prev.filter((x) => x.id !== id);
         const maxPage = Math.max(0, Math.ceil(next.length / rowsPerPage) - 1);
@@ -209,7 +209,7 @@ export default function CustomerDurationPackagesPage(): React.JSX.Element {
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setSnack({ open: true, msg, severity: "error" });
+      setAlert({ open: true, msg, severity: "error" });
     }
   };
 

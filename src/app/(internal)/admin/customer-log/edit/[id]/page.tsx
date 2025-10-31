@@ -6,7 +6,7 @@ import {
   FormControl, InputLabel, Select, FormHelperText, Alert, Paper, CircularProgress
 } from "@mui/material";
 import { useRouter, useSearchParams, useParams } from "next/navigation";
-import { useSnack } from "@/components/snack/SnackProvider";
+import { useAlertPopUp } from "@/components/pop-up/AlertPopUpUI";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
@@ -60,7 +60,7 @@ export default function EditCustomerLogPage(): React.JSX.Element {
   const router = useRouter();
   const sp = useSearchParams();
   const params = useParams<{ id?: string }>();
-  const { setSnack } = useSnack();
+  const { setAlert } = useAlertPopUp();
 
   // Prefer path param, fallback to query (?id=...)
   const idParam = (params?.id ?? sp.get("id") ?? "").toString();
@@ -150,10 +150,10 @@ export default function EditCustomerLogPage(): React.JSX.Element {
         throw new Error(msg);
       }
 
-      setSnack({ open: true, msg: `Log: ${logId} updated successfully`, severity: "success" });
+      setAlert({ open: true, msg: `Log: ${logId} updated successfully`, severity: "success" });
       router.push("/admin/customer-log");
     } catch (e: unknown) {
-      setSnack({ open: true, msg: e instanceof Error ? e.message : String(e), severity: "error" });
+      setAlert({ open: true, msg: e instanceof Error ? e.message : String(e), severity: "error" });
     }
   };
 

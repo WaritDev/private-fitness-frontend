@@ -15,7 +15,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { useRouter } from "next/navigation";
-import { useSnack } from "@/components/snack/SnackProvider";
+import { useSnack } from "@/components/pop-up/AlertPopUpUI";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 

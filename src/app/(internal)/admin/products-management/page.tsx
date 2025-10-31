@@ -24,8 +24,8 @@ import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useRouter } from "next/navigation";
-import ConfirmDialog from "@/components/pop-up/ConfirmDialog";
-import { useSnack } from "@/components/snack/SnackProvider";
+import ConfirmDialog from "@/components/pop-up/ConfirmPopUpUI";
+import { useAlertPopUp } from "@/components/pop-up/AlertPopUpUI";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
@@ -105,7 +105,7 @@ const fmtTHB = (n: number) =>
 
 export default function ProductsManagementPage(): React.JSX.Element {
   const router = useRouter();
-  const { setSnack } = useSnack();
+  const { setAlert } = useAlertPopUp();
 
   const [page, setPage] = React.useState(0);
   const rowsPerPage = 10;
@@ -198,7 +198,7 @@ export default function ProductsManagementPage(): React.JSX.Element {
         throw new Error(err?.message ?? `Delete failed (HTTP ${res.status})`);
       }
 
-      setSnack({ open: true, msg: `Product: ${target.Product_Id} deleted successfully`, severity: "success" });
+      setAlert({ open: true, msg: `Product: ${target.Product_Id} deleted successfully`, severity: "success" });
 
       setAllRows((prev) => {
         const next = prev.filter((r) => r.Product_Id !== target.Product_Id);
@@ -207,7 +207,7 @@ export default function ProductsManagementPage(): React.JSX.Element {
         return next;
       });
     } catch (e) {
-      setSnack({ open: true, msg: e instanceof Error ? e.message : String(e), severity: "error" });
+      setAlert({ open: true, msg: e instanceof Error ? e.message : String(e), severity: "error" });
     } finally {
       setConfirmOpen(false);
       setTarget(null);

@@ -14,7 +14,7 @@ import {
 import SaveIcon from "@mui/icons-material/Save";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useRouter } from "next/navigation";
-import { useSnack } from "@/components/snack/SnackProvider";
+import { useAlertPopUp } from "@/components/pop-up/AlertPopUpUI";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 const PRIMARY = { main: "#38E07A", dark: "#2fbb65" } as const;
@@ -40,7 +40,7 @@ type CreateBody = {
 
 export default function AddPaymentAccountPage(): React.JSX.Element {
   const router = useRouter();
-  const { setSnack } = useSnack();
+  const { setAlert } = useAlertPopUp();
 
   const [form, setForm] = React.useState<FormState>({
     Account_Name: "",
@@ -108,7 +108,7 @@ export default function AddPaymentAccountPage(): React.JSX.Element {
         throw new Error(msg);
       }
 
-      setSnack({
+      setAlert({
         open: true,
         msg: "Payment Account created successfully",
         severity: "success",
@@ -117,7 +117,7 @@ export default function AddPaymentAccountPage(): React.JSX.Element {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setGlobalErr(msg);
-      setSnack({ open: true, msg, severity: "error" });
+      setAlert({ open: true, msg, severity: "error" });
     } finally {
       setSaving(false);
     }

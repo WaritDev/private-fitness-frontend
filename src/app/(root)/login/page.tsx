@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { defaultPathForRole } from '@/lib/roleRedirect';
-import { useSnack } from '@/components/snack/SnackProvider';
+import { useSnack } from '@/components/pop-up/AlertPopUpUI';
 import {
   Box,
   Paper,

@@ -24,8 +24,8 @@ import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useRouter } from "next/navigation";
-import ConfirmDialog from "@/components/pop-up/ConfirmDialog";
-import { useSnack } from "@/components/snack/SnackProvider";
+import ConfirmDialog from "@/components/pop-up/ConfirmPopUpUI";
+import { useAlertPopUp } from "@/components/pop-up/AlertPopUpUI";
 
 const PRIMARY = { main: "#38E07A", dark: "#2fbb65" } as const;
 const TOKENS = {
@@ -136,7 +136,7 @@ function mapStaff(s: ApiStaff): Staff {
 
 export default function StaffAccounts(): React.JSX.Element {
   const router = useRouter();
-  const { setSnack } = useSnack();
+  const { setAlert } = useAlertPopUp();
 
   // FE pagination
   const [page, setPage] = React.useState(0);
@@ -182,13 +182,13 @@ export default function StaffAccounts(): React.JSX.Element {
       const maxPage = Math.max(0, Math.ceil(mapped.length / rowsPerPage) - 1);
       setPage((p) => (p > maxPage ? maxPage : p));
     } catch (e: unknown) {
-      setSnack({ open: true, msg: errorMessage(e), severity: "error" });
+      setAlert({ open: true, msg: errorMessage(e), severity: "error" });
       setAllRows([]);
       setPage(0);
     } finally {
       setLoading(false);
     }
-  }, [rowsPerPage, setSnack]);
+  }, [rowsPerPage, setAlert]);
 
   React.useEffect(() => {
     void fetchAll();
@@ -243,7 +243,7 @@ export default function StaffAccounts(): React.JSX.Element {
         throw new Error(body?.message ?? `Delete failed (HTTP ${res.status})`);
       }
 
-      setSnack({ open: true, msg: `Username: ${username} deleted successfully`, severity: "success" });
+      setAlert({ open: true, msg: `Username: ${username} deleted successfully`, severity: "success" });
       setConfirm({ open: false });
 
       // update FE cache + adjust page if current page becomes empty
@@ -254,7 +254,7 @@ export default function StaffAccounts(): React.JSX.Element {
         return next;
       });
     } catch (e: unknown) {
-      setSnack({ open: true, msg: errorMessage(e), severity: "error" });
+      setAlert({ open: true, msg: errorMessage(e), severity: "error" });
     }
   };
 

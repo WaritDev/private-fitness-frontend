@@ -14,7 +14,7 @@ import {
   Switch,
 } from "@mui/material";
 import { useRouter, useParams } from "next/navigation";
-import { useSnack } from "@/components/snack/SnackProvider";
+import { useAlertPopUp } from "@/components/pop-up/AlertPopUpUI";
 
 const PRIMARY = { main: "#38E07A", dark: "#2fbb65" } as const;
 
@@ -47,7 +47,7 @@ type ApiStaff = {
 export default function EditStaffPage(): React.ReactElement | null {
   const router = useRouter();
   const params = useParams<{ u: string }>();
-  const { setSnack } = useSnack();
+  const { setAlert } = useAlertPopUp();
 
   const usernameFromPath = React.useMemo(() => decodeURIComponent(params.u), [params.u]);
 
@@ -96,7 +96,7 @@ export default function EditStaffPage(): React.ReactElement | null {
     let cancelled = false;
     const run = async () => {
       if (!usernameFromPath) {
-        setSnack({ open: true, msg: "Missing username in URL.", severity: "error" });
+        setAlert({ open: true, msg: "Missing username in URL.", severity: "error" });
         router.replace("/admin/user-management");
         return;
       }
@@ -129,7 +129,7 @@ export default function EditStaffPage(): React.ReactElement | null {
         });
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : "Failed to load.";
-        setSnack({ open: true, msg, severity: "error" });
+        setAlert({ open: true, msg, severity: "error" });
         router.replace("/admin/user-management");
       } finally {
         if (!cancelled) setLoading(false);
@@ -139,7 +139,7 @@ export default function EditStaffPage(): React.ReactElement | null {
     return () => {
       cancelled = true;
     };
-  }, [usernameFromPath, router, setSnack]);
+  }, [usernameFromPath, router, setAlert]);
 
   const setField =
     (k: keyof typeof form) =>
@@ -183,7 +183,7 @@ export default function EditStaffPage(): React.ReactElement | null {
 
     setErrors(e);
     if (Object.keys(e).length) {
-      setSnack({ open: true, msg: "Please fix the highlighted fields.", severity: "error" });
+      setAlert({ open: true, msg: "Please fix the highlighted fields.", severity: "error" });
       return false;
     }
     return true;
@@ -228,11 +228,11 @@ export default function EditStaffPage(): React.ReactElement | null {
         if (body?.message) msg = body.message;
       }
 
-      setSnack({ open: true, msg, severity: "success" });
+      setAlert({ open: true, msg, severity: "success" });
       router.replace("/admin/user-management");
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Update failed.";
-      setSnack({ open: true, msg, severity: "error" });
+      setAlert({ open: true, msg, severity: "error" });
     } finally {
       setSaving(false);
     }

@@ -22,8 +22,8 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useRouter } from "next/navigation";
-import ConfirmDialog from "@/components/pop-up/ConfirmDialog";
-import { useSnack } from "@/components/snack/SnackProvider";
+import ConfirmDialog from "@/components/pop-up/ConfirmPopUpUI";
+import { useAlertPopUp } from "@/components/pop-up/AlertPopUpUI";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
@@ -89,7 +89,7 @@ const formatDateTimeTH = (iso?: string) => {
 
 export default function CustomerLogPage(): React.JSX.Element {
   const router = useRouter();
-  const { setSnack } = useSnack();
+  const { setAlert } = useAlertPopUp();
 
   const [rows, setRows] = React.useState<UIRow[]>([]);
   const [totalItems, setTotalItems] = React.useState(0);
@@ -166,14 +166,14 @@ export default function CustomerLogPage(): React.JSX.Element {
         const errBody = await res.json().catch(() => ({}));
         throw new Error(errBody?.message || `Delete failed (HTTP ${res.status})`);
       }
-      setSnack({ open: true, msg: `Log: ${target.logId} deleted successfully`, severity: "success" });
+      setAlert({ open: true, msg: `Log: ${target.logId} deleted successfully`, severity: "success" });
       if (rows.length === 1 && page > 0) {
         setPage((p) => p - 1);
       } else {
         await fetchPage();
       }
     } catch (e: unknown) {
-      setSnack({ open: true, msg: e instanceof Error ? e.message : String(e), severity: "error" });
+      setAlert({ open: true, msg: e instanceof Error ? e.message : String(e), severity: "error" });
     } finally {
       setConfirmOpen(false);
       setTarget(null);

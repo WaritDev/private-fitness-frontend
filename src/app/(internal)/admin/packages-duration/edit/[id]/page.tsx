@@ -17,7 +17,7 @@ import {
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SaveIcon from "@mui/icons-material/Save";
 import { useRouter, useParams } from "next/navigation";
-import { useSnack } from "@/components/snack/SnackProvider";
+import { useAlertPopUp } from "@/components/pop-up/AlertPopUpUI";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
@@ -112,7 +112,7 @@ const Col = React.memo(function Col(props: React.ComponentProps<typeof Box>) {
 export default function EditCustomerDurationPackagePage(): React.JSX.Element {
   const router = useRouter();
   const params = useParams<{ id: string }>();
-  const { setSnack } = useSnack();
+  const { setAlert } = useAlertPopUp();
 
   const id = params?.id || "";
 
@@ -232,10 +232,10 @@ export default function EditCustomerDurationPackagePage(): React.JSX.Element {
         const b = (await res.json().catch(() => ({}))) as ErrBody;
         throw new Error(b?.message || `Update failed (HTTP ${res.status})`);
       }
-      setSnack({ open: true, msg: `Duration Package ID: ${id} updated successfully`, severity: "success" });
+      setAlert({ open: true, msg: `Duration Package ID: ${id} updated successfully`, severity: "success" });
       router.push("/admin/packages-duration");
     } catch (e: unknown) {
-      setSnack({ open: true, msg: e instanceof Error ? e.message : String(e), severity: "error" });
+      setAlert({ open: true, msg: e instanceof Error ? e.message : String(e), severity: "error" });
     }
   };
 

@@ -7,7 +7,7 @@ import { AuthProvider, useAuth } from '@/contexts/AuthProvider';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import InternalNavBar from '@/components/ui/InternalNavbar';
-import { SnackProvider } from '@/components/snack/SnackProvider'; // ⬅️ เพิ่ม
+import { SnackProvider } from '@/components/pop-up/AlertPopUpUI'; // ⬅️ เพิ่ม
 
 function Guard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();

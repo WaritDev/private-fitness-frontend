@@ -22,8 +22,8 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useRouter } from "next/navigation";
-import ConfirmDialog from "@/components/pop-up/ConfirmDialog";
-import { useSnack } from "@/components/snack/SnackProvider";
+import ConfirmDialog from "@/components/pop-up/ConfirmPopUpUI";
+import { useAlertPopUp } from "@/components/pop-up/AlertPopUpUI";
 
 type Order = "asc" | "desc";
 type GenderAPI = "MALE" | "FEMALE" | "OTHER";
@@ -149,7 +149,7 @@ const mapCustomer = (c: ApiCustomer): Customer => ({
 
 export default function CustomersListPage(): React.JSX.Element {
   const router = useRouter();
-  const { setSnack } = useSnack();
+  const { setAlert } = useAlertPopUp();
 
   const [rows, setRows] = React.useState<Customer[]>([]);
   const [totalItems, setTotalItems] = React.useState(0);
@@ -179,13 +179,13 @@ export default function CustomersListPage(): React.JSX.Element {
       setRows(items.map(mapCustomer));
       setTotalItems(body?.meta?.total_items ?? items.length);
     } catch (e: unknown) {
-      setSnack({ open: true, msg: errorMessage(e) || "Network error", severity: "error" });
+      setAlert({ open: true, msg: errorMessage(e) || "Network error", severity: "error" });
       setRows([]);
       setTotalItems(0);
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, setSnack]);
+  }, [page, rowsPerPage, setAlert]);
 
   React.useEffect(() => {
     void fetchPage();
@@ -231,7 +231,7 @@ export default function CustomersListPage(): React.JSX.Element {
         const body = (await res.json().catch(() => ({}))) as { message?: string };
         if (body?.message) msg = body.message;
       }
-      setSnack({ open: true, msg, severity: "success" });
+      setAlert({ open: true, msg, severity: "success" });
       setConfirmOpen(false);
       setTargetUser(null);
       if (rows.length === 1 && page > 0) {
@@ -240,7 +240,7 @@ export default function CustomersListPage(): React.JSX.Element {
         await fetchPage();
       }
     } catch (e: unknown) {
-      setSnack({ open: true, msg: errorMessage(e) || "Delete failed", severity: "error" });
+      setAlert({ open: true, msg: errorMessage(e) || "Delete failed", severity: "error" });
       setConfirmOpen(false);
       setTargetUser(null);
     }

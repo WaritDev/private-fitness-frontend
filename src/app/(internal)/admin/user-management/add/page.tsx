@@ -15,7 +15,7 @@ import {
   CardContent,
 } from "@mui/material";
 import { useRouter } from "next/navigation";
-import { useSnack } from "@/components/snack/SnackProvider";
+import { useAlertPopUp } from "@/components/pop-up/AlertPopUpUI";
 
 type Role = "ADMIN" | "MANAGER" | "TRAINER" | "SALES";
 type Gender = "MALE" | "FEMALE" | "OTHER";
@@ -29,7 +29,7 @@ const RE_EMAIL = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/;
 
 export default function AddStaffPage(): React.ReactElement {
   const router = useRouter();
-  const { setSnack } = useSnack();
+  const { setAlert } = useAlertPopUp();
 
   const [form, setForm] = React.useState({
     username: "",
@@ -150,11 +150,11 @@ export default function AddStaffPage(): React.ReactElement {
         throw new Error(err?.message || `Create failed (HTTP ${res.status})`);
       }
 
-      setSnack({ open: true, msg: `User: ${payload.username} created successfully`, severity: "success" });
+      setAlert({ open: true, msg: `User: ${payload.username} created successfully`, severity: "success" });
       router.push("/admin/user-management");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Create failed";
-      setSnack({ open: true, msg, severity: "error" });
+      setAlert({ open: true, msg, severity: "error" });
     } finally {
       setSaving(false);
     }

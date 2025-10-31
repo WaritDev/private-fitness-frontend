@@ -8,7 +8,7 @@ import {
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SaveIcon from "@mui/icons-material/Save";
 import { useRouter, useParams } from "next/navigation";
-import { useSnack } from "@/components/snack/SnackProvider";
+import { useAlertPopUp } from "@/components/pop-up/AlertPopUpUI";
 
 const PRIMARY = { main: "#38E07A", dark: "#2fbb65" } as const;
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
@@ -66,7 +66,7 @@ const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 export default function EditCustomerPage(): React.JSX.Element {
   const router = useRouter();
-  const { setSnack } = useSnack();
+  const { setAlert } = useAlertPopUp();
   const params = useParams<{ u: string }>();
   const username = params?.u || "";
 
@@ -240,10 +240,10 @@ export default function EditCustomerPage(): React.JSX.Element {
         if (body?.message) msg = body.message;
       }
 
-      setSnack({ open: true, msg, severity: "success" });
+      setAlert({ open: true, msg, severity: "success" });
       router.push("/admin/customer-management");
     } catch (e) {
-      setSnack({ open: true, msg: errMsg(e) || "Update failed", severity: "error" });
+      setAlert({ open: true, msg: errMsg(e) || "Update failed", severity: "error" });
     }
   };
 
