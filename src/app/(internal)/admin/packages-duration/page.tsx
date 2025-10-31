@@ -200,7 +200,7 @@ export default function CustomerDurationPackagesPage(): React.JSX.Element {
         const body = await res.json().catch(() => ({}));
         throw new Error((body as { message?: string }).message || `Delete failed (HTTP ${res.status})`);
       }
-      setSnack({ open: true, msg: `Duration_Id: ${id} deleted successfully`, severity: "success" });
+      setSnack({ open: true, msg: `Duration Package ID: ${id} deleted successfully`, severity: "success" });
       setAllRows((prev) => {
         const next = prev.filter((x) => x.id !== id);
         const maxPage = Math.max(0, Math.ceil(next.length / rowsPerPage) - 1);
@@ -334,7 +334,7 @@ export default function CustomerDurationPackagesPage(): React.JSX.Element {
         title="Confirm Deletion"
         message={
           confirm.target
-            ? `Warning: Deleting Duration_Id: ${confirm.target.id} for customer ${confirm.target.customerUsername}. Continue?`
+            ? `Warning: Are you sure you want to permanently delete this duration package (ID: ${confirm.target.id}) for customer ${confirm.target.customerUsername}?`
             : ""
         }
         confirmText="Confirm"

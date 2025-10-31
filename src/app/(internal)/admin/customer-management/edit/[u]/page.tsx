@@ -278,7 +278,7 @@ export default function EditCustomerPage(): React.JSX.Element {
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-        <Typography variant="h5" fontWeight={400}>Edit Customer: {username}</Typography>
+        <Typography variant="h5" fontWeight={400}>Edit Customer Accounts</Typography>
         <Stack direction="row" spacing={1}>
           <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>Cancel</Button>
           <Button

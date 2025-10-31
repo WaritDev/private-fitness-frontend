@@ -344,7 +344,7 @@ export default function ProductsManagementPage(): React.JSX.Element {
         title="Confirm Deletion"
         message={
           target
-            ? `Warning: Deleting product ${target.Product_Id} (${target.Name}) is permanent. Continue?`
+            ? `Warning: Deleting this product may affect historical data. Are you sure?`
             : ""
         }
         confirmText="Confirm"

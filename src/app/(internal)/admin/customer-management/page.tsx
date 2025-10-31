@@ -223,7 +223,7 @@ export default function CustomersListPage(): React.JSX.Element {
         credentials: "include",
         headers: { "Content-Type": "application/json" },
       });
-      let msg = `Username: ${targetUser.username} deleted successfully`;
+      let msg = `Customer: ${targetUser.username} deleted successfully`;
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { message?: string };
         throw new Error(err?.message || `Delete failed (HTTP ${res.status})`);
@@ -363,9 +363,9 @@ export default function CustomersListPage(): React.JSX.Element {
         message={
           targetUser ? (
             <>
-              Warning: Deleting this customer will also remove related records.
+              Warning: Deleting this customer will permanently remove all associated data (memberships, sessions, logs, etc.).
               <br />
-              Confirm delete customer: <b>{targetUser.username}</b>?
+              Are you sure you want to delete customer: <b>{targetUser.username}</b>?
             </>
           ) : (
             ""

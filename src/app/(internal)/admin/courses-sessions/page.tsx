@@ -385,7 +385,7 @@ export default function CustomerSessionCoursesPage(): React.JSX.Element {
         title="Confirm Deletion"
         message={
           target
-            ? `Warning: Deleting this session course (ID: ${target.Session_Id}) for customer ${target.Customer_Username} is permanent. Continue?`
+            ? `Warning: Are you sure you want to permanently delete this course session (ID: ${target.Session_Id}) for customer ${target.Customer_Username}?`
             : ""
         }
         confirmText="Confirm"

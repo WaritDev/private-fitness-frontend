@@ -333,7 +333,7 @@ export default function PaymentsManagementPage(): React.JSX.Element {
         title="Confirm Deletion"
         message={
           target
-            ? `Warning: Deleting payment account ${target.Payment_Account_Id} (${target.Account_Name}) is permanent. Continue?`
+            ? `Warning: Are you sure you want to permanently delete this payment account (ID: ${target.Payment_Account_Id})? This action is irreversible and may affect ongoing payments.`
             : ""
         }
         confirmText="Confirm"
