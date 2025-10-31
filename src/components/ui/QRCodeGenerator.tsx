@@ -16,7 +16,15 @@ export default function QRCodeGenerator({
   mode = 'uuid', 
   baseUrl = 'https://yourdomain.com/checkin'
 }: Props) {
-  const value = mode === 'uuid' ? uuid : `${baseUrl}/${uuid}`;
+  // ถ้า mode = 'url' และ uuid เริ่มด้วย http:// หรือ https:// ให้ใช้ตรงๆ
+  let value: string;
+  if (mode === 'url' && (uuid.startsWith('http://') || uuid.startsWith('https://'))) {
+    value = uuid; // ใช้ URL เต็มที่ส่งมาจาก API
+  } else if (mode === 'url') {
+    value = `${baseUrl}/${uuid}`; // สร้าง URL จาก baseUrl + uuid
+  } else {
+    value = uuid; // mode = 'uuid' ใช้ uuid โดยตรง
+  }
   
   return (
     <div style={{ background: 'white', padding: '16px' }}>

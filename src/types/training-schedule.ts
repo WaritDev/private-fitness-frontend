@@ -99,6 +99,8 @@ export interface TimeSlot {
   available: boolean;                   // ว่างหรือไม่
   scheduleId?: number;                  // ถ้าไม่ว่าง
   scheduleType?: ScheduleType;          // ประเภทการจอง
+  bookedBy?: string;                    // username ของคนที่จอง (ถ้ามี)
+  isOwn?: boolean;                      // true = จองโดยตัวเอง, false = คนอื่นจอง
 }
 
 // Booking Request DTO
