@@ -3,25 +3,15 @@
 import * as React from 'react';
 import {
   Container, Stack, Typography, Accordion, AccordionSummary, AccordionDetails,
-  Paper, Button, Box
+  Paper, Button, Box, CircularProgress, Alert
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import { useRouter } from 'next/navigation';
+import { Product } from '@/types/product';
 
-type DurationPkg = { id: string; name: string; price: number; durationDays: number };
-type SessionPkg = { id: string; name: string; price: number; sessions: number };
-
-const DURATION_PACKAGES: DurationPkg[] = [
-  { id: 'D090', name: 'Economy 90 Days', price: 3990, durationDays: 90 },
-  { id: 'D365', name: 'First Class 365 Days', price: 14990, durationDays: 365 },
-];
-
-const SESSION_PACKAGES: SessionPkg[] = [
-  { id: 'S10', name: '10 PT Sessions', price: 8990, sessions: 10 },
-  { id: 'S20', name: '20 PT Sessions', price: 15990, sessions: 20 },
-];
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
 function money(n: number) {
   return n.toLocaleString('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 0 });
@@ -29,27 +19,129 @@ function money(n: number) {
 
 export default function PackagesPage() {
   const router = useRouter();
+  
+  // State for API data
+  const [durations, setDurations] = React.useState<Product[]>([]);
+  const [sessions, setSessions] = React.useState<Product[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
-  function buyDuration(p: DurationPkg) {
-    const q = new URLSearchParams({
-      package_id: p.id,
-      package_name: p.name,
-      package_type: 'DURATION',
-      price: String(p.price),
-      duration_days: String(p.durationDays),
+  // Fetch products from API
+  React.useEffect(() => {
+    async function fetchDurations() {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/products/durations`, {
+          credentials: 'include',
+        });
+        const data = await res.json();
+        
+        if (data.status === 'OK' && data.result) {
+          const products: Product[] = data.result.map((item: any) => ({
+            productId: item.id,
+            name: item.name,
+            productType: item.type,
+            productCategory: item.category,
+            listPrice: item.listPrice,
+            price: item.listPrice,
+            sessionAmount: item.sessionAmount,
+            durationDays: item.durationDays,
+            isActive: item.isActive,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          }));
+          setDurations(products);
+        }
+      } catch (err) {
+        console.error('Error fetching durations:', err);
+        setError('ไม่สามารถโหลดข้อมูล Duration ได้');
+      }
+    }
+
+    async function fetchSessions() {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/products/sessions`, {
+          credentials: 'include',
+        });
+        const data = await res.json();
+        
+        if (data.status === 'OK' && data.result) {
+          const products: Product[] = data.result.map((item: any) => ({
+            productId: item.id,
+            name: item.name,
+            productType: item.type,
+            productCategory: item.category,
+            listPrice: item.listPrice,
+            price: item.listPrice,
+            sessionAmount: item.sessionAmount,
+            durationDays: item.durationDays,
+            isActive: item.isActive,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          }));
+          setSessions(products);
+        }
+      } catch (err) {
+        console.error('Error fetching sessions:', err);
+        setError('ไม่สามารถโหลดข้อมูล Session ได้');
+      }
+    }
+
+    Promise.all([fetchDurations(), fetchSessions()]).finally(() => {
+      setLoading(false);
     });
-    router.push(`/customer/package/order-summary?${q.toString()}`);
+  }, []);
+
+  function buyDuration(product: Product) {
+    // Store minimal data for flow detection
+    const orderData = {
+      source: 'customer-purchase',
+      timestamp: new Date().toISOString(),
+    };
+    sessionStorage.setItem('pendingDurationOrder', JSON.stringify(orderData));
+    
+    // Redirect to payment page with product ID from API
+    router.push(`/customer/package/${product.productId}/payment`);
   }
 
-  function buySession(p: SessionPkg) {
+  function buySession(product: Product) {
     const q = new URLSearchParams({
-      package_id: p.id,
-      package_name: p.name,
+      package_id: String(product.productId),
+      package_name: product.name,
       package_type: 'SESSION',
-      price: String(p.price),
-      sessions: String(p.sessions),
+      price: String(product.listPrice),
+      sessions: String(product.sessionAmount || 0),
     });
+    sessionStorage.setItem('pendingSessionOrder', JSON.stringify({
+      source: 'customer-purchase',
+      timestamp: new Date().toISOString(),
+    }));
     router.push(`/customer/package/trainer?${q.toString()}`);
+  }
+
+  // Loading state
+  if (loading) {
+    return (
+      <Container maxWidth="sm" sx={{ px: 0 }}>
+        <Stack spacing={2} sx={{ px: 2, py: 4 }} alignItems="center">
+          <CircularProgress />
+          <Typography>กำลังโหลดข้อมูลแพ็กเกจ...</Typography>
+        </Stack>
+      </Container>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <Container maxWidth="sm" sx={{ px: 0 }}>
+        <Stack spacing={2} sx={{ px: 2, py: 4 }}>
+          <Alert severity="error">{error}</Alert>
+          <Button variant="outlined" onClick={() => window.location.reload()}>
+            ลองใหม่อีกครั้ง
+          </Button>
+        </Stack>
+      </Container>
+    );
   }
 
   return (
@@ -65,40 +157,50 @@ export default function PackagesPage() {
             </Stack>
           </AccordionSummary>
           <AccordionDetails>
-            <Stack spacing={1.5}>
-              {DURATION_PACKAGES.map(p => (
-                <Paper
-                  key={p.id}
-                  elevation={3}
-                  sx={{
-                    p: 2,
-                    borderRadius: 3,
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    backgroundImage: 'linear-gradient(180deg, #FFFFFF 0%, #F0FFF6 100%)',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.05)',
-                  }}
-                >
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Box>
-                      <Typography variant="subtitle1" fontWeight={800}>{p.name}</Typography>
-                      <Typography variant="body2" color="text.secondary">{p.durationDays} Days</Typography>
-                    </Box>
-                    <Stack alignItems="flex-end" spacing={1}>
-                      <Typography variant="subtitle1" fontWeight={800}>{money(p.price)}</Typography>
-                      <Button
-                        size="small"
-                        variant="contained"
-                        onClick={() => buyDuration(p)}
-                        sx={{ bgcolor: '#2196F3', '&:hover': { bgcolor: '#1e88e5' } }}
-                      >
-                        Buy Now
-                      </Button>
+            {durations.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                ไม่มีแพ็กเกจ Duration ในขณะนี้
+              </Typography>
+            ) : (
+              <Stack spacing={1.5}>
+                {durations.map(product => (
+                  <Paper
+                    key={product.productId}
+                    elevation={3}
+                    sx={{
+                      p: 2,
+                      borderRadius: 3,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      backgroundImage: 'linear-gradient(180deg, #FFFFFF 0%, #F0FFF6 100%)',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.05)',
+                    }}
+                  >
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Box>
+                        <Typography variant="subtitle1" fontWeight={800}>{product.name}</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {product.durationDays} Days
+                        </Typography>
+                      </Box>
+                      <Stack alignItems="flex-end" spacing={1}>
+                        <Typography variant="subtitle1" fontWeight={800}>
+                          {money(product.listPrice)}
+                        </Typography>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          onClick={() => buyDuration(product)}
+                          sx={{ bgcolor: '#2196F3', '&:hover': { bgcolor: '#1e88e5' } }}
+                        >
+                          Buy Now
+                        </Button>
+                      </Stack>
                     </Stack>
-                  </Stack>
-                </Paper>
-              ))}
-            </Stack>
+                  </Paper>
+                ))}
+              </Stack>
+            )}
           </AccordionDetails>
         </Accordion>
 
@@ -110,40 +212,50 @@ export default function PackagesPage() {
             </Stack>
           </AccordionSummary>
           <AccordionDetails>
-            <Stack spacing={1.5}>
-              {SESSION_PACKAGES.map(p => (
-                <Paper
-                  key={p.id}
-                  elevation={3}
-                  sx={{
-                    p: 2,
-                    borderRadius: 3,
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    backgroundImage: 'linear-gradient(180deg, #FFFFFF 0%, #F3F9FF 100%)',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.05)',
-                  }}
-                >
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Box>
-                      <Typography variant="subtitle1" fontWeight={800}>{p.name}</Typography>
-                      <Typography variant="body2" color="text.secondary">{p.sessions} Sessions</Typography>
-                    </Box>
-                    <Stack alignItems="flex-end" spacing={1}>
-                      <Typography variant="subtitle1" fontWeight={800}>{money(p.price)}</Typography>
-                      <Button
-                        size="small"
-                        variant="contained"
-                        onClick={() => buySession(p)}
-                        sx={{ bgcolor: '#2196F3', '&:hover': { bgcolor: '#1e88e5' } }}
-                      >
-                        Buy Now
-                      </Button>
+            {sessions.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                ไม่มีแพ็กเกจ Session ในขณะนี้
+              </Typography>
+            ) : (
+              <Stack spacing={1.5}>
+                {sessions.map(product => (
+                  <Paper
+                    key={product.productId}
+                    elevation={3}
+                    sx={{
+                      p: 2,
+                      borderRadius: 3,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      backgroundImage: 'linear-gradient(180deg, #FFFFFF 0%, #F3F9FF 100%)',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.05)',
+                    }}
+                  >
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Box>
+                        <Typography variant="subtitle1" fontWeight={800}>{product.name}</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {product.sessionAmount} Sessions
+                        </Typography>
+                      </Box>
+                      <Stack alignItems="flex-end" spacing={1}>
+                        <Typography variant="subtitle1" fontWeight={800}>
+                          {money(product.listPrice)}
+                        </Typography>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          onClick={() => buySession(product)}
+                          sx={{ bgcolor: '#2196F3', '&:hover': { bgcolor: '#1e88e5' } }}
+                        >
+                          Buy Now
+                        </Button>
+                      </Stack>
                     </Stack>
-                  </Stack>
-                </Paper>
-              ))}
-            </Stack>
+                  </Paper>
+                ))}
+              </Stack>
+            )}
           </AccordionDetails>
         </Accordion>
       </Stack>

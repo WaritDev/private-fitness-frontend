@@ -6,13 +6,12 @@ import {
   Typography, MenuItem, Alert,
   Grid,
 } from '@mui/material';
+import { useAuth } from '@/contexts/AuthProvider';
 
 // API Base URL
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
-// Regex Validation (from Data Dictionary)
-const USERNAME_RE = /^[A-Za-z][A-Za-z0-9]{3,29}$/;
-const PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+// ==================== HELPER REGEX & FUNCTIONS ====================
 const PHONE_RE = /^[0-9]{10}$/;
 const EMAIL_RE = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/;
 
@@ -39,12 +38,12 @@ function calculateAge(dob: string): number {
 
 // ==================== TYPE DEFINITIONS ====================
 
-// Step 1: Discount Offer (Use Case 2S)
+// Step 1: Discount Offer (Use Case 2S - Sales Offer)
 type Step1 = {
   discountPercent: string; // 0-7%
 };
 
-// Step 2: Customer Info (Use Case 3S) - รวม Customer Info + Additional Info
+// Step 2: Customer Info (Use Case 3S - รวมข้อมูลทั้งหมดในหน้าเดียว)
 type Step2 = {
   firstName: string;
   lastName: string;
@@ -63,36 +62,25 @@ type Step2 = {
   marketingSource: string;
 };
 
-// Step 3: Duration Details (Price confirmation)
-type Step3 = {
-  pricePaid: string;
-  discountAmount: string;
-};
-
-// Step 4: Account Credentials
-type Step4 = {
-  username: string;
-  password: string;
-  confirmPassword: string;
-};
-
 // ==================== MAIN COMPONENT ====================
 
 export default function DurationRegisterPage() {
   const params = useParams<{ id: string }>();
   const productId = Number(params?.id ?? NaN);
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth(); // ✅ ดึงข้อมูล current user
 
   // Stepper state
   const [activeStep, setActiveStep] = React.useState(0);
   const [submitting, setSubmitting] = React.useState(false);
+  const [validating, setValidating] = React.useState(false);
 
   // Product info from backend
   const [productName, setProductName] = React.useState<string>('');
   const [basePrice, setBasePrice] = React.useState<number>(0);
   const [durationDays, setDurationDays] = React.useState<number | null>(null);
 
-  // Step states
+  // Step states (2 Steps only: Discount + Customer Info)
   const [s1, setS1] = React.useState<Step1>({ discountPercent: '0' });
   const [s2, setS2] = React.useState<Step2>({
     firstName: '',
@@ -111,14 +99,14 @@ export default function DurationRegisterPage() {
     emergencyContactPhone: '',
     marketingSource: '',
   });
-  const [s3, setS3] = React.useState<Step3>({ pricePaid: '0', discountAmount: '0' });
-  const [s4, setS4] = React.useState<Step4>({ username: '', password: '', confirmPassword: '' });
 
-  // Error states
+  // Calculated pricing (from Step 1)
+  const [pricePaid, setPricePaid] = React.useState<number>(0);
+  const [discountAmount, setDiscountAmount] = React.useState<number>(0);
+
+  // Error states (2 Steps only)
   const [errors1, setErrors1] = React.useState<Partial<Record<keyof Step1, string>>>({});
   const [errors2, setErrors2] = React.useState<Partial<Record<keyof Step2, string>>>({});
-  const [errors3, setErrors3] = React.useState<Partial<Record<keyof Step3, string>>>({});
-  const [errors4, setErrors4] = React.useState<Partial<Record<keyof Step4, string>>>({});
 
   // Snackbar
   const [snack, setSnack] = React.useState<{ open: boolean; message: string; color: 'success' | 'error' }>({
@@ -126,6 +114,10 @@ export default function DurationRegisterPage() {
     message: '',
     color: 'success',
   });
+
+  // Validation status for phone and email
+  const [checkingPhone, setCheckingPhone] = React.useState(false);
+  const [checkingEmail, setCheckingEmail] = React.useState(false);
 
   // ==================== LOAD PRODUCT DATA ====================
   React.useEffect(() => {
@@ -135,19 +127,20 @@ export default function DurationRegisterPage() {
         const res = await fetch(`${API_BASE_URL}/api/products/${productId}`, {
           credentials: 'include',
         });
+
         if (!res.ok) throw new Error('Failed to fetch product');
         const data = await res.json();
+        
         if (cancelled) return;
 
-        if (data.status === 'success' && data.result) {
-          setProductName(data.result.name || '');
-          setBasePrice(data.result.listPrice || 0);
-          setDurationDays(data.result.durationDays || null);
-          // Initialize Step 3 with base price
-          setS3({
-            pricePaid: String(data.result.listPrice || 0),
-            discountAmount: '0',
-          });
+        if (res.statusText === 'OK' && data) {
+          setProductName(data.name || '');
+          const price = data.listPrice || 0;
+          setBasePrice(price);
+          setDurationDays(data.durationDays || null);
+          // Initialize pricing
+          setPricePaid(price);
+          setDiscountAmount(0);
         }
       } catch (err) {
         console.error('Error loading product:', err);
@@ -164,7 +157,7 @@ export default function DurationRegisterPage() {
 
   // ==================== STEP 1: DISCOUNT OFFER (Use Case 2S) ====================
 
-  // Apply discount calculation (Q2S.1)
+  // Apply discount calculation (Q2S.1 - Sales Offer 0-7%)
   function applyDiscountPercent(percent: string) {
     const pct = Math.max(0, Math.min(7, Number(percent) || 0));
     setS1({ discountPercent: String(pct) });
@@ -172,10 +165,8 @@ export default function DurationRegisterPage() {
     const discountAmt = Math.round(basePrice * (pct / 100));
     const paid = basePrice - discountAmt;
 
-    setS3({
-      pricePaid: String(paid),
-      discountAmount: String(discountAmt),
-    });
+    setPricePaid(paid);
+    setDiscountAmount(discountAmt);
   }
 
   function validateStep1(): boolean {
@@ -200,16 +191,95 @@ export default function DurationRegisterPage() {
     });
   }
 
+  // ==================== DUPLICATE CHECKING FUNCTIONS ====================
+  
+  // Check phone duplicate (shared function for onBlur and onNext)
+  async function checkPhoneDuplicate(phone: string): Promise<boolean> {
+    if (!phone || !PHONE_RE.test(phone)) return true; // ถ้า format ไม่ถูกต้อง ให้ผ่าน (จะมี validation อื่นจัดการ)
+    
+    setCheckingPhone(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/users/check-phone?phone=${phone}`, {
+        credentials: 'include',
+      });
+      const data = await res.json();
+      console.log('Phone check response:', data);
+      
+      if (data.status === 'success' && data.result?.exists) {
+        setErrors2((e) => ({ ...e, phone: 'เบอร์โทรนี้ถูกใช้งานแล้ว' }));
+        return false; // พบข้อมูลซ้ำ
+      }
+      return true; // ไม่ซ้ำ
+    } catch (err) {
+      console.error('Error checking phone:', err);
+      return true; // เกิด error ให้ผ่านไปก่อน (ไม่บล็อก UX)
+    } finally {
+      setCheckingPhone(false);
+    }
+  }
+
+  // Check email duplicate (shared function for onBlur and onNext)
+  async function checkEmailDuplicate(email: string): Promise<boolean> {
+    if (!email || !EMAIL_RE.test(email.toLowerCase())) return true;
+    
+    setCheckingEmail(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/users/check-gmail?gmail=${encodeURIComponent(email)}`, {
+        credentials: 'include',
+      });
+      const data = await res.json();
+      console.log('Email check response:', data);
+      
+      if (data.status === 'success' && data.result?.exists) {
+        setErrors2((e) => ({ ...e, email: 'อีเมลนี้ถูกใช้งานแล้ว' }));
+        return false; // พบข้อมูลซ้ำ
+      }
+      return true; // ไม่ซ้ำ
+    } catch (err) {
+      console.error('Error checking email:', err);
+      return true; // เกิด error ให้ผ่านไปก่อน
+    } finally {
+      setCheckingEmail(false);
+    }
+  }
+
+  // Check both phone and email duplicates before moving to next step
+  async function checkDuplicateBeforeNext(): Promise<boolean> {
+    setValidating(true);
+    
+    try {
+      // เช็กทั้ง phone และ email แบบ parallel
+      const [phoneOk, emailOk] = await Promise.all([
+        checkPhoneDuplicate(s2.phone),
+        checkEmailDuplicate(s2.email),
+      ]);
+
+      // ถ้ามีอย่างใดอย่างหนึ่งซ้ำ ให้ return false
+      return phoneOk && emailOk;
+    } catch (err) {
+      console.error('Error in checkDuplicateBeforeNext:', err);
+      return true; // เกิด error ให้ผ่านไปก่อน
+    } finally {
+      setValidating(false);
+    }
+  }
+
   async function validateStep2(): Promise<boolean> {
     const e: Partial<Record<keyof Step2, string>> = {};
 
-    // Required fields validation
+    // Required fields validation - ALL FIELDS ARE REQUIRED
     if (!s2.firstName.trim()) e.firstName = 'กรุณากรอกชื่อ';
     if (!s2.lastName.trim()) e.lastName = 'กรุณากรอกนามสกุล';
     if (!s2.gender) e.gender = 'กรุณาเลือกเพศ';
     if (!s2.dateOfBirth) e.dateOfBirth = 'กรุณาเลือกวันเกิด';
     if (!s2.phone.trim()) e.phone = 'กรุณากรอกเบอร์โทร';
     if (!s2.email.trim()) e.email = 'กรุณากรอกอีเมล';
+    if (!s2.healthInfo.trim()) e.healthInfo = 'กรุณากรอกข้อมูลสุขภาพ';
+    if (!s2.address.trim()) e.address = 'กรุณากรอกที่อยู่';
+    if (!s2.companyName.trim()) e.companyName = 'กรุณากรอกชื่อบริษัท';
+    if (!s2.companyPosition.trim()) e.companyPosition = 'กรุณากรอกตำแหน่ง';
+    if (!s2.maritalStatus) e.maritalStatus = 'กรุณาเลือกสถานะสมรส';
+    if (!s2.marketingSource.trim()) e.marketingSource = 'กรุณากรอกแหล่งที่รู้จัก';
     if (!s2.emergencyContactName.trim()) e.emergencyContactName = 'กรุณากรอกชื่อผู้ติดต่อฉุกเฉิน';
     if (!s2.emergencyContactRelationship.trim())
       e.emergencyContactRelationship = 'กรุณากรอกความสัมพันธ์';
@@ -234,107 +304,29 @@ export default function DurationRegisterPage() {
       }
     }
 
-    // Check duplicate phone (Q3S.1)
-    if (s2.phone && PHONE_RE.test(s2.phone)) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/users/check-phone?phone=${s2.phone}`, {
-          credentials: 'include',
-        });
-        const data = await res.json();
-        if (data.status === 'success' && data.result?.exists) {
-          e.phone = 'เบอร์โทรนี้ถูกใช้งานแล้ว';
-        }
-      } catch (err) {
-        console.error('Error checking phone:', err);
-      }
-    }
-
-    // Check duplicate email (Q3S.2)
-    if (s2.email && EMAIL_RE.test(s2.email.toLowerCase())) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/users/check-gmail?gmail=${encodeURIComponent(s2.email)}`, {
-          credentials: 'include',
-        });
-        const data = await res.json();
-        if (data.status === 'success' && data.result?.exists) {
-          e.email = 'อีเมลนี้ถูกใช้งานแล้ว';
-        }
-      } catch (err) {
-        console.error('Error checking email:', err);
-      }
-    }
-
     setErrors2(e);
     return Object.keys(e).length === 0;
   }
 
-  // ==================== STEP 3: DURATION DETAILS ====================
-
-  function setS3Field<K extends keyof Step3>(k: K, v: Step3[K]) {
-    setS3((p) => ({ ...p, [k]: v }));
-    setErrors3((e) => {
-      const newE = { ...e };
-      delete newE[k];
-      return newE;
-    });
-  }
-
-  function validateStep3(): boolean {
-    const e: Partial<Record<keyof Step3, string>> = {};
-    const paid = Number(s3.pricePaid);
-    if (isNaN(paid) || paid < 0) {
-      e.pricePaid = 'ราคาไม่ถูกต้อง';
-    }
-    setErrors3(e);
-    return Object.keys(e).length === 0;
-  }
-
-  // ==================== STEP 4: ACCOUNT CREDENTIALS ====================
-
-  function setS4Field<K extends keyof Step4>(k: K, v: Step4[K]) {
-    setS4((p) => ({ ...p, [k]: v }));
-    setErrors4((e) => {
-      const newE = { ...e };
-      delete newE[k];
-      return newE;
-    });
-  }
-
-  function validateStep4(): boolean {
-    const e: Partial<Record<keyof Step4, string>> = {};
-
-    if (!s4.username.trim()) {
-      e.username = 'กรุณากรอก Username';
-    } else if (!USERNAME_RE.test(s4.username)) {
-      e.username = 'Username ต้องขึ้นต้นด้วยตัวอักษร และมี 4-30 ตัวอักษร (a-z, A-Z, 0-9)';
-    }
-
-    if (!s4.password) {
-      e.password = 'กรุณากรอกรหัสผ่าน';
-    } else if (!PASSWORD_RE.test(s4.password)) {
-      e.password = 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร ประกอบด้วย a-z, A-Z, 0-9, และอักขระพิเศษ';
-    }
-
-    if (!s4.confirmPassword) {
-      e.confirmPassword = 'กรุณายืนยันรหัสผ่าน';
-    } else if (s4.password !== s4.confirmPassword) {
-      e.confirmPassword = 'รหัสผ่านไม่ตรงกัน';
-    }
-
-    setErrors4(e);
-    return Object.keys(e).length === 0;
-  }
-
-  // ==================== NAVIGATION ====================
+  // ==================== NAVIGATION (2 Steps Only) ====================
 
   async function onNext() {
     if (activeStep === 0) {
+      // Step 1: Discount Offer → ไป Step 2
       if (validateStep1()) setActiveStep(1);
-    } else if (activeStep === 1) {
+    } 
+    else if (activeStep === 1) {
+      // Step 2: Customer Info → Redirect to Payment
+      // 1️⃣ ตรวจ format และ required fields ก่อน
       const valid = await validateStep2();
-      if (valid) setActiveStep(2);
-    } else if (activeStep === 2) {
-      if (validateStep3()) setActiveStep(3);
+      if (!valid) return;
+
+      // 2️⃣ ตรวจ duplicate phone & email ผ่าน API
+      const notDuplicate = await checkDuplicateBeforeNext();
+      if (!notDuplicate) return;
+
+      // 3️⃣ ผ่านทั้งหมดแล้ว → Redirect ไปหน้า Payment (Use Case 6C)
+      redirectToPayment();
     }
   }
 
@@ -342,68 +334,52 @@ export default function DurationRegisterPage() {
     setActiveStep((prev) => Math.max(0, prev - 1));
   }
 
-  // ==================== SUBMIT ====================
+  // ==================== REDIRECT TO PAYMENT (Use Case 6C) ====================
 
-  async function onSubmit() {
-    if (!validateStep4()) return;
+  function redirectToPayment() {
+    // เก็บข้อมูลใน sessionStorage เพื่อส่งไปหน้า Payment
+    const orderData = {
+      // Product info
+      productId: productId,
+      productName: productName,
+      productType: 'DURATION',
+      durationDays: durationDays || 0,
+      basePrice: basePrice,
+      discountAmount: discountAmount,
+      discountPercent: Number(s1.discountPercent),
+      pricePaid: pricePaid,
+      
+      // Customer info (Use Case 3S)
+      firstName: s2.firstName,
+      lastName: s2.lastName,
+      gender: s2.gender,
+      dateOfBirth: s2.dateOfBirth,
+      phone: s2.phone,
+      email: s2.email,
+      healthInfo: s2.healthInfo,
+      address: s2.address,
+      companyName: s2.companyName,
+      companyPosition: s2.companyPosition,
+      maritalStatus: s2.maritalStatus,
+      emergencyContactName: s2.emergencyContactName,
+      emergencyContactRelationship: s2.emergencyContactRelationship,
+      emergencyContactPhone: s2.emergencyContactPhone,
+      marketingSource: s2.marketingSource,
+      
+      // Sales info
+      salesUsername: user?.sub || 'unknown', // ✅ ดึงจาก current logged-in user
+      
+      // Meta info
+      source: 'sales-registration', // เพื่อแยกว่ามาจาก Sales Flow
+      timestamp: new Date().toISOString(),
+    };
 
-    setSubmitting(true);
-    try {
-      const payload = {
-        // Account credentials
-        username: s4.username,
-        password: s4.password,
-        confirmPassword: s4.confirmPassword,
-        // Customer info
-        firstName: s2.firstName,
-        lastName: s2.lastName,
-        gender: s2.gender,
-        dateOfBirth: s2.dateOfBirth,
-        phone: s2.phone,
-        gmail: s2.email,
-        healthInfo: s2.healthInfo,
-        address: s2.address,
-        companyName: s2.companyName,
-        companyPosition: s2.companyPosition,
-        maritalStatus: s2.maritalStatus,
-        emergencyContactName: s2.emergencyContactName,
-        emergencyContactRelationship: s2.emergencyContactRelationship,
-        emergencyContactPhone: s2.emergencyContactPhone,
-        marketingSource: s2.marketingSource,
-        // Product & pricing
-        productId: productId,
-        pricePaid: Number(s3.pricePaid),
-        discountAmount: Number(s3.discountAmount),
-        // Sales username (get from auth context or session)
-        salesUsername: 'sales1', // TODO: Get from actual logged-in user
-        startDate: new Date().toISOString().split('T')[0], // Today
-        durationDays: durationDays || 30,
-      };
+    // เก็บข้อมูลลง sessionStorage (จะหายเมื่อปิด tab)
+    // ใช้ key เดียวกับ Session เพื่อความง่ายในการ maintain
+    sessionStorage.setItem('pendingOrder', JSON.stringify(orderData));
 
-      const response = await fetch(`${API_BASE_URL}/api/customers/durations/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.status === 'success') {
-        setSnack({ open: true, message: 'ลงทะเบียนสำเร็จ!', color: 'success' });
-        // Redirect to order summary page
-        setTimeout(() => {
-          router.push('/customer/package/order-summary');
-        }, 1500);
-      } else {
-        throw new Error(data.message || 'Registration failed');
-      }
-    } catch (err: any) {
-      console.error('Error submitting registration:', err);
-      setSnack({ open: true, message: err.message || 'เกิดข้อผิดพลาดในการลงทะเบียน', color: 'error' });
-    } finally {
-      setSubmitting(false);
-    }
+    // Redirect ไปหน้า Payment โดยตรง (Sales Flow: Register → Payment → Create Account)
+    router.push(`/customer/package/${productId}/payment`);
   }
 
   // ==================== RENDER ====================
@@ -415,9 +391,9 @@ export default function DurationRegisterPage() {
       </Typography>
 
       <Paper sx={{ p: { xs: 2, md: 3 } }} elevation={2}>
-        {/* Stepper */}
+        {/* Stepper - 2 Steps Only (Sales Flow: 3S) */}
         <Stepper activeStep={activeStep} sx={{ mb: 3 }}>
-          {['Discount Offer', 'Customer Info', 'Duration Details', 'Account Credentials'].map((label) => (
+          {['Discount Offer', 'Customer Info'].map((label) => (
             <Step key={label}>
               <StepLabel>{label}</StepLabel>
             </Step>
@@ -457,9 +433,9 @@ export default function DurationRegisterPage() {
               <Grid size={{ xs: 12 }}>
                 <Box sx={{ p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
                   <Typography variant="body2">ราคาปกติ: {money(basePrice)}</Typography>
-                  <Typography variant="body2">ส่วนลด: {money(Number(s3.discountAmount))}</Typography>
+                  <Typography variant="body2">ส่วนลด: {money(discountAmount)}</Typography>
                   <Typography variant="h6" fontWeight={700} color="primary">
-                    ราคาหลังหักส่วนลด: {money(Number(s3.pricePaid))}
+                    ราคาหลังหักส่วนลด: {money(pricePaid)}
                   </Typography>
                 </Box>
               </Grid>
@@ -467,7 +443,7 @@ export default function DurationRegisterPage() {
 
             <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
               <Button variant="contained" onClick={onNext}>
-                Next
+                ถัดไป (Next)
               </Button>
             </Box>
           </Box>
@@ -538,10 +514,16 @@ export default function DurationRegisterPage() {
                   label="เบอร์โทร (Phone)"
                   value={s2.phone}
                   onChange={(e) => setS2Field('phone', e.target.value)}
+                  onBlur={(e) => checkPhoneDuplicate(e.target.value)}
                   error={!!errors2.phone}
-                  helperText={errors2.phone || 'ตัวเลข 10 หลัก'}
+                  helperText={
+                    checkingPhone 
+                      ? '🔍 กำลังตรวจสอบ...' 
+                      : errors2.phone || 'ตัวเลข 10 หลัก'
+                  }
                   fullWidth
                   required
+                  disabled={checkingPhone}
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
@@ -550,17 +532,23 @@ export default function DurationRegisterPage() {
                   type="email"
                   value={s2.email}
                   onChange={(e) => setS2Field('email', e.target.value)}
+                  onBlur={(e) => checkEmailDuplicate(e.target.value)}
                   error={!!errors2.email}
-                  helperText={errors2.email}
+                  helperText={
+                    checkingEmail 
+                      ? '🔍 กำลังตรวจสอบ...' 
+                      : errors2.email
+                  }
                   fullWidth
                   required
+                  disabled={checkingEmail}
                 />
               </Grid>
 
               {/* Additional Info */}
               <Grid size={{ xs: 12 }}>
                 <Typography variant="subtitle1" fontWeight={600} sx={{ mt: 2, mb: 1 }}>
-                  ข้อมูลเพิ่มเติม
+                  ข้อมูลเพิ่มเติม *
                 </Typography>
               </Grid>
               <Grid size={{ xs: 12 }}>
@@ -568,7 +556,10 @@ export default function DurationRegisterPage() {
                   label="ข้อมูลสุขภาพ (Health Info)"
                   value={s2.healthInfo}
                   onChange={(e) => setS2Field('healthInfo', e.target.value)}
+                  error={!!errors2.healthInfo}
+                  helperText={errors2.healthInfo}
                   fullWidth
+                  required
                   multiline
                   rows={2}
                 />
@@ -578,7 +569,10 @@ export default function DurationRegisterPage() {
                   label="ที่อยู่ (Address)"
                   value={s2.address}
                   onChange={(e) => setS2Field('address', e.target.value)}
+                  error={!!errors2.address}
+                  helperText={errors2.address}
                   fullWidth
+                  required
                   multiline
                   rows={2}
                 />
@@ -588,7 +582,10 @@ export default function DurationRegisterPage() {
                   label="บริษัท (Company Name)"
                   value={s2.companyName}
                   onChange={(e) => setS2Field('companyName', e.target.value)}
+                  error={!!errors2.companyName}
+                  helperText={errors2.companyName}
                   fullWidth
+                  required
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
@@ -596,7 +593,10 @@ export default function DurationRegisterPage() {
                   label="ตำแหน่ง (Position)"
                   value={s2.companyPosition}
                   onChange={(e) => setS2Field('companyPosition', e.target.value)}
+                  error={!!errors2.companyPosition}
+                  helperText={errors2.companyPosition}
                   fullWidth
+                  required
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
@@ -605,7 +605,10 @@ export default function DurationRegisterPage() {
                   label="สถานะสมรส (Marital Status)"
                   value={s2.maritalStatus}
                   onChange={(e) => setS2Field('maritalStatus', e.target.value as Step2['maritalStatus'])}
+                  error={!!errors2.maritalStatus}
+                  helperText={errors2.maritalStatus}
                   fullWidth
+                  required
                 >
                   <MenuItem value="SINGLE">โสด (Single)</MenuItem>
                   <MenuItem value="MARRIED">สมรส (Married)</MenuItem>
@@ -618,7 +621,10 @@ export default function DurationRegisterPage() {
                   label="แหล่งที่รู้จัก (Marketing Source)"
                   value={s2.marketingSource}
                   onChange={(e) => setS2Field('marketingSource', e.target.value)}
+                  error={!!errors2.marketingSource}
+                  helperText={errors2.marketingSource}
                   fullWidth
+                  required
                 />
               </Grid>
 
@@ -664,93 +670,9 @@ export default function DurationRegisterPage() {
             </Grid>
 
             <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
-              <Button onClick={onBack}>Back</Button>
-              <Button variant="contained" onClick={onNext}>
-                Next
-              </Button>
-            </Box>
-          </Box>
-        )}
-
-        {/* ==================== STEP 3: DURATION DETAILS ==================== */}
-        {activeStep === 2 && (
-          <Box>
-            <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-              รายละเอียดแพ็กเกจ (Duration Details)
-            </Typography>
-
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 12 }}>
-                <Box sx={{ p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
-                  <Typography variant="body1">แพ็กเกจ: {productName}</Typography>
-                  <Typography variant="body1">ระยะเวลา: {durationDays} วัน</Typography>
-                  <Typography variant="body1">ราคาปกติ: {money(basePrice)}</Typography>
-                  <Typography variant="body1">ส่วนลด: {money(Number(s3.discountAmount))}</Typography>
-                  <Typography variant="h6" fontWeight={700} color="primary" sx={{ mt: 1 }}>
-                    ราคาที่ต้องชำระ: {money(Number(s3.pricePaid))}
-                  </Typography>
-                </Box>
-              </Grid>
-            </Grid>
-
-            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
-              <Button onClick={onBack}>Back</Button>
-              <Button variant="contained" onClick={onNext}>
-                Next
-              </Button>
-            </Box>
-          </Box>
-        )}
-
-        {/* ==================== STEP 4: ACCOUNT CREDENTIALS ==================== */}
-        {activeStep === 3 && (
-          <Box>
-            <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-              สร้างบัญชีผู้ใช้ (Account Credentials)
-            </Typography>
-
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 12 }}>
-                <TextField
-                  label="Username"
-                  value={s4.username}
-                  onChange={(e) => setS4Field('username', e.target.value)}
-                  error={!!errors4.username}
-                  helperText={errors4.username || '4-30 ตัวอักษร (a-z, A-Z, 0-9) ขึ้นต้นด้วยตัวอักษร'}
-                  fullWidth
-                  required
-                />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  label="Password"
-                  type="password"
-                  value={s4.password}
-                  onChange={(e) => setS4Field('password', e.target.value)}
-                  error={!!errors4.password}
-                  helperText={errors4.password || 'อย่างน้อย 8 ตัวอักษร (a-z, A-Z, 0-9, อักขระพิเศษ)'}
-                  fullWidth
-                  required
-                />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  label="Confirm Password"
-                  type="password"
-                  value={s4.confirmPassword}
-                  onChange={(e) => setS4Field('confirmPassword', e.target.value)}
-                  error={!!errors4.confirmPassword}
-                  helperText={errors4.confirmPassword}
-                  fullWidth
-                  required
-                />
-              </Grid>
-            </Grid>
-
-            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
-              <Button onClick={onBack}>Back</Button>
-              <Button variant="contained" onClick={onSubmit} disabled={submitting}>
-                {submitting ? 'กำลังบันทึก...' : 'Submit'}
+              <Button onClick={onBack}>ย้อนกลับ (Back)</Button>
+              <Button variant="contained" onClick={onNext} disabled={validating}>
+                {validating ? 'กำลังตรวจสอบข้อมูล...' : 'ไปหน้าชำระเงิน (Next)'}
               </Button>
             </Box>
           </Box>
