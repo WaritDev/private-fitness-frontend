@@ -157,16 +157,6 @@ export default function AddProductPage(): React.JSX.Element {
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Typography variant="h5" fontWeight={400}>Add Product</Typography>
         <Stack direction="row" spacing={1}>
-          <Button onClick={onCancel} disabled={submitting}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={onSave}
-            disabled={submitting}
-            startIcon={submitting ? <CircularProgress size={18} /> : undefined}
-            sx={{ backgroundColor: PRIMARY.main, "&:hover": { backgroundColor: PRIMARY.dark } }}
-          >
-            {submitting ? "Saving..." : "Save"}
-          </Button>
         </Stack>
       </Stack>
 

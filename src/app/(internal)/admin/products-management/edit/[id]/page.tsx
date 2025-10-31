@@ -237,14 +237,6 @@ export default function EditProductPage(): React.JSX.Element {
           Edit Product: {productId || "—"}
         </Typography>
         <Stack direction="row" spacing={1}>
-          <Button onClick={onCancel}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={onSave}
-            sx={{ backgroundColor: PRIMARY.main, "&:hover": { backgroundColor: PRIMARY.dark } }}
-          >
-            Save
-          </Button>
         </Stack>
       </Stack>
 

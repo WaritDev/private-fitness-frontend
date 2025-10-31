@@ -217,18 +217,6 @@ export default function EditPaymentAccountPage(): React.JSX.Element {
           Edit Payment Account
         </Typography>
         <Stack direction="row" spacing={1}>
-          <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<SaveIcon />}
-            onClick={onSave}
-            disabled={saving}
-            sx={{ backgroundColor: PRIMARY.main, "&:hover": { backgroundColor: PRIMARY.dark } }}
-          >
-            {saving ? "Saving..." : "Save"}
-          </Button>
         </Stack>
       </Stack>
 
