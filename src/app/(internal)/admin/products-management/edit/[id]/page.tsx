@@ -15,7 +15,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { useRouter, useParams } from "next/navigation";
-import { useSnack } from "@/components/pop-up/AlertPopUpUI";
+import { useAlertPopUp } from "@/components/pop-up/AlertPopUpUI";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
@@ -56,7 +56,7 @@ const toPostBahtNumber = (s: string): number => {
 export default function EditProductPage(): React.JSX.Element {
   const router = useRouter();
   const params = useParams<{ id: string }>();
-  const { setSnack } = useSnack();
+  const { setAlert } = useAlertPopUp();
 
   const id = params?.id ?? "";
 
@@ -194,10 +194,10 @@ export default function EditProductPage(): React.JSX.Element {
       }
 
       const toast = `Product: ${productId} updated successfully`;
-      setSnack({ open: true, msg: toast, severity: "success" });
+      setAlert({ open: true, msg: toast, severity: "success" });
       router.push(`/admin/products-management?toast=${encodeURIComponent(toast)}`);
     } catch (e: unknown) {
-      setSnack({
+      setAlert({
         open: true,
         msg: e instanceof Error ? e.message : String(e),
         severity: "error",

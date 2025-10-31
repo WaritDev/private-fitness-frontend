@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { defaultPathForRole } from '@/lib/roleRedirect';
-import { useSnack } from '@/components/pop-up/AlertPopUpUI';
+import { useAlertPopUp } from '@/components/pop-up/AlertPopUpUI';
 import {
   Box,
   Paper,
@@ -26,7 +26,7 @@ export default function LoginPage() {
   const [showPw, setShowPw] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
-  const { setSnack } = useSnack();
+  const { setAlert } = useAlertPopUp();
 
   const validateFields = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -61,7 +61,7 @@ export default function LoginPage() {
 
         const targetPath = defaultPathForRole(user.role);
 
-        setSnack({
+        setAlert({
           open: true,
           msg: `Signed in successfully ✅ Welcome, ${user.firstName || user.first_name || username}!`,
           severity: 'success',

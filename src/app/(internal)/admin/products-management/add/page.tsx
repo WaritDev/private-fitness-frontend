@@ -15,7 +15,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { useRouter } from "next/navigation";
-import { useSnack } from "@/components/pop-up/AlertPopUpUI";
+import { useAlertPopUp } from "@/components/pop-up/AlertPopUpUI";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
@@ -39,7 +39,7 @@ type FormState = {
 
 export default function AddProductPage(): React.JSX.Element {
   const router = useRouter();
-  const { setSnack } = useSnack();
+  const { setAlert } = useAlertPopUp();
 
   const [form, setForm] = React.useState<FormState>({
     name: "",
@@ -139,12 +139,12 @@ export default function AddProductPage(): React.JSX.Element {
         throw new Error(b?.message || `Create failed (HTTP ${res.status}).`);
       }
 
-      setSnack({ open: true, msg: "Product created successfully", severity: "success" });
+      setAlert({ open: true, msg: "Product created successfully", severity: "success" });
       router.push(`/admin/products-management?toast=${encodeURIComponent("Product created successfully")}`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       setGlobalErr(msg);
-      setSnack({ open: true, msg, severity: "error" });
+      setAlert({ open: true, msg, severity: "error" });
     } finally {
       setSubmitting(false);
     }

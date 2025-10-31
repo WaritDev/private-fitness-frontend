@@ -88,7 +88,6 @@ type ApiResponse = {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
-/** ---------- utils (no any) ---------- */
 function renderGender(g?: Gender | null): string {
   return g === "MALE" ? "Male" : g === "FEMALE" ? "Female" : g ? "Other" : "—";
 }
@@ -118,7 +117,6 @@ function errorMessage(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
-/** ---------- map ---------- */
 function mapStaff(s: ApiStaff): Staff {
   return {
     username: s.username,
@@ -138,21 +136,18 @@ export default function StaffAccounts(): React.JSX.Element {
   const router = useRouter();
   const { setAlert } = useAlertPopUp();
 
-  // FE pagination
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(10);
 
-  // data cache (ALL)
   const [allRows, setAllRows] = React.useState<Staff[]>([]);
   const totalItems = allRows.length;
 
-  // ui
   const [order, setOrder] = React.useState<Order>("asc");
   const [loading, setLoading] = React.useState(false);
 
   const [confirm, setConfirm] = React.useState<{ open: boolean; target?: Staff }>({ open: false });
 
-  const fetchAll = React.useCallback(async () => {
+  const loadAllStaffAccounts = React.useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/api/staffs`, {
@@ -173,12 +168,10 @@ export default function StaffAccounts(): React.JSX.Element {
       }
 
       const mapped = raw.map(mapStaff);
-      // default ordering (firstName asc); UI toggle จะกลับทิศเอง
       mapped.sort((a, b) => a.firstName.localeCompare(b.firstName, "en"));
 
       setAllRows(mapped);
 
-      // ถ้าหน้าปัจจุบันเกินจำนวนหน้าใหม่ให้ดึงกลับมาช่วงที่มี
       const maxPage = Math.max(0, Math.ceil(mapped.length / rowsPerPage) - 1);
       setPage((p) => (p > maxPage ? maxPage : p));
     } catch (e: unknown) {
@@ -191,8 +184,8 @@ export default function StaffAccounts(): React.JSX.Element {
   }, [rowsPerPage, setAlert]);
 
   React.useEffect(() => {
-    void fetchAll();
-  }, [fetchAll]);
+    void loadAllStaffAccounts();
+  }, [loadAllStaffAccounts]);
 
   const sortedAll = React.useMemo(() => {
     const arr = [...allRows];
@@ -225,9 +218,9 @@ export default function StaffAccounts(): React.JSX.Element {
   const goEdit = (u: Staff) =>
     router.push(`/admin/user-management/edit/${encodeURIComponent(u.username)}`);
 
-  const onDeleteClick = (u: Staff) => setConfirm({ open: true, target: u });
+    const onDeleteClick = (u: Staff) => setConfirm({ open: true, target: u });
 
-  const doDelete = async () => {
+    const deleteStaffAccount = async () => {
     const username = confirm.target?.username;
     if (!username) return;
 
@@ -243,10 +236,14 @@ export default function StaffAccounts(): React.JSX.Element {
         throw new Error(body?.message ?? `Delete failed (HTTP ${res.status})`);
       }
 
-      setAlert({ open: true, msg: `Username: ${username} deleted successfully`, severity: "success" });
+      setAlert({
+        open: true,
+        msg: `Username: ${username} deleted successfully`,
+        severity: "success",
+      });
+
       setConfirm({ open: false });
 
-      // update FE cache + adjust page if current page becomes empty
       setAllRows((prev) => {
         const next = prev.filter((r) => r.username !== username);
         const maxPage = Math.max(0, Math.ceil(next.length / rowsPerPage) - 1);
@@ -403,7 +400,7 @@ export default function StaffAccounts(): React.JSX.Element {
         }
         confirmText="Confirm"
         cancelText="Cancel"
-        onConfirm={doDelete}
+        onConfirm={deleteStaffAccount}
         onClose={() => setConfirm({ open: false })}
       />
     </Box>
