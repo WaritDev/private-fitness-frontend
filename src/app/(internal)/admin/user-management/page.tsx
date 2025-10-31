@@ -14,7 +14,6 @@ import {
   TableContainer,
   Paper,
   TableSortLabel,
-  TablePagination,
   Chip,
   IconButton,
   Tooltip,
@@ -27,6 +26,7 @@ import { useRouter } from "next/navigation";
 import ConfirmDialog from "@/components/pop-up/ConfirmPopUpUI";
 import { useAlertPopUp } from "@/components/pop-up/AlertPopUpUI";
 
+// --- UI tokens ---
 const PRIMARY = { main: "#38E07A", dark: "#2fbb65" } as const;
 const TOKENS = {
   heading: { variant: "h5" as const, weight: 500 as const },
@@ -35,35 +35,10 @@ const TOKENS = {
   spacing: { sectionY: 3 },
 };
 
+// --- Types ---
 type Role = "ADMIN" | "MANAGER" | "TRAINER" | "SALES";
 type Gender = "MALE" | "FEMALE" | "OTHER";
 type Order = "asc" | "desc";
-
-type Staff = {
-  username: string;
-  role: Role;
-  firstName: string;
-  lastName: string;
-  gender?: Gender | null;
-  dateOfBirth?: string | null;
-  phoneNumber?: string | null;
-  gmail?: string | null;
-  specialty?: string | null;
-  isActive: boolean;
-};
-
-const COLUMNS = [
-  { key: "firstName", label: "First Name", sortable: true },
-  { key: "lastName", label: "Last Name", sortable: false },
-  { key: "username", label: "Username", sortable: false },
-  { key: "role", label: "Role", sortable: false },
-  { key: "gender", label: "Gender", sortable: false },
-  { key: "dateOfBirth", label: "Date of Birth", sortable: false },
-  { key: "phoneNumber", label: "Phone", sortable: false },
-  { key: "gmail", label: "Email", sortable: false },
-  { key: "specialty", label: "Specialty", sortable: false },
-  { key: "isActive", label: "Status", sortable: false },
-] as const;
 
 type ApiNullString = { String: string; Valid: boolean };
 type ApiNullBool = { Bool: boolean; Valid: boolean };
@@ -81,28 +56,60 @@ type ApiStaff = {
   isActive: ApiNullBool;
 };
 
-type ApiResponse = {
-  data: ApiStaff[];
-  message?: string;
+type Envelope = { data?: ApiStaff[]; message?: string };
+
+type Staff = {
+  username: string;
+  role: Role;
+  firstName: string;
+  lastName: string;
+  gender?: Gender | null;
+  dateOfBirth?: string | null;
+  phoneNumber?: string | null;
+  gmail?: string | null;
+  specialty?: string | null;
+  isActive: boolean;
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+type ConfirmState = { open: boolean; target?: Staff };
 
-function renderGender(g?: Gender | null): string {
-  return g === "MALE" ? "Male" : g === "FEMALE" ? "Female" : g ? "Other" : "—";
+// --- Runtime guards (no any) ---
+function isApiNullString(v: unknown): v is ApiNullString {
+  if (typeof v !== "object" || v === null) return false;
+  const o = v as Record<string, unknown>;
+  return typeof o.String === "string" && typeof o.Valid === "boolean";
 }
 
-function isApiStaffArray(x: unknown): x is ApiStaff[] {
-  if (!Array.isArray(x)) return false;
-  return x.every(
-    (o) =>
-      o &&
-      typeof o === "object" &&
-      typeof (o as ApiStaff).username === "string" &&
-      typeof (o as ApiStaff).firstName === "string" &&
-      typeof (o as ApiStaff).lastName === "string"
+function isApiNullBool(v: unknown): v is ApiNullBool {
+  if (typeof v !== "object" || v === null) return false;
+  const o = v as Record<string, unknown>;
+  return typeof o.Bool === "boolean" && typeof o.Valid === "boolean";
+}
+
+function isApiStaff(v: unknown): v is ApiStaff {
+  if (typeof v !== "object" || v === null) return false;
+  const o = v as Record<string, unknown>;
+  return (
+    typeof o.username === "string" &&
+    typeof o.role === "string" &&
+    typeof o.firstName === "string" &&
+    typeof o.lastName === "string"
   );
 }
+
+function isApiStaffArray(v: unknown): v is ApiStaff[] {
+  return Array.isArray(v) && v.every(isApiStaff);
+}
+
+function isEnvelope(v: unknown): v is Envelope {
+  if (typeof v !== "object" || v === null) return false;
+  const o = v as Record<string, unknown>;
+  if (!("data" in o)) return false;
+  return o.data === undefined || isApiStaffArray(o.data);
+}
+
+// --- Helpers (no any) ---
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
 async function safeJson<T>(res: Response): Promise<T | null> {
   try {
@@ -113,8 +120,11 @@ async function safeJson<T>(res: Response): Promise<T | null> {
   }
 }
 
-function errorMessage(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
+/** support both pure array and envelope { data: [...] } */
+function pickStaffArray(body: unknown): ApiStaff[] {
+  if (isApiStaffArray(body)) return body;
+  if (isEnvelope(body)) return body.data ?? [];
+  return [];
 }
 
 function mapStaff(s: ApiStaff): Staff {
@@ -127,25 +137,40 @@ function mapStaff(s: ApiStaff): Staff {
     dateOfBirth: s.dateOfBirth ?? null,
     phoneNumber: s.phoneNumber ?? null,
     gmail: s.gmail ?? null,
-    specialty: s.specialty?.Valid ? s.specialty.String : null,
-    isActive: s.isActive?.Valid ? s.isActive.Bool : false,
+    specialty: isApiNullString(s.specialty) && s.specialty.Valid ? s.specialty.String : null,
+    isActive: isApiNullBool(s.isActive) && s.isActive.Valid ? s.isActive.Bool : false,
   };
 }
 
+function errorMessage(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
+function renderGender(g?: Gender | null): string {
+  return g === "MALE" ? "Male" : g === "FEMALE" ? "Female" : g ? "Other" : "—";
+}
+
+function formatDOB(iso?: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toISOString().split("T")[0];
+}
+
+// --- Component ---
 export default function StaffAccounts(): React.JSX.Element {
   const router = useRouter();
   const { setAlert } = useAlertPopUp();
 
   const [page, setPage] = React.useState(0);
-  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const [rowsPerPage] = React.useState(10);
 
   const [allRows, setAllRows] = React.useState<Staff[]>([]);
-  const totalItems = allRows.length;
 
   const [order, setOrder] = React.useState<Order>("asc");
   const [loading, setLoading] = React.useState(false);
 
-  const [confirm, setConfirm] = React.useState<{ open: boolean; target?: Staff }>({ open: false });
+  const [confirm, setConfirm] = React.useState<ConfirmState>({ open: false });
 
   const loadAllStaffAccounts = React.useCallback(async () => {
     setLoading(true);
@@ -157,12 +182,12 @@ export default function StaffAccounts(): React.JSX.Element {
       });
 
       if (!res.ok) {
-        const errBody = await safeJson<ApiResponse>(res);
-        throw new Error(errBody?.message ?? `Failed to load data (HTTP ${res.status})`);
+        const errBody = await safeJson<Envelope | ApiStaff[]>(res);
+        throw new Error((errBody as Envelope | null)?.message ?? `Failed to load data (HTTP ${res.status})`);
       }
 
-      const body = await safeJson<ApiResponse>(res);
-      const raw = body?.data ?? [];
+      const body = await safeJson<Envelope | ApiStaff[]>(res);
+      const raw = pickStaffArray(body);
       if (!isApiStaffArray(raw)) {
         throw new Error("Unexpected response shape");
       }
@@ -202,25 +227,12 @@ export default function StaffAccounts(): React.JSX.Element {
     return sortedAll.slice(start, end);
   }, [sortedAll, page, rowsPerPage]);
 
-  const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const next = Number(e.target.value);
-    setRowsPerPage(next);
-    setPage(0);
-  };
-
-  function formatDOB(iso?: string | null): string {
-    if (!iso) return "—";
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return "—";
-    return d.toLocaleDateString("en-GB", { year: "numeric", month: "short", day: "2-digit" });
-  }
-
   const goEdit = (u: Staff) =>
     router.push(`/admin/user-management/edit/${encodeURIComponent(u.username)}`);
 
-    const onDeleteClick = (u: Staff) => setConfirm({ open: true, target: u });
+  const onDeleteClick = (u: Staff) => setConfirm({ open: true, target: u });
 
-    const deleteStaffAccount = async () => {
+  const deleteStaffAccount = async (): Promise<void> => {
     const username = confirm.target?.username;
     if (!username) return;
 
@@ -236,12 +248,7 @@ export default function StaffAccounts(): React.JSX.Element {
         throw new Error(body?.message ?? `Delete failed (HTTP ${res.status})`);
       }
 
-      setAlert({
-        open: true,
-        msg: `Username: ${username} deleted successfully`,
-        severity: "success",
-      });
-
+      setAlert({ open: true, msg: `Username: ${username} deleted successfully`, severity: "success" });
       setConfirm({ open: false });
 
       setAllRows((prev) => {
@@ -254,6 +261,19 @@ export default function StaffAccounts(): React.JSX.Element {
       setAlert({ open: true, msg: errorMessage(e), severity: "error" });
     }
   };
+
+  const COLUMNS = [
+    { key: "firstName", label: "First Name", sortable: true },
+    { key: "lastName", label: "Last Name", sortable: false },
+    { key: "username", label: "Username", sortable: false },
+    { key: "role", label: "Role", sortable: false },
+    { key: "gender", label: "Gender", sortable: false },
+    { key: "dateOfBirth", label: "Date of Birth", sortable: false },
+    { key: "phoneNumber", label: "Phone", sortable: false },
+    { key: "gmail", label: "Email", sortable: false },
+    { key: "specialty", label: "Specialty", sortable: false },
+    { key: "isActive", label: "Status", sortable: false },
+  ] as const;
 
   return (
     <Box sx={{ p: { xs: 2, md: TOKENS.spacing.sectionY } }}>
@@ -377,16 +397,6 @@ export default function StaffAccounts(): React.JSX.Element {
             )}
           </TableBody>
         </Table>
-
-        <TablePagination
-          component="div"
-          count={totalItems}
-          page={page}
-          onPageChange={(_, newPage) => setPage(newPage)}
-          rowsPerPage={rowsPerPage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          rowsPerPageOptions={[10]}
-        />
       </TableContainer>
 
       <ConfirmDialog

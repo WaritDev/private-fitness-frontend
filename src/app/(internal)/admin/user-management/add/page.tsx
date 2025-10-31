@@ -45,11 +45,23 @@ export default function AddStaffPage(): React.ReactElement {
     specialty: "",
   });
 
+  // แยก state สำหรับ error, ช่องที่ถูกแตะ (touched), และสถานะกด submit
   const [errors, setErrors] = React.useState<Record<string, string>>({});
+  const [touched, setTouched] = React.useState<Record<string, boolean>>({});
+  const [submitted, setSubmitted] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
 
   const setField = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
+
+  const touch = (k: keyof typeof form) =>
+    setTouched((t) => ({ ...t, [k]: true }));
+
+  const showError = (k: keyof typeof form) =>
+    (submitted || touched[k]) && !!errors[k];
+
+  const helper = (k: keyof typeof form, fallback?: string) =>
+    showError(k) ? errors[k] : (fallback ?? "");
 
   const validateField = (key: keyof typeof form): string => {
     const v = (form[key] as string) ?? "";
@@ -59,6 +71,8 @@ export default function AddStaffPage(): React.ReactElement {
         if (!RE_USERNAME.test(v.trim())) return "Use 4–30 chars: start with A–Z, then letters/digits.";
         return "";
       case "password":
+        // ต้องการให้ “เริ่มต้นไม่ขึ้น Required”
+        // แต่เมื่อ blur หรือกด Save ค่อยตรวจครบถ้วน
         if (!v) return "Required";
         if (!RE_PASSWORD.test(v)) return "Min 8 chars with a-z, A-Z, 0-9, and a special char.";
         return "";
@@ -104,23 +118,21 @@ export default function AddStaffPage(): React.ReactElement {
     const keys = Object.keys(form) as (keyof typeof form)[];
     const next: Record<string, string> = {};
     keys.forEach((k) => {
-      const msg = validateField(k);
-      if (msg) next[k] = msg;
+      // specialty validate เฉพาะเมื่อเป็น TRAINER
+      if (k === "specialty" && form.role !== "TRAINER") {
+        next[k] = "";
+        return;
+      }
+      next[k] = validateField(k);
     });
     setErrors(next);
-    return Object.keys(next).length === 0;
+    return Object.values(next).every((m) => m === "");
   };
 
-  React.useEffect(() => {
-    setErrors((prev) => ({
-      ...prev,
-      password: validateField("password"),
-      confirmPassword: validateField("confirmPassword"),
-    }));
-  }, [form.password, form.confirmPassword]);
-
   const onSave = async () => {
+    setSubmitted(true);
     if (!validateAll()) return;
+
     setSaving(true);
     try {
       const payload = {
@@ -174,26 +186,32 @@ export default function AddStaffPage(): React.ReactElement {
                 label="Username"
                 value={form.username}
                 onChange={(e) => setField("username", e.target.value)}
-                onBlur={() => setErrors((s) => ({ ...s, username: validateField("username") }))}
-                helperText={errors.username}
-                error={!!errors.username}
+                onBlur={() => {
+                  touch("username");
+                  setErrors((s) => ({ ...s, username: validateField("username") }));
+                }}
+                helperText={helper("username")}
+                error={showError("username")}
                 fullWidth
               />
-              <FormControl fullWidth error={!!errors.role}>
+              <FormControl fullWidth error={showError("role")}>
                 <InputLabel id="role-label">Role</InputLabel>
                 <Select
                   labelId="role-label"
                   label="Role"
                   value={form.role || ""}
                   onChange={(e) => setField("role", e.target.value as Role)}
-                  onBlur={() => setErrors((s) => ({ ...s, role: validateField("role") }))}
+                  onBlur={() => {
+                    touch("role");
+                    setErrors((s) => ({ ...s, role: validateField("role") }));
+                  }}
                 >
                   <MenuItem value="TRAINER">TRAINER</MenuItem>
                   <MenuItem value="SALES">SALES</MenuItem>
                   <MenuItem value="MANAGER">MANAGER</MenuItem>
                   <MenuItem value="ADMIN">ADMIN</MenuItem>
                 </Select>
-                {errors.role && <Typography variant="caption" color="error">{errors.role}</Typography>}
+                {showError("role") && <Typography variant="caption" color="error">{errors.role}</Typography>}
               </FormControl>
             </Stack>
 
@@ -204,9 +222,12 @@ export default function AddStaffPage(): React.ReactElement {
                 autoComplete="new-password"
                 value={form.password}
                 onChange={(e) => setField("password", e.target.value)}
-                onBlur={() => setErrors((s) => ({ ...s, password: validateField("password") }))}
-                helperText={errors.password || "Min 8 chars with a-z, A-Z, 0-9, and a special char."}
-                error={!!errors.password}
+                onBlur={() => {
+                  touch("password");
+                  setErrors((s) => ({ ...s, password: validateField("password") }));
+                }}
+                helperText={helper("password", "Min 8 chars with a-z, A-Z, 0-9, and a special char.")}
+                error={showError("password")}
                 fullWidth
               />
               <TextField
@@ -215,9 +236,12 @@ export default function AddStaffPage(): React.ReactElement {
                 autoComplete="new-password"
                 value={form.confirmPassword}
                 onChange={(e) => setField("confirmPassword", e.target.value)}
-                onBlur={() => setErrors((s) => ({ ...s, confirmPassword: validateField("confirmPassword") }))}
-                helperText={errors.confirmPassword}
-                error={!!errors.confirmPassword}
+                onBlur={() => {
+                  touch("confirmPassword");
+                  setErrors((s) => ({ ...s, confirmPassword: validateField("confirmPassword") }));
+                }}
+                helperText={helper("confirmPassword")}
+                error={showError("confirmPassword")}
                 fullWidth
               />
             </Stack>
@@ -227,37 +251,46 @@ export default function AddStaffPage(): React.ReactElement {
                 label="First Name"
                 value={form.firstName}
                 onChange={(e) => setField("firstName", e.target.value)}
-                onBlur={() => setErrors((s) => ({ ...s, firstName: validateField("firstName") }))}
-                helperText={errors.firstName}
-                error={!!errors.firstName}
+                onBlur={() => {
+                  touch("firstName");
+                  setErrors((s) => ({ ...s, firstName: validateField("firstName") }));
+                }}
+                helperText={helper("firstName")}
+                error={showError("firstName")}
                 fullWidth
               />
               <TextField
                 label="Last Name"
                 value={form.lastName}
                 onChange={(e) => setField("lastName", e.target.value)}
-                onBlur={() => setErrors((s) => ({ ...s, lastName: validateField("lastName") }))}
-                helperText={errors.lastName}
-                error={!!errors.lastName}
+                onBlur={() => {
+                  touch("lastName");
+                  setErrors((s) => ({ ...s, lastName: validateField("lastName") }));
+                }}
+                helperText={helper("lastName")}
+                error={showError("lastName")}
                 fullWidth
               />
             </Stack>
 
             <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-              <FormControl fullWidth error={!!errors.gender}>
+              <FormControl fullWidth error={showError("gender")}>
                 <InputLabel id="gender-label">Gender</InputLabel>
                 <Select
                   labelId="gender-label"
                   label="Gender"
                   value={form.gender || ""}
                   onChange={(e) => setField("gender", e.target.value as Gender)}
-                  onBlur={() => setErrors((s) => ({ ...s, gender: validateField("gender") }))}
+                  onBlur={() => {
+                    touch("gender");
+                    setErrors((s) => ({ ...s, gender: validateField("gender") }));
+                  }}
                 >
                   <MenuItem value="MALE">Male</MenuItem>
                   <MenuItem value="FEMALE">Female</MenuItem>
                   <MenuItem value="OTHER">Other</MenuItem>
                 </Select>
-                {errors.gender && <Typography variant="caption" color="error">{errors.gender}</Typography>}
+                {showError("gender") && <Typography variant="caption" color="error">{errors.gender}</Typography>}
               </FormControl>
 
               <TextField
@@ -265,9 +298,12 @@ export default function AddStaffPage(): React.ReactElement {
                 type="date"
                 value={form.dateOfBirth}
                 onChange={(e) => setField("dateOfBirth", e.target.value)}
-                onBlur={() => setErrors((s) => ({ ...s, dateOfBirth: validateField("dateOfBirth") }))}
-                helperText={errors.dateOfBirth || "YYYY-MM-DD"}
-                error={!!errors.dateOfBirth}
+                onBlur={() => {
+                  touch("dateOfBirth");
+                  setErrors((s) => ({ ...s, dateOfBirth: validateField("dateOfBirth") }));
+                }}
+                helperText={helper("dateOfBirth", "YYYY-MM-DD")}
+                error={showError("dateOfBirth")}
                 InputLabelProps={{ shrink: true }}
                 fullWidth
               />
@@ -278,18 +314,24 @@ export default function AddStaffPage(): React.ReactElement {
                 label="Phone Number"
                 value={form.phoneNumber}
                 onChange={(e) => setField("phoneNumber", e.target.value)}
-                onBlur={() => setErrors((s) => ({ ...s, phoneNumber: validateField("phoneNumber") }))}
-                helperText={errors.phoneNumber}
-                error={!!errors.phoneNumber}
+                onBlur={() => {
+                  touch("phoneNumber");
+                  setErrors((s) => ({ ...s, phoneNumber: validateField("phoneNumber") }));
+                }}
+                helperText={helper("phoneNumber")}
+                error={showError("phoneNumber")}
                 fullWidth
               />
               <TextField
                 label="Email"
                 value={form.gmail}
                 onChange={(e) => setField("gmail", e.target.value)}
-                onBlur={() => setErrors((s) => ({ ...s, gmail: validateField("gmail") }))}
-                helperText={errors.gmail}
-                error={!!errors.gmail}
+                onBlur={() => {
+                  touch("gmail");
+                  setErrors((s) => ({ ...s, gmail: validateField("gmail") }));
+                }}
+                helperText={helper("gmail")}
+                error={showError("gmail")}
                 fullWidth
               />
             </Stack>
@@ -299,9 +341,12 @@ export default function AddStaffPage(): React.ReactElement {
                 label="Specialty"
                 value={form.specialty}
                 onChange={(e) => setField("specialty", e.target.value)}
-                onBlur={() => setErrors((s) => ({ ...s, specialty: validateField("specialty") }))}
-                helperText={errors.specialty}
-                error={!!errors.specialty}
+                onBlur={() => {
+                  touch("specialty");
+                  setErrors((s) => ({ ...s, specialty: validateField("specialty") }));
+                }}
+                helperText={helper("specialty")}
+                error={showError("specialty")}
                 fullWidth
               />
             )}

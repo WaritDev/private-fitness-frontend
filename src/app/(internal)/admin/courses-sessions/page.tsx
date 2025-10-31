@@ -12,7 +12,6 @@ import {
   TableRow,
   TableCell,
   TableContainer,
-  TablePagination,
   IconButton,
   Tooltip,
   Chip,
@@ -143,7 +142,6 @@ export default function CustomerSessionCoursesPage(): React.JSX.Element {
   const { setAlert } = useAlertPopUp();
 
   const [rows, setRows] = React.useState<UIRow[]>([]);
-  const [totalItems, setTotalItems] = React.useState(0);
   const [page, setPage] = React.useState(0);
   const rowsPerPage = 10;
 
@@ -197,11 +195,9 @@ export default function CustomerSessionCoursesPage(): React.JSX.Element {
       const mapped = items.map(mapRow).sort((a, b) => b.Session_Id - a.Session_Id);
 
       setRows(mapped);
-      setTotalItems(body.meta?.total_items ?? mapped.length);
     } catch (e) {
       setGlobalErr(e instanceof Error ? e.message : String(e));
       setRows([]);
-      setTotalItems(0);
     } finally {
       setLoading(false);
     }
@@ -211,7 +207,6 @@ export default function CustomerSessionCoursesPage(): React.JSX.Element {
     void fetchPage();
   }, [fetchPage]);
 
-  const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
 
   const goEdit = (r: UIRow) =>
     router.push(`/admin/courses-sessions/edit/${encodeURIComponent(String(r.Session_Id))}`);
@@ -368,15 +363,6 @@ export default function CustomerSessionCoursesPage(): React.JSX.Element {
           </Table>
         )}
 
-        <TablePagination
-          component="div"
-          count={totalItems}
-          page={page}
-          onPageChange={handleChangePage}
-          rowsPerPage={rowsPerPage}
-          onRowsPerPageChange={() => {}}
-          rowsPerPageOptions={[10]}
-        />
       </TableContainer>
 
       <ConfirmDialog

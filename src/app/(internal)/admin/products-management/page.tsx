@@ -13,7 +13,6 @@ import {
   TableRow,
   TableCell,
   TableContainer,
-  TablePagination,
   Chip,
   IconButton,
   Tooltip,
@@ -111,7 +110,6 @@ export default function ProductsManagementPage(): React.JSX.Element {
   const rowsPerPage = 10;
 
   const [allRows, setAllRows] = React.useState<UIRow[]>([]); // keep ALL here
-  const totalItems = allRows.length;
 
   const [loading, setLoading] = React.useState(false);
   const [globalErr, setGlobalErr] = React.useState("");
@@ -326,16 +324,6 @@ export default function ProductsManagementPage(): React.JSX.Element {
             </TableBody>
           </Table>
         )}
-
-        <TablePagination
-          component="div"
-          count={totalItems}
-          page={page}
-          onPageChange={(_, newPage) => setPage(newPage)}
-          rowsPerPage={rowsPerPage}
-          onRowsPerPageChange={() => {}}
-          rowsPerPageOptions={[10]}
-        />
       </TableContainer>
 
       <ConfirmDialog
