@@ -44,7 +44,9 @@ function roleTabs(role: Role): NavItem[] {
     ];
   }
   if (role === 'MANAGER') return [{ href: '/manager/dashboard', label: 'Dashboard', tab: true }];
-  if (role === 'TRAINER') return [{ href: '/trainer/calendar-management', label: 'Calendar Management', tab: true }];
+  if (role === 'TRAINER') return [{ href: '/trainer/working-hours', label: 'Working Hours', tab: true },
+    { href: '/trainer/day-off', label: 'Day Off', tab: true }, { href: '/trainer/my-calendar', label: 'My Calendar', tab: true }
+  ];
   if (role === 'CUSTOMER') {
     return [
       { href: '/', label: 'Home', tab: true },

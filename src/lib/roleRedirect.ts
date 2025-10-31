@@ -7,7 +7,7 @@ export function defaultPathForRole(role: UserRole) {
     case 'MANAGER':
       return '/manager/dashboard';
     case 'TRAINER':
-      return '/trainer/calendar-management';
+      return '/trainer/working-hours';
     case 'SALES':
       return '/sales/products';
     case 'CUSTOMER':
