@@ -3,7 +3,7 @@
 import * as React from "react";
 import {
   Box, Paper, Stack, Typography, Table, TableHead, TableBody, TableRow,
-  TableCell, TableContainer, TablePagination, IconButton, Tooltip, Chip, CircularProgress
+  TableCell, TableContainer, IconButton, Tooltip, Chip, CircularProgress
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -46,8 +46,6 @@ type ApiRow = {
   discountAmount: NullString; // { String:"100.00", Valid:true }
   status: Status;
 };
-
-type ApiResp = { data: ApiRow[]; message?: string };
 
 // ---------- UI model ----------
 type Row = {
@@ -100,7 +98,7 @@ export default function CustomerDurationPackagesPage(): React.JSX.Element {
 
   const [allRows, setAllRows] = React.useState<Row[]>([]);
   const [page, setPage] = React.useState(0);
-  const [rowsPerPage, setRowsPerPage] = React.useState(PAGE_SIZE);
+  const [rowsPerPage] = React.useState(PAGE_SIZE);
   const [loading, setLoading] = React.useState(false);
   const [confirm, setConfirm] = React.useState<{ open: boolean; target?: Row }>({ open: false });
 
@@ -165,16 +163,10 @@ export default function CustomerDurationPackagesPage(): React.JSX.Element {
 
   React.useEffect(() => { void fetchAll(); }, [fetchAll]);
 
-  const totalItems = allRows.length;
   const pagedRows = React.useMemo(() => {
     const start = page * rowsPerPage;
     return allRows.slice(start, start + rowsPerPage);
   }, [allRows, page, rowsPerPage]);
-
-  const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
-  const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(Number(e.target.value)); setPage(0);
-  };
 
   const goEdit = (r: Row) => router.push(`/admin/packages-duration/edit/${r.id}`);
   const onDeleteClick = (r: Row) => setConfirm({ open: true, target: r });
@@ -303,16 +295,6 @@ export default function CustomerDurationPackagesPage(): React.JSX.Element {
           </TableBody>
         </Table>
       </TableContainer>
-
-      <TablePagination
-        component="div"
-        count={totalItems}
-        page={page}
-        onPageChange={handleChangePage}
-        rowsPerPage={rowsPerPage}
-        onRowsPerPageChange={handleChangeRowsPerPage}
-        rowsPerPageOptions={[10]}
-      />
 
       <ConfirmDialog
         open={confirm.open}

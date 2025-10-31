@@ -14,7 +14,6 @@ import {
   TableContainer,
   Paper,
   TableSortLabel,
-  TablePagination,
   Chip,
   IconButton,
   Tooltip,
@@ -164,10 +163,9 @@ export default function StaffAccounts(): React.JSX.Element {
   const { setAlert } = useAlertPopUp();
 
   const [page, setPage] = React.useState(0);
-  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const [rowsPerPage] = React.useState(10);
 
   const [allRows, setAllRows] = React.useState<Staff[]>([]);
-  const totalItems = allRows.length;
 
   const [order, setOrder] = React.useState<Order>("asc");
   const [loading, setLoading] = React.useState(false);
@@ -228,12 +226,6 @@ export default function StaffAccounts(): React.JSX.Element {
     const end = start + rowsPerPage;
     return sortedAll.slice(start, end);
   }, [sortedAll, page, rowsPerPage]);
-
-  const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const next = Number(e.target.value);
-    setRowsPerPage(next);
-    setPage(0);
-  };
 
   const goEdit = (u: Staff) =>
     router.push(`/admin/user-management/edit/${encodeURIComponent(u.username)}`);
@@ -405,16 +397,6 @@ export default function StaffAccounts(): React.JSX.Element {
             )}
           </TableBody>
         </Table>
-
-        <TablePagination
-          component="div"
-          count={totalItems}
-          page={page}
-          onPageChange={(_, newPage) => setPage(newPage)}
-          rowsPerPage={rowsPerPage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          rowsPerPageOptions={[10]}
-        />
       </TableContainer>
 
       <ConfirmDialog

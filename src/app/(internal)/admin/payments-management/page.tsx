@@ -12,7 +12,6 @@ import {
   TableRow,
   TableCell,
   TableContainer,
-  TablePagination,
   IconButton,
   Tooltip,
   Chip,
@@ -98,7 +97,7 @@ export default function PaymentsManagementPage(): React.JSX.Element {
 
   const [allRows, setAllRows] = React.useState<PaymentAccount[]>([]);
   const [page, setPage] = React.useState(0);
-  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const [rowsPerPage] = React.useState(100);
   const [loading, setLoading] = React.useState(false);
   const [globalErr, setGlobalErr] = React.useState("");
   const [confirmOpen, setConfirmOpen] = React.useState(false);
@@ -151,18 +150,11 @@ export default function PaymentsManagementPage(): React.JSX.Element {
     void fetchAll();
   }, [fetchAll]);
 
-  const totalItems = allRows.length;
   const pagedRows = React.useMemo(() => {
     const start = page * rowsPerPage;
     return allRows.slice(start, start + rowsPerPage);
   }, [allRows, page, rowsPerPage]);
 
-  const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
-  const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const next = Number(e.target.value);
-    setRowsPerPage(next);
-    setPage(0);
-  };
 
   const goAdd = () => router.push("/admin/payments-management/add");
   const goEdit = (row: PaymentAccount) =>
@@ -323,16 +315,6 @@ export default function PaymentsManagementPage(): React.JSX.Element {
           </Table>
         )}
       </TableContainer>
-
-      <TablePagination
-        component="div"
-        count={totalItems}
-        page={page}
-        onPageChange={handleChangePage}
-        rowsPerPage={rowsPerPage}
-        onRowsPerPageChange={handleChangeRowsPerPage}
-        rowsPerPageOptions={[10, 20, 50]}
-      />
 
       <ConfirmDialog
         open={confirmOpen}

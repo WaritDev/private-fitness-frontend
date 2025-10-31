@@ -12,7 +12,6 @@ import {
   TableRow,
   TableCell,
   TableContainer,
-  TablePagination,
   IconButton,
   Tooltip,
   Chip,
@@ -161,14 +160,11 @@ export default function CustomerLogPage(): React.JSX.Element {
     void fetchAll();
   }, [fetchAll]);
 
-  const totalItems = allRows.length;
   const pagedRows = React.useMemo(() => {
     const start = page * rowsPerPage;
     const end = start + rowsPerPage;
     return allRows.slice(start, end);
   }, [allRows, page, rowsPerPage]);
-
-  const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
 
   const goEdit = (r: UIRow) =>
     router.push(`/admin/customer-log/edit/${encodeURIComponent(String(r.logId))}`);
@@ -307,16 +303,6 @@ export default function CustomerLogPage(): React.JSX.Element {
             </TableBody>
           </Table>
         )}
-
-        <TablePagination
-          component="div"
-          count={totalItems}
-          page={page}
-          onPageChange={handleChangePage}
-          rowsPerPage={rowsPerPage}
-          onRowsPerPageChange={() => {}}
-          rowsPerPageOptions={[10]}
-        />
       </TableContainer>
 
       <ConfirmDialog

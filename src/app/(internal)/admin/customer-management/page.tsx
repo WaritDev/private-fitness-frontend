@@ -13,7 +13,6 @@ import {
   TableContainer,
   Paper,
   TableSortLabel,
-  TablePagination,
   Chip,
   IconButton,
   Tooltip,
@@ -151,13 +150,11 @@ export default function CustomersListPage(): React.JSX.Element {
   const [allRows, setAllRows] = React.useState<Customer[]>([]);
   const [order, setOrder] = React.useState<Order>("asc");
   const [page, setPage] = React.useState(0);
-  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const [rowsPerPage] = React.useState(10);
   const [loading, setLoading] = React.useState(false);
 
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [targetUser, setTargetUser] = React.useState<Customer | null>(null);
-
-  const totalItems = allRows.length;
 
   const fetchAll = React.useCallback(async () => {
     setLoading(true);
@@ -204,13 +201,6 @@ export default function CustomersListPage(): React.JSX.Element {
     const end = start + rowsPerPage;
     return sorted.slice(start, end);
   }, [sorted, page, rowsPerPage]);
-
-  const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
-
-  const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(parseInt(e.target.value, 10));
-    setPage(0);
-  };
 
   const goEdit = (u: Customer) =>
     router.push(`/admin/customer-management/edit/${encodeURIComponent(u.username)}`);
@@ -366,15 +356,6 @@ export default function CustomersListPage(): React.JSX.Element {
       </TableContainer>
 
       <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
-        <TablePagination
-          component="div"
-          count={totalItems}
-          page={page}
-          onPageChange={handleChangePage}
-          rowsPerPage={rowsPerPage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          rowsPerPageOptions={[10, 20, 50]}
-        />
       </Box>
 
       <ConfirmDialog
