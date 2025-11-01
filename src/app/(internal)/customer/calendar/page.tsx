@@ -99,7 +99,7 @@ export default function CalendarPage() {
     if (!user?.sub || !selectedTrainer) {
       setAlert({
         open: true,
-        msg: 'กรุณาเข้าสู่ระบบและเลือกเทรนเนอร์',
+        msg: 'Please login and select a trainer',
         severity: 'error'
       });
       return;
@@ -112,7 +112,7 @@ export default function CalendarPage() {
     if (slotStartTime <= now) {
       setAlert({
         open: true,
-        msg: '❌ ไม่สามารถจองช่วงเวลาที่ผ่านไปแล้ว',
+        msg: '❌ Cannot book a time slot that has already passed',
         severity: 'error'
       });
       return;
@@ -144,7 +144,7 @@ export default function CalendarPage() {
       if (data.status === 'success' && data.result?.success) {
         setAlert({
           open: true,
-          msg: `✅ จองนัดสำเร็จ! คงเหลือ ${data.result.remainingSessions} ครั้ง`,
+          msg: `✅ Booking created successfully, has ${data.result.remainingSessions} sessions remaining`,
           severity: 'success'
         });
         
@@ -157,12 +157,12 @@ export default function CalendarPage() {
         // Refresh slots
         if (selectedTrainer) fetchSlots(selectedDate, selectedTrainer);
       } else {
-        throw new Error(data.message || 'ไม่สามารถจองนัดได้');
+        throw new Error(data.message || 'Unable to book appointment');
       }
     } catch (e: any) {
       setAlert({
         open: true,
-        msg: `❌ จองนัดไม่สำเร็จ: ${e.message || 'เกิดข้อผิดพลาด'}`,
+        msg: `❌ Booking failed: ${e.message || 'An error occurred'}`,
         severity: 'error'
       });
     } finally {
@@ -182,7 +182,7 @@ export default function CalendarPage() {
     if (!user?.sub || !slotToCancel?.scheduleId) {
       setAlert({
         open: true,
-        msg: 'ไม่สามารถยกเลิกนัดได้',
+        msg: 'Unable to cancel appointment',
         severity: 'error'
       });
       return;
@@ -219,12 +219,12 @@ export default function CalendarPage() {
         // Refresh slots
         if (selectedTrainer) fetchSlots(selectedDate, selectedTrainer);
       } else {
-        throw new Error(data.message || 'ไม่สามารถยกเลิกนัดได้');
+        throw new Error(data.message || 'Unable to cancel appointment');
       }
     } catch (e: any) {
       setAlert({
         open: true,
-        msg: `❌ ยกเลิกนัดไม่สำเร็จ: ${e.message || 'เกิดข้อผิดพลาด'}`,
+        msg: `❌ Cancellation failed: ${e.message || 'An error occurred'}`,
         severity: 'error'
       });
     } finally {
@@ -244,7 +244,7 @@ export default function CalendarPage() {
     return (
       <Container maxWidth="sm" sx={{ px: 2, py: 8, textAlign: 'center' }}>
         <CircularProgress />
-        <Typography sx={{ mt: 2 }}>กำลังตรวจสอบสิทธิ์การเข้าถึง...</Typography>
+        <Typography sx={{ mt: 2 }}>Checking access permission...</Typography>
       </Container>
     );
   }
@@ -274,11 +274,11 @@ export default function CalendarPage() {
       {/* Confirm Cancellation Dialog */}
       <ConfirmPopUpUI
         open={confirmOpen}
-        title="ยืนยันการยกเลิกนัด"
+        title="Confirm Cancellation"
         message={
           slotToCancel ? (
             <Typography>
-              Confirm cancellation for{' '}
+              Do you want to cancel the appointment for{' '}
               <strong>
                 {formatTime(slotToCancel.start)} – {formatTime(slotToCancel.end)}
               </strong>

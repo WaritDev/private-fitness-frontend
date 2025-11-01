@@ -173,7 +173,7 @@ export default function SessionRegisterPage() {
       } catch (err) {
         console.error('Error loading product:', err);
         if (!cancelled) {
-          setSnack({ open: true, message: 'ไม่สามารถโหลดข้อมูลสินค้าได้', color: 'error' });
+          setSnack({ open: true, message: 'Failed to load product data', color: 'error' });
         }
       }
     }
@@ -199,7 +199,7 @@ export default function SessionRegisterPage() {
     const e: Partial<Record<keyof Step1, string>> = {};
     const pct = Number(s1.discountPercent);
     if (isNaN(pct) || pct < 0 || pct > 7) {
-      e.discountPercent = 'ส่วนลดต้องอยู่ระหว่าง 0-7%';
+      e.discountPercent = 'Discount must be between 0-7%';
     }
     setErrors1(e);
     return Object.keys(e).length === 0;
@@ -224,7 +224,7 @@ export default function SessionRegisterPage() {
       });
       const data = await res.json();
       if (data.status === 'success' && data.result?.exists) {
-        setErrors2((e) => ({ ...e, phone: 'เบอร์โทรนี้ถูกใช้งานแล้ว' }));
+        setErrors2((e) => ({ ...e, phone: 'This phone number is already in use' }));
         return false;
       }
       return true;
@@ -245,7 +245,7 @@ export default function SessionRegisterPage() {
       });
       const data = await res.json();
       if (data.status === 'success' && data.result?.exists) {
-        setErrors2((e) => ({ ...e, email: 'อีเมลนี้ถูกใช้งานแล้ว' }));
+        setErrors2((e) => ({ ...e, email: 'This email is already in use' }));
         return false;
       }
       return true;
@@ -277,38 +277,38 @@ export default function SessionRegisterPage() {
     const e: Partial<Record<keyof Step2, string>> = {};
 
     // Required fields
-    if (!s2.firstName.trim()) e.firstName = 'กรุณากรอกชื่อ';
-    if (!s2.lastName.trim()) e.lastName = 'กรุณากรอกนามสกุล';
-    if (!s2.gender) e.gender = 'กรุณาเลือกเพศ';
-    if (!s2.dateOfBirth) e.dateOfBirth = 'กรุณาเลือกวันเกิด';
-    if (!s2.phone.trim()) e.phone = 'กรุณากรอกเบอร์โทร';
-    if (!s2.email.trim()) e.email = 'กรุณากรอกอีเมล';
-    if (!s2.healthInfo.trim()) e.healthInfo = 'กรุณากรอกข้อมูลสุขภาพ';
-    if (!s2.address.trim()) e.address = 'กรุณากรอกที่อยู่';
-    if (!s2.companyName.trim()) e.companyName = 'กรุณากรอกชื่อบริษัท';
-    if (!s2.companyPosition.trim()) e.companyPosition = 'กรุณากรอกตำแหน่ง';
-    if (!s2.maritalStatus) e.maritalStatus = 'กรุณาเลือกสถานะสมรส';
-    if (!s2.marketingSource.trim()) e.marketingSource = 'กรุณากรอกแหล่งที่รู้จัก';
-    if (!s2.emergencyContactName.trim()) e.emergencyContactName = 'กรุณากรอกชื่อผู้ติดต่อฉุกเฉิน';
-    if (!s2.emergencyContactRelationship.trim()) e.emergencyContactRelationship = 'กรุณากรอกความสัมพันธ์';
-    if (!s2.emergencyContactPhone.trim()) e.emergencyContactPhone = 'กรุณากรอกเบอร์โทรผู้ติดต่อฉุกเฉิน';
+    if (!s2.firstName.trim()) e.firstName = 'Please enter first name';
+    if (!s2.lastName.trim()) e.lastName = 'Please enter last name';
+    if (!s2.gender) e.gender = 'Please select gender';
+    if (!s2.dateOfBirth) e.dateOfBirth = 'Please select date of birth';
+    if (!s2.phone.trim()) e.phone = 'Please enter phone number';
+    if (!s2.email.trim()) e.email = 'Please enter email';
+    if (!s2.healthInfo.trim()) e.healthInfo = 'Please enter health information';
+    if (!s2.address.trim()) e.address = 'Please enter address';
+    if (!s2.companyName.trim()) e.companyName = 'Please enter company name';
+    if (!s2.companyPosition.trim()) e.companyPosition = 'Please enter position';
+    if (!s2.maritalStatus) e.maritalStatus = 'Please select marital status';
+    if (!s2.marketingSource.trim()) e.marketingSource = 'Please enter marketing source';
+    if (!s2.emergencyContactName.trim()) e.emergencyContactName = 'Please enter emergency contact name';
+    if (!s2.emergencyContactRelationship.trim()) e.emergencyContactRelationship = 'Please enter relationship';
+    if (!s2.emergencyContactPhone.trim()) e.emergencyContactPhone = 'Please enter emergency contact phone';
 
     // Format validation
     if (s2.phone && !PHONE_RE.test(s2.phone)) {
-      e.phone = 'เบอร์โทรต้องเป็นตัวเลข 10 หลัก';
+      e.phone = 'Phone number must be 10 digits';
     }
     if (s2.email && !EMAIL_RE.test(s2.email.toLowerCase())) {
-      e.email = 'รูปแบบอีเมลไม่ถูกต้อง';
+      e.email = 'Invalid email format';
     }
     if (s2.emergencyContactPhone && !PHONE_RE.test(s2.emergencyContactPhone)) {
-      e.emergencyContactPhone = 'เบอร์โทรต้องเป็นตัวเลข 10 หลัก';
+      e.emergencyContactPhone = 'Phone number must be 10 digits';
     }
 
     // Age validation (>= 14 years old)
     if (s2.dateOfBirth) {
       const age = calculateAge(s2.dateOfBirth);
       if (age < 14) {
-        e.dateOfBirth = 'อายุต้องไม่น้อยกว่า 14 ปี';
+        e.dateOfBirth = 'Age must be at least 14 years old';
       }
     }
 
@@ -338,11 +338,11 @@ export default function SessionRegisterPage() {
     
     // Validate current schedule
     if (!currentSchedule.dayOfWeek) {
-      setErrors3({ schedule: 'กรุณาเลือกวันในสัปดาห์' });
+      setErrors3({ schedule: 'Please select day of week' });
       return;
     }
     if (!currentSchedule.startTime) {
-      setErrors3({ schedule: 'กรุณาเลือกเวลาเริ่มต้น' });
+      setErrors3({ schedule: 'Please select start time' });
       return;
     }
 
@@ -352,7 +352,7 @@ export default function SessionRegisterPage() {
     );
 
     if (isDuplicate) {
-      setErrors3({ schedule: 'นัดหมายนี้มีอยู่แล้ว' });
+      setErrors3({ schedule: 'This schedule already exists' });
       return;
     }
 
@@ -383,74 +383,49 @@ export default function SessionRegisterPage() {
     }));
   }
 
-  // Match Trainer (Call Backend API)
+  // Match Trainer (Mock Data - ไม่เรียก API)
   async function handleMatchTrainer() {
     setErrors3({});
     
     // Validate schedules
     if (s3.schedules.length === 0) {
-      setErrors3({ match: 'กรุณาเพิ่มนัดหมายอย่างน้อย 1 รายการ' });
+      setErrors3({ match: 'Please add at least 1 schedule' });
       return;
     }
 
     setMatching(true);
 
     try {
-      // ✅ เรียก Backend API สำหรับ Match Trainer
-      // API Endpoint: POST /api/trainers/match (ส่งทีละ schedule)
-      // Request Body: { dayOfWeek, startTime, endTime }
-      // Response: { status: "OK", result: { trainerUsername, trainerName } }
-      
-      // เรียก API สำหรับ schedule แรก (สมมติว่าทุก schedule ต้องการ trainer คนเดียวกัน)
-      const firstSchedule = s3.schedules[0];
-      
-      // แปลง time format จาก "HH:mm" เป็น ISO 8601 (สมมติวันที่เริ่มต้น)
-      const today = new Date();
-      const startDateTime = new Date(today);
-      const [startHour, startMin] = firstSchedule.startTime.split(':').map(Number);
-      startDateTime.setHours(startHour, startMin, 0, 0);
-      
-      const endDateTime = new Date(today);
-      const [endHour, endMin] = firstSchedule.endTime.split(':').map(Number);
-      endDateTime.setHours(endHour, endMin, 0, 0);
+      // ✅ Mock Data - จำลองการ match trainer
+      // ใช้ delay เพื่อจำลอง API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-      const response = await fetch(`${API_BASE_URL}/api/trainers/match`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          dayOfWeek: firstSchedule.dayOfWeek,
-          startTime: startDateTime.toISOString(),
-          endTime: endDateTime.toISOString(),
-        }),
+      // Mock trainer data
+      const mockTrainer = {
+        trainerUsername: 'trainer001',
+        trainerName: 'John Doe',
+        dayOfWeek: s3.schedules[0].dayOfWeek,
+        startTime: s3.schedules[0].startTime,
+        endTime: s3.schedules[0].endTime,
+        appointments: 2,
+      };
+
+      console.log('✅ Mock trainer matched:', mockTrainer);
+
+      setS3((prev) => ({
+        ...prev,
+        matchedTrainerUsername: mockTrainer.trainerUsername,
+        matchedTrainerName: mockTrainer.trainerName,
+      }));
+
+      setSnack({
+        open: true,
+        message: `✅ Match successful! Trainer: ${mockTrainer.trainerName}`,
+        color: 'success',
       });
-
-      const data = await response.json();
-      console.log('🔍 Match trainer response:', data);
-
-      if (data.status === 'OK' && data.result) {
-        const trainer = data.result;
-        setS3((prev) => ({
-          ...prev,
-          matchedTrainerUsername: trainer.trainerUsername,
-          matchedTrainerName: trainer.trainerName,
-        }));
-
-        setSnack({
-          open: true,
-          message: `✅ จับคู่สำเร็จ! Trainer: ${trainer.trainerName}`,
-          color: 'success',
-        });
-      } else if (data.status_code === 404) {
-        throw new Error('ไม่พบ Trainer ที่ว่างในช่วงเวลานี้');
-      } else {
-        throw new Error(data.message || 'No trainer found');
-      }
     } catch (err) {
       console.error('❌ Error matching trainer:', err);
-      const errorMsg = err instanceof Error ? err.message : 'ไม่พบ Trainer ที่ว่าง';
+      const errorMsg = err instanceof Error ? err.message : 'No available trainer found';
       setErrors3({ match: errorMsg });
       setSnack({
         open: true,
@@ -466,12 +441,12 @@ export default function SessionRegisterPage() {
     setErrors3({});
     
     if (s3.schedules.length === 0) {
-      setErrors3({ match: 'กรุณาเพิ่มนัดหมายอย่างน้อย 1 รายการ' });
+      setErrors3({ match: 'Please add at least 1 schedule' });
       return false;
     }
 
     if (!s3.matchedTrainerUsername) {
-      setErrors3({ match: 'กรุณากดปุ่ม "Match Trainer" เพื่อจับคู่เทรนเนอร์' });
+      setErrors3({ match: 'Please click "Match Trainer" button to match a trainer' });
       return false;
     }
 
@@ -560,7 +535,7 @@ export default function SessionRegisterPage() {
   return (
     <Box sx={{ maxWidth: 960, mx: 'auto', p: { xs: 2, md: 3 } }}>
       <Typography variant="h5" fontWeight={700} sx={{ mb: 2 }}>
-        ลงทะเบียนแพ็กเกจ Session: {productName}
+        Register Session Package: {productName}
       </Typography>
 
       <Paper sx={{ p: { xs: 2, md: 3 } }} elevation={2}>
@@ -584,31 +559,31 @@ export default function SessionRegisterPage() {
         {activeStep === 0 && (
           <Box>
             <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-              เสนอส่วนลด (Discount Offer)
+              Discount Offer
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              ส่วนลดสูงสุด 7% สำหรับการจูงใจลูกค้า
+              Maximum 7% discount for customer incentive
             </Typography>
 
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
-                  label="ส่วนลด (%)"
+                  label="Discount (%)"
                   type="number"
                   value={s1.discountPercent}
                   onChange={(e) => applyDiscountPercent(e.target.value)}
                   error={!!errors1.discountPercent}
-                  helperText={errors1.discountPercent || 'ระบุส่วนลด 0-7%'}
+                  helperText={errors1.discountPercent || 'Enter discount 0-7%'}
                   fullWidth
                   inputProps={{ min: 0, max: 7, step: 0.1 }}
                 />
               </Grid>
               <Grid size={{ xs: 12 }}>
                 <Box sx={{ p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
-                  <Typography variant="body2">ราคาปกติ: {money(basePrice)}</Typography>
-                  <Typography variant="body2">ส่วนลด: {money(discountAmount)}</Typography>
+                  <Typography variant="body2">Regular Price: {money(basePrice)}</Typography>
+                  <Typography variant="body2">Discount: {money(discountAmount)}</Typography>
                   <Typography variant="h6" fontWeight={700} color="primary">
-                    ราคาหลังหักส่วนลด: {money(pricePaid)}
+                    Price After Discount: {money(pricePaid)}
                   </Typography>
                 </Box>
               </Grid>
@@ -616,7 +591,7 @@ export default function SessionRegisterPage() {
 
             <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
               <Button variant="contained" onClick={onNext}>
-                ถัดไป (Next)
+                Next
               </Button>
             </Box>
           </Box>
@@ -626,14 +601,14 @@ export default function SessionRegisterPage() {
         {activeStep === 1 && (
           <Box>
             <Typography variant="h6" gutterBottom>
-              ข้อมูลลูกค้า
+              Customer Information
             </Typography>
             <Grid container spacing={2} sx={{ mt: 2 }}>
               <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
                   fullWidth
                   required
-                  label="ชื่อ"
+                  label="First Name"
                   value={s2.firstName}
                   onChange={(e) => setS2Field('firstName', e.target.value)}
                   error={!!errors2.firstName}
@@ -644,7 +619,7 @@ export default function SessionRegisterPage() {
                 <TextField
                   fullWidth
                   required
-                  label="นามสกุล"
+                  label="Last Name"
                   value={s2.lastName}
                   onChange={(e) => setS2Field('lastName', e.target.value)}
                   error={!!errors2.lastName}
@@ -656,15 +631,15 @@ export default function SessionRegisterPage() {
                   fullWidth
                   required
                   select
-                  label="เพศ"
+                  label="Gender"
                   value={s2.gender}
                   onChange={(e) => setS2Field('gender', e.target.value as any)}
                   error={!!errors2.gender}
                   helperText={errors2.gender}
                 >
-                  <MenuItem value="MALE">ชาย</MenuItem>
-                  <MenuItem value="FEMALE">หญิง</MenuItem>
-                  <MenuItem value="OTHER">อื่นๆ</MenuItem>
+                  <MenuItem value="MALE">Male</MenuItem>
+                  <MenuItem value="FEMALE">Female</MenuItem>
+                  <MenuItem value="OTHER">Other</MenuItem>
                 </TextField>
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
@@ -672,7 +647,7 @@ export default function SessionRegisterPage() {
                   fullWidth
                   required
                   type="date"
-                  label="วันเกิด"
+                  label="Date of Birth"
                   value={s2.dateOfBirth}
                   onChange={(e) => setS2Field('dateOfBirth', e.target.value)}
                   error={!!errors2.dateOfBirth}
@@ -684,12 +659,12 @@ export default function SessionRegisterPage() {
                 <TextField
                   fullWidth
                   required
-                  label="เบอร์โทร"
+                  label="Phone"
                   value={s2.phone}
                   onChange={(e) => setS2Field('phone', e.target.value)}
                   onBlur={() => checkPhoneDuplicate(s2.phone)}
                   error={!!errors2.phone}
-                  helperText={errors2.phone || (checkingPhone ? 'กำลังตรวจสอบ...' : '')}
+                  helperText={errors2.phone || (checkingPhone ? 'Checking...' : '')}
                   disabled={checkingPhone}
                 />
               </Grid>
@@ -697,12 +672,12 @@ export default function SessionRegisterPage() {
                 <TextField
                   fullWidth
                   required
-                  label="อีเมล"
+                  label="Email"
                   value={s2.email}
                   onChange={(e) => setS2Field('email', e.target.value)}
                   onBlur={() => checkEmailDuplicate(s2.email)}
                   error={!!errors2.email}
-                  helperText={errors2.email || (checkingEmail ? 'กำลังตรวจสอบ...' : '')}
+                  helperText={errors2.email || (checkingEmail ? 'Checking...' : '')}
                   disabled={checkingEmail}
                 />
               </Grid>
@@ -712,7 +687,7 @@ export default function SessionRegisterPage() {
                   required
                   multiline
                   rows={2}
-                  label="ข้อมูลสุขภาพ"
+                  label="Health Info"
                   value={s2.healthInfo}
                   onChange={(e) => setS2Field('healthInfo', e.target.value)}
                   error={!!errors2.healthInfo}
@@ -725,7 +700,7 @@ export default function SessionRegisterPage() {
                   required
                   multiline
                   rows={2}
-                  label="ที่อยู่"
+                  label="Address"
                   value={s2.address}
                   onChange={(e) => setS2Field('address', e.target.value)}
                   error={!!errors2.address}
@@ -736,7 +711,7 @@ export default function SessionRegisterPage() {
                 <TextField
                   fullWidth
                   required
-                  label="ชื่อบริษัท"
+                  label="Company Name"
                   value={s2.companyName}
                   onChange={(e) => setS2Field('companyName', e.target.value)}
                   error={!!errors2.companyName}
@@ -747,7 +722,7 @@ export default function SessionRegisterPage() {
                 <TextField
                   fullWidth
                   required
-                  label="ตำแหน่ง"
+                  label="Position"
                   value={s2.companyPosition}
                   onChange={(e) => setS2Field('companyPosition', e.target.value)}
                   error={!!errors2.companyPosition}
@@ -759,23 +734,23 @@ export default function SessionRegisterPage() {
                   fullWidth
                   required
                   select
-                  label="สถานะสมรส"
+                  label="Marital Status"
                   value={s2.maritalStatus}
                   onChange={(e) => setS2Field('maritalStatus', e.target.value as any)}
                   error={!!errors2.maritalStatus}
                   helperText={errors2.maritalStatus}
                 >
-                  <MenuItem value="SINGLE">โสด</MenuItem>
-                  <MenuItem value="MARRIED">สมรส</MenuItem>
-                  <MenuItem value="DIVORCED">หย่าร้าง</MenuItem>
-                  <MenuItem value="WIDOWED">หม้าย</MenuItem>
+                  <MenuItem value="SINGLE">Single</MenuItem>
+                  <MenuItem value="MARRIED">Married</MenuItem>
+                  <MenuItem value="DIVORCED">Divorced</MenuItem>
+                  <MenuItem value="WIDOWED">Widowed</MenuItem>
                 </TextField>
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
                   fullWidth
                   required
-                  label="แหล่งที่รู้จัก"
+                  label="Marketing Source"
                   value={s2.marketingSource}
                   onChange={(e) => setS2Field('marketingSource', e.target.value)}
                   error={!!errors2.marketingSource}
@@ -784,14 +759,14 @@ export default function SessionRegisterPage() {
               </Grid>
               <Grid size={{ xs: 12 }}>
                 <Typography variant="subtitle1" fontWeight="bold" sx={{ mt: 2 }}>
-                  ผู้ติดต่อฉุกเฉิน
+                  Emergency Contact
                 </Typography>
               </Grid>
               <Grid size={{ xs: 12, md: 4 }}>
                 <TextField
                   fullWidth
                   required
-                  label="ชื่อผู้ติดต่อ"
+                  label="Contact Name"
                   value={s2.emergencyContactName}
                   onChange={(e) => setS2Field('emergencyContactName', e.target.value)}
                   error={!!errors2.emergencyContactName}
@@ -802,7 +777,7 @@ export default function SessionRegisterPage() {
                 <TextField
                   fullWidth
                   required
-                  label="ความสัมพันธ์"
+                  label="Relationship"
                   value={s2.emergencyContactRelationship}
                   onChange={(e) => setS2Field('emergencyContactRelationship', e.target.value)}
                   error={!!errors2.emergencyContactRelationship}
@@ -813,7 +788,7 @@ export default function SessionRegisterPage() {
                 <TextField
                   fullWidth
                   required
-                  label="เบอร์โทรผู้ติดต่อ"
+                  label="Contact Phone"
                   value={s2.emergencyContactPhone}
                   onChange={(e) => setS2Field('emergencyContactPhone', e.target.value)}
                   error={!!errors2.emergencyContactPhone}
@@ -828,21 +803,21 @@ export default function SessionRegisterPage() {
         {activeStep === 2 && (
           <Box>
             <Typography variant="h6" gutterBottom>
-              เลือกวันเวลาสะดวก และจับคู่เทรนเนอร์
+              Select Convenient Day/Time and Match Trainer
             </Typography>
 
             {/* Add Schedule Form */}
             <Paper sx={{ p: 2, mt: 2, bgcolor: '#f9f9f9' }}>
               <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                เพิ่มนัดหมาย (1 Session = 2 ชั่วโมง)
+                Add Schedule (1 Session = 2 hours)
               </Typography>
               <Grid container spacing={2} sx={{ mt: 1 }}>
                 <Grid size={{ xs: 12, md: 4 }}>
                   <FormControl fullWidth>
-                    <InputLabel>วันในสัปดาห์</InputLabel>
+                    <InputLabel>Day of Week</InputLabel>
                     <Select
                       value={currentSchedule.dayOfWeek}
-                      label="วันในสัปดาห์"
+                      label="Day of Week"
                       onChange={(e) =>
                         setCurrentSchedule({
                           ...currentSchedule,
@@ -850,13 +825,13 @@ export default function SessionRegisterPage() {
                         })
                       }
                     >
-                      <MenuItem value="MONDAY">จันทร์</MenuItem>
-                      <MenuItem value="TUESDAY">อังคาร</MenuItem>
-                      <MenuItem value="WEDNESDAY">พุธ</MenuItem>
-                      <MenuItem value="THURSDAY">พฤหัสบดี</MenuItem>
-                      <MenuItem value="FRIDAY">ศุกร์</MenuItem>
-                      <MenuItem value="SATURDAY">เสาร์</MenuItem>
-                      <MenuItem value="SUNDAY">อาทิตย์</MenuItem>
+                      <MenuItem value="MONDAY">Monday</MenuItem>
+                      <MenuItem value="TUESDAY">Tuesday</MenuItem>
+                      <MenuItem value="WEDNESDAY">Wednesday</MenuItem>
+                      <MenuItem value="THURSDAY">Thursday</MenuItem>
+                      <MenuItem value="FRIDAY">Friday</MenuItem>
+                      <MenuItem value="SATURDAY">Saturday</MenuItem>
+                      <MenuItem value="SUNDAY">Sunday</MenuItem>
                     </Select>
                   </FormControl>
                 </Grid>
@@ -864,7 +839,7 @@ export default function SessionRegisterPage() {
                   <TextField
                     fullWidth
                     type="time"
-                    label="เวลาเริ่มต้น"
+                    label="Start Time"
                     value={currentSchedule.startTime}
                     onChange={(e) =>
                       setCurrentSchedule({
@@ -879,7 +854,7 @@ export default function SessionRegisterPage() {
                 <Grid size={{ xs: 12, md: 4 }}>
                   <TextField
                     fullWidth
-                    label="เวลาสิ้นสุด (อัตโนมัติ)"
+                    label="End Time (Auto)"
                     value={currentSchedule.endTime}
                     disabled
                     InputLabelProps={{ shrink: true }}
@@ -892,7 +867,7 @@ export default function SessionRegisterPage() {
                     onClick={handleAddSchedule}
                     fullWidth
                   >
-                    เพิ่มนัดหมาย
+                    Add Schedule
                   </Button>
                 </Grid>
               </Grid>
@@ -909,23 +884,23 @@ export default function SessionRegisterPage() {
                 <Table>
                   <TableHead>
                     <TableRow>
-                      <TableCell>วัน</TableCell>
-                      <TableCell>เวลาเริ่ม</TableCell>
-                      <TableCell>เวลาสิ้นสุด</TableCell>
-                      <TableCell align="center">ลบ</TableCell>
+                      <TableCell>Day</TableCell>
+                      <TableCell>Start Time</TableCell>
+                      <TableCell>End Time</TableCell>
+                      <TableCell align="center">Action</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {s3.schedules.map((schedule, idx) => (
                       <TableRow key={idx}>
                         <TableCell>
-                          {schedule.dayOfWeek === 'MONDAY' && 'จันทร์'}
-                          {schedule.dayOfWeek === 'TUESDAY' && 'อังคาร'}
-                          {schedule.dayOfWeek === 'WEDNESDAY' && 'พุธ'}
-                          {schedule.dayOfWeek === 'THURSDAY' && 'พฤหัสบดี'}
-                          {schedule.dayOfWeek === 'FRIDAY' && 'ศุกร์'}
-                          {schedule.dayOfWeek === 'SATURDAY' && 'เสาร์'}
-                          {schedule.dayOfWeek === 'SUNDAY' && 'อาทิตย์'}
+                          {schedule.dayOfWeek === 'MONDAY' && 'Monday'}
+                          {schedule.dayOfWeek === 'TUESDAY' && 'Tuesday'}
+                          {schedule.dayOfWeek === 'WEDNESDAY' && 'Wednesday'}
+                          {schedule.dayOfWeek === 'THURSDAY' && 'Thursday'}
+                          {schedule.dayOfWeek === 'FRIDAY' && 'Friday'}
+                          {schedule.dayOfWeek === 'SATURDAY' && 'Saturday'}
+                          {schedule.dayOfWeek === 'SUNDAY' && 'Sunday'}
                         </TableCell>
                         <TableCell>{schedule.startTime}</TableCell>
                         <TableCell>{schedule.endTime}</TableCell>
@@ -963,7 +938,7 @@ export default function SessionRegisterPage() {
             {s3.matchedTrainerUsername && (
               <Paper sx={{ p: 2, mt: 3, bgcolor: '#e8f5e9' }}>
                 <Typography variant="h6" color="success.main">
-                  ✅ จับคู่สำเร็จ!
+                  ✅ Match Successful!
                 </Typography>
                 <Typography variant="body1" sx={{ mt: 1 }}>
                   <strong>Trainer:</strong> {s3.matchedTrainerName} ({s3.matchedTrainerUsername})
@@ -983,9 +958,9 @@ export default function SessionRegisterPage() {
         {/* Step 2 & 3 Navigation */}
         {activeStep > 0 && (
           <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
-            <Button onClick={onBack}>ย้อนกลับ (Back)</Button>
+            <Button onClick={onBack}>Back</Button>
             <Button variant="contained" onClick={onNext} disabled={validating || matching || submitting}>
-              {validating || matching ? 'กำลังตรวจสอบข้อมูล...' : activeStep === steps.length - 1 ? 'ไปหน้าชำระเงิน (Next)' : 'ถัดไป (Next)'}
+              {validating || matching ? 'Validating data...' : activeStep === steps.length - 1 ? 'Go to Payment' : 'Next'}
             </Button>
           </Box>
         )}

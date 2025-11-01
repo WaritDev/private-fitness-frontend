@@ -145,7 +145,7 @@ export default function DurationRegisterPage() {
       } catch (err) {
         console.error('Error loading product:', err);
         if (!cancelled) {
-          setSnack({ open: true, message: 'ไม่สามารถโหลดข้อมูลสินค้าได้', color: 'error' });
+          setSnack({ open: true, message: 'Failed to load product data', color: 'error' });
         }
       }
     }
@@ -173,7 +173,7 @@ export default function DurationRegisterPage() {
     const e: Partial<Record<keyof Step1, string>> = {};
     const pct = Number(s1.discountPercent);
     if (isNaN(pct) || pct < 0 || pct > 7) {
-      e.discountPercent = 'ส่วนลดต้องอยู่ระหว่าง 0-7%';
+      e.discountPercent = 'Discount must be between 0-7%';
     }
     setErrors1(e);
     return Object.keys(e).length === 0;
@@ -206,7 +206,7 @@ export default function DurationRegisterPage() {
       console.log('Phone check response:', data);
       
       if (data.status === 'success' && data.result?.exists) {
-        setErrors2((e) => ({ ...e, phone: 'เบอร์โทรนี้ถูกใช้งานแล้ว' }));
+        setErrors2((e) => ({ ...e, phone: 'This phone number is already in use' }));
         return false; // พบข้อมูลซ้ำ
       }
       return true; // ไม่ซ้ำ
@@ -231,7 +231,7 @@ export default function DurationRegisterPage() {
       console.log('Email check response:', data);
       
       if (data.status === 'success' && data.result?.exists) {
-        setErrors2((e) => ({ ...e, email: 'อีเมลนี้ถูกใช้งานแล้ว' }));
+        setErrors2((e) => ({ ...e, email: 'This email is already in use' }));
         return false; // พบข้อมูลซ้ำ
       }
       return true; // ไม่ซ้ำ
@@ -268,39 +268,39 @@ export default function DurationRegisterPage() {
     const e: Partial<Record<keyof Step2, string>> = {};
 
     // Required fields validation - ALL FIELDS ARE REQUIRED
-    if (!s2.firstName.trim()) e.firstName = 'กรุณากรอกชื่อ';
-    if (!s2.lastName.trim()) e.lastName = 'กรุณากรอกนามสกุล';
-    if (!s2.gender) e.gender = 'กรุณาเลือกเพศ';
-    if (!s2.dateOfBirth) e.dateOfBirth = 'กรุณาเลือกวันเกิด';
-    if (!s2.phone.trim()) e.phone = 'กรุณากรอกเบอร์โทร';
-    if (!s2.email.trim()) e.email = 'กรุณากรอกอีเมล';
-    if (!s2.healthInfo.trim()) e.healthInfo = 'กรุณากรอกข้อมูลสุขภาพ';
-    if (!s2.address.trim()) e.address = 'กรุณากรอกที่อยู่';
-    if (!s2.companyName.trim()) e.companyName = 'กรุณากรอกชื่อบริษัท';
-    if (!s2.companyPosition.trim()) e.companyPosition = 'กรุณากรอกตำแหน่ง';
-    if (!s2.maritalStatus) e.maritalStatus = 'กรุณาเลือกสถานะสมรส';
-    if (!s2.marketingSource.trim()) e.marketingSource = 'กรุณากรอกแหล่งที่รู้จัก';
-    if (!s2.emergencyContactName.trim()) e.emergencyContactName = 'กรุณากรอกชื่อผู้ติดต่อฉุกเฉิน';
+    if (!s2.firstName.trim()) e.firstName = 'Please enter first name';
+    if (!s2.lastName.trim()) e.lastName = 'Please enter last name';
+    if (!s2.gender) e.gender = 'Please select gender';
+    if (!s2.dateOfBirth) e.dateOfBirth = 'Please select date of birth';
+    if (!s2.phone.trim()) e.phone = 'Please enter phone number';
+    if (!s2.email.trim()) e.email = 'Please enter email';
+    if (!s2.healthInfo.trim()) e.healthInfo = 'Please enter health information';
+    if (!s2.address.trim()) e.address = 'Please enter address';
+    if (!s2.companyName.trim()) e.companyName = 'Please enter company name';
+    if (!s2.companyPosition.trim()) e.companyPosition = 'Please enter position';
+    if (!s2.maritalStatus) e.maritalStatus = 'Please select marital status';
+    if (!s2.marketingSource.trim()) e.marketingSource = 'Please enter marketing source';
+    if (!s2.emergencyContactName.trim()) e.emergencyContactName = 'Please enter emergency contact name';
     if (!s2.emergencyContactRelationship.trim())
-      e.emergencyContactRelationship = 'กรุณากรอกความสัมพันธ์';
-    if (!s2.emergencyContactPhone.trim()) e.emergencyContactPhone = 'กรุณากรอกเบอร์โทรผู้ติดต่อฉุกเฉิน';
+      e.emergencyContactRelationship = 'Please enter relationship';
+    if (!s2.emergencyContactPhone.trim()) e.emergencyContactPhone = 'Please enter emergency contact phone';
 
     // Format validation (RE)
     if (s2.phone && !PHONE_RE.test(s2.phone)) {
-      e.phone = 'เบอร์โทรต้องเป็นตัวเลข 10 หลัก';
+      e.phone = 'Phone number must be 10 digits';
     }
     if (s2.email && !EMAIL_RE.test(s2.email.toLowerCase())) {
-      e.email = 'รูปแบบอีเมลไม่ถูกต้อง';
+      e.email = 'Invalid email format';
     }
     if (s2.emergencyContactPhone && !PHONE_RE.test(s2.emergencyContactPhone)) {
-      e.emergencyContactPhone = 'เบอร์โทรต้องเป็นตัวเลข 10 หลัก';
+      e.emergencyContactPhone = 'Phone number must be 10 digits';
     }
 
     // Date of birth validation (>= 14 years old)
     if (s2.dateOfBirth) {
       const age = calculateAge(s2.dateOfBirth);
       if (age < 14) {
-        e.dateOfBirth = 'อายุต้องไม่ต่ำกว่า 14 ปี';
+        e.dateOfBirth = 'Age must be at least 14 years old';
       }
     }
 
@@ -387,7 +387,7 @@ export default function DurationRegisterPage() {
   return (
     <Box sx={{ maxWidth: 960, mx: 'auto', p: { xs: 2, md: 3 } }}>
       <Typography variant="h5" fontWeight={700} sx={{ mb: 2 }}>
-        ลงทะเบียนแพ็กเกจ Duration: {productName}
+        Register Duration Package: {productName}
       </Typography>
 
       <Paper sx={{ p: { xs: 2, md: 3 } }} elevation={2}>
@@ -411,31 +411,31 @@ export default function DurationRegisterPage() {
         {activeStep === 0 && (
           <Box>
             <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-              เสนอส่วนลด (Discount Offer)
+              Discount Offer
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              ส่วนลดสูงสุด 7% สำหรับการจูงใจลูกค้า
+              Maximum 7% discount for customer incentive
             </Typography>
 
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
-                  label="ส่วนลด (%)"
+                  label="Discount (%)"
                   type="number"
                   value={s1.discountPercent}
                   onChange={(e) => applyDiscountPercent(e.target.value)}
                   error={!!errors1.discountPercent}
-                  helperText={errors1.discountPercent || 'ระบุส่วนลด 0-7%'}
+                  helperText={errors1.discountPercent || 'Enter discount 0-7%'}
                   fullWidth
                   inputProps={{ min: 0, max: 7, step: 0.1 }}
                 />
               </Grid>
               <Grid size={{ xs: 12 }}>
                 <Box sx={{ p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
-                  <Typography variant="body2">ราคาปกติ: {money(basePrice)}</Typography>
-                  <Typography variant="body2">ส่วนลด: {money(discountAmount)}</Typography>
+                  <Typography variant="body2">Regular Price: {money(basePrice)}</Typography>
+                  <Typography variant="body2">Discount: {money(discountAmount)}</Typography>
                   <Typography variant="h6" fontWeight={700} color="primary">
-                    ราคาหลังหักส่วนลด: {money(pricePaid)}
+                    Price After Discount: {money(pricePaid)}
                   </Typography>
                 </Box>
               </Grid>
@@ -443,7 +443,7 @@ export default function DurationRegisterPage() {
 
             <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
               <Button variant="contained" onClick={onNext}>
-                ถัดไป (Next)
+                Next
               </Button>
             </Box>
           </Box>
@@ -453,14 +453,14 @@ export default function DurationRegisterPage() {
         {activeStep === 1 && (
           <Box>
             <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-              ข้อมูลลูกค้า (Customer Information)
+              Customer Information
             </Typography>
 
             <Grid container spacing={2}>
               {/* Basic Info */}
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
-                  label="ชื่อ (First Name)"
+                  label="First Name"
                   value={s2.firstName}
                   onChange={(e) => setS2Field('firstName', e.target.value)}
                   error={!!errors2.firstName}
@@ -471,7 +471,7 @@ export default function DurationRegisterPage() {
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
-                  label="นามสกุล (Last Name)"
+                  label="Last Name"
                   value={s2.lastName}
                   onChange={(e) => setS2Field('lastName', e.target.value)}
                   error={!!errors2.lastName}
@@ -483,7 +483,7 @@ export default function DurationRegisterPage() {
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   select
-                  label="เพศ (Gender)"
+                  label="Gender"
                   value={s2.gender}
                   onChange={(e) => setS2Field('gender', e.target.value as Step2['gender'])}
                   error={!!errors2.gender}
@@ -491,19 +491,19 @@ export default function DurationRegisterPage() {
                   fullWidth
                   required
                 >
-                  <MenuItem value="MALE">ชาย (Male)</MenuItem>
-                  <MenuItem value="FEMALE">หญิง (Female)</MenuItem>
-                  <MenuItem value="OTHER">อื่นๆ (Other)</MenuItem>
+                  <MenuItem value="MALE">Male</MenuItem>
+                  <MenuItem value="FEMALE">Female</MenuItem>
+                  <MenuItem value="OTHER">Other</MenuItem>
                 </TextField>
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
-                  label="วันเกิด (Date of Birth)"
+                  label="Date of Birth"
                   type="date"
                   value={s2.dateOfBirth}
                   onChange={(e) => setS2Field('dateOfBirth', e.target.value)}
                   error={!!errors2.dateOfBirth}
-                  helperText={errors2.dateOfBirth || 'อายุต้องไม่ต่ำกว่า 14 ปี'}
+                  helperText={errors2.dateOfBirth || 'Age must be at least 14 years old'}
                   fullWidth
                   required
                   InputLabelProps={{ shrink: true }}
@@ -511,15 +511,15 @@ export default function DurationRegisterPage() {
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
-                  label="เบอร์โทร (Phone)"
+                  label="Phone"
                   value={s2.phone}
                   onChange={(e) => setS2Field('phone', e.target.value)}
                   onBlur={(e) => checkPhoneDuplicate(e.target.value)}
                   error={!!errors2.phone}
                   helperText={
                     checkingPhone 
-                      ? '🔍 กำลังตรวจสอบ...' 
-                      : errors2.phone || 'ตัวเลข 10 หลัก'
+                      ? '🔍 Checking...' 
+                      : errors2.phone || '10 digits'
                   }
                   fullWidth
                   required
@@ -528,7 +528,7 @@ export default function DurationRegisterPage() {
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
-                  label="อีเมล (Email)"
+                  label="Email"
                   type="email"
                   value={s2.email}
                   onChange={(e) => setS2Field('email', e.target.value)}
@@ -536,7 +536,7 @@ export default function DurationRegisterPage() {
                   error={!!errors2.email}
                   helperText={
                     checkingEmail 
-                      ? '🔍 กำลังตรวจสอบ...' 
+                      ? '🔍 Checking...' 
                       : errors2.email
                   }
                   fullWidth
@@ -548,12 +548,12 @@ export default function DurationRegisterPage() {
               {/* Additional Info */}
               <Grid size={{ xs: 12 }}>
                 <Typography variant="subtitle1" fontWeight={600} sx={{ mt: 2, mb: 1 }}>
-                  ข้อมูลเพิ่มเติม *
+                  Additional Information *
                 </Typography>
               </Grid>
               <Grid size={{ xs: 12 }}>
                 <TextField
-                  label="ข้อมูลสุขภาพ (Health Info)"
+                  label="Health Info"
                   value={s2.healthInfo}
                   onChange={(e) => setS2Field('healthInfo', e.target.value)}
                   error={!!errors2.healthInfo}
@@ -566,7 +566,7 @@ export default function DurationRegisterPage() {
               </Grid>
               <Grid size={{ xs: 12 }}>
                 <TextField
-                  label="ที่อยู่ (Address)"
+                  label="Address"
                   value={s2.address}
                   onChange={(e) => setS2Field('address', e.target.value)}
                   error={!!errors2.address}
@@ -579,7 +579,7 @@ export default function DurationRegisterPage() {
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
-                  label="บริษัท (Company Name)"
+                  label="Company Name"
                   value={s2.companyName}
                   onChange={(e) => setS2Field('companyName', e.target.value)}
                   error={!!errors2.companyName}
@@ -590,7 +590,7 @@ export default function DurationRegisterPage() {
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
-                  label="ตำแหน่ง (Position)"
+                  label="Position"
                   value={s2.companyPosition}
                   onChange={(e) => setS2Field('companyPosition', e.target.value)}
                   error={!!errors2.companyPosition}
@@ -602,7 +602,7 @@ export default function DurationRegisterPage() {
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   select
-                  label="สถานะสมรส (Marital Status)"
+                  label="Marital Status"
                   value={s2.maritalStatus}
                   onChange={(e) => setS2Field('maritalStatus', e.target.value as Step2['maritalStatus'])}
                   error={!!errors2.maritalStatus}
@@ -610,15 +610,15 @@ export default function DurationRegisterPage() {
                   fullWidth
                   required
                 >
-                  <MenuItem value="SINGLE">โสด (Single)</MenuItem>
-                  <MenuItem value="MARRIED">สมรส (Married)</MenuItem>
-                  <MenuItem value="DIVORCED">หย่า (Divorced)</MenuItem>
-                  <MenuItem value="WIDOWED">หม้าย (Widowed)</MenuItem>
+                  <MenuItem value="SINGLE">Single</MenuItem>
+                  <MenuItem value="MARRIED">Married</MenuItem>
+                  <MenuItem value="DIVORCED">Divorced</MenuItem>
+                  <MenuItem value="WIDOWED">Widowed</MenuItem>
                 </TextField>
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
-                  label="แหล่งที่รู้จัก (Marketing Source)"
+                  label="Marketing Source"
                   value={s2.marketingSource}
                   onChange={(e) => setS2Field('marketingSource', e.target.value)}
                   error={!!errors2.marketingSource}
@@ -631,12 +631,12 @@ export default function DurationRegisterPage() {
               {/* Emergency Contact */}
               <Grid size={{ xs: 12 }}>
                 <Typography variant="subtitle1" fontWeight={600} sx={{ mt: 2, mb: 1 }}>
-                  ผู้ติดต่อฉุกเฉิน (Emergency Contact) *
+                  Emergency Contact *
                 </Typography>
               </Grid>
               <Grid size={{ xs: 12, md: 4 }}>
                 <TextField
-                  label="ชื่อผู้ติดต่อ"
+                  label="Contact Name"
                   value={s2.emergencyContactName}
                   onChange={(e) => setS2Field('emergencyContactName', e.target.value)}
                   error={!!errors2.emergencyContactName}
@@ -647,7 +647,7 @@ export default function DurationRegisterPage() {
               </Grid>
               <Grid size={{ xs: 12, md: 4 }}>
                 <TextField
-                  label="ความสัมพันธ์"
+                  label="Relationship"
                   value={s2.emergencyContactRelationship}
                   onChange={(e) => setS2Field('emergencyContactRelationship', e.target.value)}
                   error={!!errors2.emergencyContactRelationship}
@@ -658,7 +658,7 @@ export default function DurationRegisterPage() {
               </Grid>
               <Grid size={{ xs: 12, md: 4 }}>
                 <TextField
-                  label="เบอร์โทรผู้ติดต่อ"
+                  label="Contact Phone"
                   value={s2.emergencyContactPhone}
                   onChange={(e) => setS2Field('emergencyContactPhone', e.target.value)}
                   error={!!errors2.emergencyContactPhone}
@@ -670,9 +670,9 @@ export default function DurationRegisterPage() {
             </Grid>
 
             <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
-              <Button onClick={onBack}>ย้อนกลับ (Back)</Button>
+              <Button onClick={onBack}>Back</Button>
               <Button variant="contained" onClick={onNext} disabled={validating}>
-                {validating ? 'กำลังตรวจสอบข้อมูล...' : 'ไปหน้าชำระเงิน (Next)'}
+                {validating ? 'Validating data...' : 'Go to Payment'}
               </Button>
             </Box>
           </Box>

@@ -53,7 +53,7 @@ export default function PackagesPage() {
         }
       } catch (err) {
         console.error('Error fetching durations:', err);
-        setError('ไม่สามารถโหลดข้อมูล Duration ได้');
+        setError('Failed to load Duration data');
       }
     }
 
@@ -82,7 +82,7 @@ export default function PackagesPage() {
         }
       } catch (err) {
         console.error('Error fetching sessions:', err);
-        setError('ไม่สามารถโหลดข้อมูล Session ได้');
+        setError('Failed to load Session data');
       }
     }
 
@@ -108,10 +108,10 @@ export default function PackagesPage() {
     // For now, we'll use a default trainer or show error
     // Temporary: prompt user to select trainer (in real app, navigate to trainer selection page)
     
-    const trainerUsername = prompt('กรุณาใส่ Username ของ Trainer (ชั่วคราว):');
+    const trainerUsername = prompt('Please enter Trainer Username (temporary):');
     
     if (!trainerUsername) {
-      alert('กรุณาเลือก Trainer ก่อนซื้อแพ็กเกจ Session');
+      alert('Please select a Trainer before purchasing Session package');
       return;
     }
     
@@ -133,7 +133,7 @@ export default function PackagesPage() {
       <Container maxWidth="sm" sx={{ px: 0 }}>
         <Stack spacing={2} sx={{ px: 2, py: 4 }} alignItems="center">
           <CircularProgress />
-          <Typography>กำลังโหลดข้อมูลแพ็กเกจ...</Typography>
+          <Typography>Loading packages...</Typography>
         </Stack>
       </Container>
     );
@@ -146,7 +146,7 @@ export default function PackagesPage() {
         <Stack spacing={2} sx={{ px: 2, py: 4 }}>
           <Alert severity="error">{error}</Alert>
           <Button variant="outlined" onClick={() => window.location.reload()}>
-            ลองใหม่อีกครั้ง
+            Try Again
           </Button>
         </Stack>
       </Container>
@@ -168,7 +168,7 @@ export default function PackagesPage() {
           <AccordionDetails>
             {durations.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
-                ไม่มีแพ็กเกจ Duration ในขณะนี้
+                No Duration packages available at this time
               </Typography>
             ) : (
               <Stack spacing={1.5}>
@@ -223,7 +223,7 @@ export default function PackagesPage() {
           <AccordionDetails>
             {sessions.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
-                ไม่มีแพ็กเกจ Session ในขณะนี้
+                No Session packages available at this time
               </Typography>
             ) : (
               <Stack spacing={1.5}>

@@ -157,7 +157,7 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
       setError(errorMessage);
       setSnackbar({
         open: true,
-        message: "เกิดข้อผิดพลาดในการโหลดข้อมูล",
+        message: "Failed to load working hours data",
         severity: "error",
       });
     } finally {
@@ -215,37 +215,37 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
 
     // Validate date
     if (!formData.date) {
-      errors.date = "กรุณาเลือกวันที่";
+      errors.date = "Please select a date";
     } else {
       const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
       if (!dateRegex.test(formData.date)) {
-        errors.date = "รูปแบบวันที่ไม่ถูกต้อง (YYYY-MM-DD)";
+        errors.date = "Invalid date format (YYYY-MM-DD)";
       }
     }
 
     // Validate dayOfWeek
     if (!formData.dayOfWeek) {
-      errors.dayOfWeek = "กรุณาเลือกวัน";
+      errors.dayOfWeek = "Please select a day";
     }
 
     // Validate startTime
     const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
     if (!formData.startTime) {
-      errors.startTime = "กรุณาเลือกเวลาเริ่มต้น";
+      errors.startTime = "Please select start time";
     } else if (!timeRegex.test(formData.startTime)) {
-      errors.startTime = "รูปแบบเวลาไม่ถูกต้อง (HH:mm)";
+      errors.startTime = "Invalid time format (HH:mm)";
     }
 
     // Validate endTime
     if (!formData.endTime) {
-      errors.endTime = "กรุณาเลือกเวลาสิ้นสุด";
+      errors.endTime = "Please select end time";
     } else if (!timeRegex.test(formData.endTime)) {
-      errors.endTime = "รูปแบบเวลาไม่ถูกต้อง (HH:mm)";
+      errors.endTime = "Invalid time format (HH:mm)";
     }
 
     // Validate endTime > startTime
     if (formData.startTime && formData.endTime && formData.endTime <= formData.startTime) {
-      errors.endTime = "เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่มต้น";
+      errors.endTime = "End time must be after start time";
     }
 
     setFormErrors(errors);
@@ -284,8 +284,8 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
         setSnackbar({
           open: true,
           message: editing
-            ? "แก้ไขเวลาทำงานสำเร็จ"
-            : "เพิ่มเวลาทำงานสำเร็จ",
+            ? "Working hours updated successfully"
+            : "Working hours added successfully",
           severity: "success",
         });
 
@@ -299,14 +299,14 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
         const errorData = data as ErrorResponse;
         setSnackbar({
           open: true,
-          message: errorData.message || "เกิดข้อผิดพลาด",
+          message: errorData.message || "Failed to save working hours",
           severity: "error",
         });
       }
     } catch (err) {
       setSnackbar({
         open: true,
-        message: "เกิดข้อผิดพลาดในการบันทึกข้อมูล",
+        message: "Failed to save working hours",
         severity: "error",
       });
     }
@@ -341,7 +341,7 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
       if (response.ok && data.status === "success") {
         setSnackbar({
           open: true,
-          message: "ลบเวลาทำงานสำเร็จ",
+          message: "Working hours deleted successfully",
           severity: "success",
         });
 
@@ -353,14 +353,14 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
         const errorData = data as ErrorResponse;
         setSnackbar({
           open: true,
-          message: errorData.message || "เกิดข้อผิดพลาดในการลบข้อมูล",
+          message: errorData.message || "Failed to delete working hours",
           severity: "error",
         });
       }
     } catch (err) {
       setSnackbar({
         open: true,
-        message: "เกิดข้อผิดพลาดในการลบข้อมูล",
+        message: "Failed to delete working hours",
         severity: "error",
       });
     } finally {
@@ -412,7 +412,7 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
         {/* Header */}
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <Typography variant="h5" fontWeight={500}>
-            เวลาทำงานประจำสัปดาห์
+            Weekly Working Hours
           </Typography>
           <Button
             variant="contained"
@@ -423,7 +423,7 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
               "&:hover": { bgcolor: PRIMARY.dark },
             }}
           >
-            เพิ่มเวลาทำงาน
+            Add Working Hours
           </Button>
         </Box>
 
@@ -448,16 +448,16 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
               <TableHead>
                 <TableRow>
                   <TableCell sx={{ fontWeight: 600, width: "20%" }}>
-                    วัน
+                    Day
                   </TableCell>
                   <TableCell sx={{ fontWeight: 600, width: "30%" }}>
-                    เวลาเริ่มต้น
+                    Start Time
                   </TableCell>
                   <TableCell sx={{ fontWeight: 600, width: "30%" }}>
-                    เวลาสิ้นสุด
+                    End Time
                   </TableCell>
                   <TableCell sx={{ fontWeight: 600, width: "20%", textAlign: "center" }}>
-                    จัดการ
+                    Action
                   </TableCell>
                 </TableRow>
               </TableHead>
@@ -469,7 +469,7 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
                       <TableRow key={day}>
                         <TableCell>{DAY_NAMES[day]}</TableCell>
                         <TableCell colSpan={3} sx={{ color: "text.secondary", fontStyle: "italic" }}>
-                          ไม่มีเวลาทำงาน
+                          No working hours
                         </TableCell>
                       </TableRow>
                     );
@@ -510,9 +510,9 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
         {/* Empty State */}
         {!loading && !error && workingHours.length === 0 && (
           <Box sx={{ py: 6, textAlign: "center", color: "text.secondary" }}>
-            <Typography variant="body1">ยังไม่มีเวลาทำงาน</Typography>
+            <Typography variant="body1">No working hours</Typography>
             <Typography variant="body2" sx={{ mt: 1 }}>
-              คลิกปุ่ม "เพิ่มเวลาทำงาน" เพื่อเริ่มต้น
+              Click "Add Working Hours" button to get started
             </Typography>
           </Box>
         )}
@@ -520,13 +520,13 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
         {/* Add/Edit Dialog */}
         <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
           <DialogTitle>
-            {editing ? "แก้ไขเวลาทำงาน" : "เพิ่มเวลาทำงาน"}
+            {editing ? "Edit Working Hours" : "Add Working Hours"}
           </DialogTitle>
           <DialogContent>
             <Stack spacing={3} sx={{ mt: 1 }}>
               {/* Date Input */}
               <TextField
-                label="วันที่"
+                label="Date"
                 type="date"
                 value={formData.date}
                 onChange={(e) => setFormData({ ...formData, date: e.target.value })}
@@ -540,13 +540,13 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
 
               {/* Day of Week Select */}
               <FormControl fullWidth error={!!formErrors.dayOfWeek}>
-                <InputLabel>วัน</InputLabel>
+                <InputLabel>Day</InputLabel>
                 <Select
                   value={formData.dayOfWeek}
                   onChange={(e) =>
                     setFormData({ ...formData, dayOfWeek: e.target.value as DayOfWeek })
                   }
-                  label="วัน"
+                  label="Day"
                 >
                   {dayOrder.map((day) => (
                     <MenuItem key={day} value={day}>
@@ -563,7 +563,7 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
 
               {/* Start Time */}
               <TextField
-                label="เวลาเริ่มต้น"
+                label="Start Time"
                 type="time"
                 value={formData.startTime}
                 onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
@@ -580,7 +580,7 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
 
               {/* End Time */}
               <TextField
-                label="เวลาสิ้นสุด"
+                label="End Time"
                 type="time"
                 value={formData.endTime}
                 onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
@@ -597,7 +597,7 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
             </Stack>
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleCloseDialog}>ยกเลิก</Button>
+            <Button onClick={handleCloseDialog}>Cancel</Button>
             <Button
               variant="contained"
               onClick={handleSave}
@@ -606,7 +606,7 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
                 "&:hover": { bgcolor: PRIMARY.dark },
               }}
             >
-              บันทึก
+              Save
             </Button>
           </DialogActions>
         </Dialog>
@@ -614,10 +614,10 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
         {/* Confirm Delete Dialog */}
         <ConfirmPopUpUI
           open={confirmDelete.open}
-          title="ยืนยันการลบเวลาทำงาน"
-          message="คุณต้องการลบเวลาทำงานนี้หรือไม่?"
-          confirmText="ลบ"
-          cancelText="ยกเลิก"
+          title="Confirm Delete Working Hours"
+          message="Do you want to delete this working hours?"
+          confirmText="Delete"
+          cancelText="Cancel"
           onConfirm={performDelete}
           onClose={() =>
             setConfirmDelete({

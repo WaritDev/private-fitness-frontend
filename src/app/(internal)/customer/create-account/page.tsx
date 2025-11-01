@@ -89,13 +89,13 @@ export default function CreateAccountPage() {
     const stored = sessionStorage.getItem('pendingOrder');
 
     if (paymentVerified !== 'true') {
-      setError('ไม่พบการยืนยันการชำระเงิน');
+      setError('Payment verification not found');
       setLoading(false);
       return;
     }
 
     if (!stored) {
-      setError('ไม่พบข้อมูลคำสั่งซื้อ');
+      setError('Order data not found');
       setLoading(false);
       return;
     }
@@ -109,7 +109,7 @@ export default function CreateAccountPage() {
       
       setLoading(false);
     } catch (err) {
-      setError('ข้อมูลคำสั่งซื้อไม่ถูกต้อง');
+      setError('Invalid order data');
       setLoading(false);
     }
   }, []);
@@ -122,7 +122,7 @@ export default function CreateAccountPage() {
     }
     
     if (!USERNAME_RE.test(username)) {
-      setUsernameError('Username ต้องขึ้นต้นด้วยตัวอักษร และมีความยาว 4–30 ตัว (A-Z, a-z, 0–9 เท่านั้น)');
+      setUsernameError('Username must start with a letter and be 4-30 characters long (A-Z, a-z, 0-9 only)');
       return;
     }
     
@@ -144,7 +144,7 @@ export default function CreateAccountPage() {
     }
     
     if (!PASSWORD_RE.test(password)) {
-      setPasswordError('อย่างน้อย 8 ตัว มี A-Z, a-z, ตัวเลข และอักขระพิเศษ (@$!%*?&)');
+      setPasswordError('At least 8 characters with A-Z, a-z, numbers, and special characters (@$!%*?&)');
       return;
     }
     
@@ -159,7 +159,7 @@ export default function CreateAccountPage() {
     }
     
     if (password !== confirmPassword) {
-      setConfirmPasswordError('รหัสผ่านไม่ตรงกัน');
+      setConfirmPasswordError('Passwords do not match');
       return;
     }
     
@@ -177,7 +177,7 @@ export default function CreateAccountPage() {
       
       if (data.status === 'success' && data.result) {
         if (data.result.exists) {
-          setUsernameError('ชื่อผู้ใช้นี้ถูกใช้งานแล้ว');
+          setUsernameError('This username is already in use');
         }
       }
     } catch (err) {
@@ -193,17 +193,17 @@ export default function CreateAccountPage() {
     
     // Validate all fields
     if (!username || usernameError) {
-      setError('กรุณากรอกชื่อผู้ใช้ที่ถูกต้อง');
+      setError('Please enter a valid username');
       return;
     }
     
     if (!password || passwordError) {
-      setError('กรุณากรอกรหัสผ่านที่ถูกต้อง');
+      setError('Please enter a valid password');
       return;
     }
     
     if (!confirmPassword || confirmPasswordError) {
-      setError('กรุณายืนยันรหัสผ่าน');
+      setError('Please confirm password');
       return;
     }
     
@@ -261,7 +261,7 @@ export default function CreateAccountPage() {
           };
         });
       } else {
-        throw new Error('ประเภทสินค้าไม่ถูกต้อง');
+        throw new Error('Invalid product type');
       }
 
       // 🐛 DEBUG: Log payload before sending
@@ -298,10 +298,10 @@ export default function CreateAccountPage() {
           router.push('/sales/products');
         }, 1500);
       } else {
-        throw new Error(result.message || 'ไม่สามารถสร้างบัญชีได้');
+        throw new Error(result.message || 'Unable to create account');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการสร้างบัญชี');
+      setError(err instanceof Error ? err.message : 'An error occurred while creating account');
     } finally {
       setCreating(false);
     }
@@ -313,7 +313,7 @@ export default function CreateAccountPage() {
       <Container maxWidth="sm" sx={{ px: 0 }}>
         <Stack spacing={2} sx={{ px: 2, py: 4 }} alignItems="center">
           <CircularProgress />
-          <Typography>กำลังโหลดข้อมูล...</Typography>
+          <Typography>Loading data...</Typography>
         </Stack>
       </Container>
     );
@@ -326,7 +326,7 @@ export default function CreateAccountPage() {
         <Stack spacing={2} sx={{ px: 2, py: 4 }}>
           <Alert severity="error">{error}</Alert>
           <Button variant="outlined" onClick={() => router.push('/sales/products')}>
-            กลับหน้า Products
+            Back to Products
           </Button>
         </Stack>
       </Container>
@@ -337,17 +337,17 @@ export default function CreateAccountPage() {
     <Container maxWidth="sm" sx={{ px: 0 }}>
       <Stack spacing={2} sx={{ px: 2, py: 2 }}>
         <Typography variant="h6" fontWeight={800}>
-          สร้างบัญชีผู้ใช้
+          Create Account
         </Typography>
 
         {/* Customer Info Summary */}
         {orderData && (
           <Paper elevation={1} sx={{ p: 2, bgcolor: 'grey.50' }}>
             <Stack spacing={1}>
-              <Typography variant="subtitle2" fontWeight={700}>ข้อมูลลูกค้า</Typography>
+              <Typography variant="subtitle2" fontWeight={700}>Customer Information</Typography>
               <Grid container spacing={1}>
                 <Grid size={{ xs: 4 }}>
-                  <Typography variant="caption" color="text.secondary">ชื่อ-นามสกุล:</Typography>
+                  <Typography variant="caption" color="text.secondary">Full Name:</Typography>
                 </Grid>
                 <Grid size={{ xs: 8 }}>
                   <Typography variant="caption" fontWeight={600}>
@@ -356,14 +356,14 @@ export default function CreateAccountPage() {
                 </Grid>
                 
                 <Grid size={{ xs: 4 }}>
-                  <Typography variant="caption" color="text.secondary">อีเมล:</Typography>
+                  <Typography variant="caption" color="text.secondary">Email:</Typography>
                 </Grid>
                 <Grid size={{ xs: 8 }}>
                   <Typography variant="caption" fontWeight={600}>{orderData.email}</Typography>
                 </Grid>
                 
                 <Grid size={{ xs: 4 }}>
-                  <Typography variant="caption" color="text.secondary">เบอร์โทร:</Typography>
+                  <Typography variant="caption" color="text.secondary">Phone:</Typography>
                 </Grid>
                 <Grid size={{ xs: 8 }}>
                   <Typography variant="caption" fontWeight={600}>{orderData.phone}</Typography>
@@ -378,8 +378,8 @@ export default function CreateAccountPage() {
         {/* Account Form */}
         <Paper elevation={1} sx={{ p: 2 }}>
           <Stack spacing={2}>
-            <Typography variant="subtitle1" fontWeight={700}>
-              ข้อมูลการเข้าสู่ระบบ
+              <Typography variant="subtitle1" fontWeight={700}>
+              Login Information
             </Typography>
 
             {error && orderData && (
@@ -388,15 +388,15 @@ export default function CreateAccountPage() {
 
             {/* Username */}
             <TextField
-              label="ชื่อผู้ใช้ (Username)"
+              label="Username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               error={Boolean(usernameError)}
-              helperText={usernameError || 'Username ต้องขึ้นต้นด้วยตัวอักษร และมีความยาว 4–30 ตัว (A-Z, a-z, 0–9 เท่านั้น)'}
+              helperText={usernameError || 'Username must start with a letter and be 4-30 characters long (A-Z, a-z, 0-9 only)'}
               fullWidth
               required
               disabled={creating}
-              placeholder="กรุณากรอกชื่อผู้ใช้"
+              placeholder="Enter username"
               InputProps={{
                 endAdornment: checkingUsername && (
                   <InputAdornment position="end">
@@ -408,16 +408,16 @@ export default function CreateAccountPage() {
 
             {/* Password */}
             <TextField
-              label="รหัสผ่าน (Password)"
+              label="Password"
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               error={Boolean(passwordError)}
-              helperText={passwordError || 'อย่างน้อย 8 ตัว มี A-Z, a-z, ตัวเลข และอักขระพิเศษ (@$!%*?&)'}
+              helperText={passwordError || 'At least 8 characters with A-Z, a-z, numbers, and special characters (@$!%*?&)'}
               fullWidth
               required
               disabled={creating}
-              placeholder="กรุณากรอกรหัสผ่าน"
+              placeholder="Enter password"
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">
@@ -434,12 +434,12 @@ export default function CreateAccountPage() {
 
             {/* Confirm Password */}
             <TextField
-              label="ยืนยันรหัสผ่าน (Confirm Password)"
+              label="Confirm Password"
               type={showConfirmPassword ? 'text' : 'password'}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               error={Boolean(confirmPasswordError)}
-              helperText={confirmPasswordError || 'กรอกรหัสผ่านอีกครั้งเพื่อยืนยัน'}
+              helperText={confirmPasswordError || 'Enter password again to confirm'}
               fullWidth
               required
               disabled={creating}
@@ -458,7 +458,7 @@ export default function CreateAccountPage() {
             />
 
             <Alert severity="info" sx={{ fontSize: '0.75rem' }}>
-              ข้อมูลนี้จะใช้สำหรับให้ลูกค้าเข้าสู่ระบบ กรุณาบันทึกและแจ้งให้ลูกค้าทราบ
+              This information will be used for customer login. Please save and inform the customer.
             </Alert>
           </Stack>
         </Paper>
@@ -488,10 +488,10 @@ export default function CreateAccountPage() {
             {creating ? (
               <>
                 <CircularProgress size={20} sx={{ mr: 1, color: '#000' }} />
-                กำลังสร้างบัญชี...
+                Creating account...
               </>
             ) : (
-              '✅ สร้างบัญชีและเสร็จสิ้น'
+              'Submit'
             )}
           </Button>
 
@@ -501,7 +501,7 @@ export default function CreateAccountPage() {
             disabled={creating}
             size="small"
           >
-            ย้อนกลับ
+            Go Back
           </Button>
         </Stack>
       </Stack>
