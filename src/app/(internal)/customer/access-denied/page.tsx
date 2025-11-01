@@ -42,7 +42,7 @@ export default function AccessDeniedPage() {
           color="text.secondary"
           sx={{ mt: 3, mb: 4, lineHeight: 1.7 }}
         >
-          This booking page is only available for customers with active session packages. Please purchase a session package before booking.
+          This page is only available for customers with active Session packages. Please purchase a Session package before booking an appointment.
         </Typography>
 
         <Stack spacing={2} direction={{ xs: 'column', sm: 'row' }} justifyContent="center">
@@ -54,7 +54,7 @@ export default function AccessDeniedPage() {
             onClick={() => router.push('/customer/package')}
             sx={{ minWidth: 200 }}
           >
-            ซื้อแพ็กเกจ Session
+            Buy Session Package
           </Button>
 
           <Button
@@ -64,7 +64,7 @@ export default function AccessDeniedPage() {
             onClick={() => router.push('/customer/member')}
             sx={{ minWidth: 200 }}
           >
-            กลับหน้าหลัก
+            Back to Home
           </Button>
         </Stack>
       </Paper>

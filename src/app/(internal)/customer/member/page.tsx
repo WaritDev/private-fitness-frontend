@@ -135,7 +135,7 @@ export default function CustomerMemberPage() {
     return (
       <Container maxWidth="sm" sx={{ px: 2, py: 8, textAlign: 'center' }}>
         <CircularProgress />
-        <Typography sx={{ mt: 2 }}>กำลังโหลดข้อมูลแพ็กเกจ...</Typography>
+        <Typography sx={{ mt: 2 }}>Loading packages...</Typography>
       </Container>
     );
   }
@@ -144,7 +144,7 @@ export default function CustomerMemberPage() {
   if (error) {
     return (
       <Container maxWidth="sm" sx={{ px: 2, py: 8, textAlign: 'center' }}>
-        <Typography color="error">เกิดข้อผิดพลาด: {error}</Typography>
+        <Typography color="error">Error: {error}</Typography>
       </Container>
     );
   }

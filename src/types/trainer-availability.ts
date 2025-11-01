@@ -95,13 +95,13 @@ export interface TrainerSchedule {
 
 // Day Names mapping
 export const DAY_NAMES: Record<DayOfWeek, string> = {
-  MONDAY: 'จันทร์',
-  TUESDAY: 'อังคาร',
-  WEDNESDAY: 'พุธ',
-  THURSDAY: 'พฤหัสบดี',
-  FRIDAY: 'ศุกร์',
-  SATURDAY: 'เสาร์',
-  SUNDAY: 'อาทิตย์'
+  MONDAY: 'Monday',
+  TUESDAY: 'Tuesday',
+  WEDNESDAY: 'Wednesday',
+  THURSDAY: 'Thursday',
+  FRIDAY: 'Friday',
+  SATURDAY: 'Saturday',
+  SUNDAY: 'Sunday'
 };
 
 // Utility types สำหรับ backward compatibility กับ trainer.ts เดิม

@@ -39,7 +39,7 @@ function ProductsPage() {
         }
       } catch (err) {
         console.error('Error fetching sessions:', err);
-        setError('ไม่สามารถโหลดข้อมูล Sessions ได้');
+        setError('Failed to load Sessions data');
       }
     }
 
@@ -69,7 +69,7 @@ function ProductsPage() {
         }
       } catch (err) {
         console.error('Error fetching durations:', err);
-        setError('ไม่สามารถโหลดข้อมูล Durations ได้');
+        setError('Failed to load Durations data');
       }
     }
 
@@ -93,7 +93,7 @@ function ProductsPage() {
   if (loading) {
     return (
       <div className="container py-6">
-        <div className="text-center">กำลังโหลดข้อมูล...</div>
+        <div className="text-center">Loading data...</div>
       </div>
     );
   }
@@ -111,7 +111,7 @@ function ProductsPage() {
       <section>
         <h2 className="text-xl font-semibold mb-4">Personal Training (Session)</h2>
         {sessions.length === 0 ? (
-          <div className="text-gray-500">ไม่มีแพ็กเกจ Session</div>
+          <div className="text-gray-500">No Session packages available</div>
         ) : (
           <div style={rowStyle} aria-label="sessions list">
             {sessions.map((session) => (
@@ -126,7 +126,7 @@ function ProductsPage() {
       <section>
         <h2 className="text-xl font-semibold mb-4">Membership (Duration)</h2>
         {durations.length === 0 ? (
-          <div className="text-gray-500">ไม่มีแพ็กเกจ Duration</div>
+          <div className="text-gray-500">No Duration packages available</div>
         ) : (
           <div style={rowStyle} aria-label="durations list">
             {durations.map((duration) => (

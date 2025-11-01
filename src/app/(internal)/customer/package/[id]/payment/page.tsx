@@ -72,7 +72,7 @@ export default function PaymentPage() {
     // Extract product ID from URL
     const productId = Number(params.id);
     if (isNaN(productId) || productId <= 0) {
-      setError('Product ID ไม่ถูกต้อง');
+      setError('Invalid Product ID');
       setLoading(false);
       return;
     }
@@ -118,7 +118,7 @@ export default function PaymentPage() {
       const response = await fetch(url);
       
       if (!response.ok) {
-        throw new Error('ไม่สามารถดึงข้อมูลการชำระเงินได้');
+        throw new Error('Failed to fetch payment information');
       }
 
       const data = await response.json();
@@ -127,11 +127,11 @@ export default function PaymentPage() {
       if (data.status === 'OK' && data.result) {
         setPaymentInfo(data.result);
       } else {
-        throw new Error(data.message || 'เกิดข้อผิดพลาดในการดึงข้อมูล');
+        throw new Error(data.message || 'An error occurred while fetching data');
       }
     } catch (err) {
       console.error('❌ Fetch error:', err);
-      setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -143,12 +143,12 @@ export default function PaymentPage() {
     if (!file) return;
 
     if (!file.type.match(/image\/(jpeg|jpg|png)/)) {
-      setUploadError('กรุณาเลือกไฟล์ภาพ (.jpg หรือ .png เท่านั้น)');
+      setUploadError('Please select an image file (.jpg or .png only)');
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      setUploadError('ไฟล์มีขนาดใหญ่เกิน 5MB');
+      setUploadError('File size exceeds 5MB');
       return;
     }
 
@@ -221,7 +221,7 @@ export default function PaymentPage() {
           // Get trainerUsername from sessionStorage
           const trainerUsername = flowSource?.trainerUsername;
           if (!trainerUsername) {
-            throw new Error('ไม่พบข้อมูล Trainer กรุณาเลือก Trainer อีกครั้ง');
+            throw new Error('Trainer information not found. Please select a Trainer again');
           }
           packageCreated = await createSessionPackage(paymentInfo.productId, trainerUsername);
         }
@@ -230,7 +230,7 @@ export default function PaymentPage() {
           // Success notification
           setAlert({
             open: true,
-            msg: '✅ Payment verified successfully. Your membership has been activated.',
+            msg: '✅ Payment verification successful. Your membership has been activated',
             severity: 'success',
           });
           sessionStorage.setItem('paymentVerified', 'true');
@@ -243,20 +243,20 @@ export default function PaymentPage() {
             router.push('/customer/member');
           }, 1500);
         } else {
-          throw new Error('ไม่สามารถสร้างแพ็กเกจได้ กรุณาติดต่อเจ้าหน้าที่');
+          throw new Error('Unable to create package. Please contact staff');
         }
       } else {
         // Failed notification
         setAlert({
           open: true,
-          msg: '❌ Verification failed. Please upload a valid payment slip.',
+          msg: '❌ Verification failed. Please upload a valid payment slip',
           severity: 'error',
         });
-        throw new Error('การตรวจสอบสลิปล้มเหลว กรุณาตรวจสอบข้อมูลและลองอีกครั้ง');
+        throw new Error('Slip verification failed. Please check the information and try again');
       }
     } catch (err) {
       console.error('❌ Upload error:', err);
-      setUploadError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการอัปโหลดสลิป');
+      setUploadError(err instanceof Error ? err.message : 'An error occurred while uploading slip');
     } finally {
       setUploading(false);
     }
@@ -285,7 +285,7 @@ export default function PaymentPage() {
       } else {
         console.log('❌ Duration API failed:', data);
         console.error('❌ Duration API failed:', data.message);
-        throw new Error(data.message || 'ไม่สามารถสร้าง Duration package ได้');
+        throw new Error(data.message || 'Unable to create Duration package');
       }
     } catch (err) {
       console.error('❌ Create Duration error:', err);
@@ -315,7 +315,7 @@ export default function PaymentPage() {
         return true;
       } else {
         console.error('❌ Session API failed:', data.message);
-        throw new Error(data.message || 'ไม่สามารถสร้าง Session package ได้');
+        throw new Error(data.message || 'Unable to create Session package');
       }
     } catch (err) {
       console.error('❌ Create Session error:', err);
@@ -329,7 +329,7 @@ export default function PaymentPage() {
       <Container maxWidth="sm" sx={{ px: 0 }}>
         <Stack spacing={2} sx={{ px: 2, py: 4 }} alignItems="center">
           <CircularProgress />
-          <Typography>กำลังโหลดข้อมูลการชำระเงิน...</Typography>
+          <Typography>Loading payment information...</Typography>
         </Stack>
       </Container>
     );
@@ -340,9 +340,9 @@ export default function PaymentPage() {
     return (
       <Container maxWidth="sm" sx={{ px: 0 }}>
         <Stack spacing={2} sx={{ px: 2, py: 4 }}>
-          <Alert severity="error">{error || 'ไม่พบข้อมูล'}</Alert>
+          <Alert severity="error">{error || 'No data found'}</Alert>
           <Button variant="outlined" onClick={() => router.back()}>
-            ย้อนกลับ
+            Go Back
           </Button>
         </Stack>
       </Container>
@@ -353,7 +353,7 @@ export default function PaymentPage() {
     <Container maxWidth="sm" sx={{ px: 0 }}>
       <Stack spacing={2} sx={{ px: 2, py: 2 }}>
         <Typography variant="h6" fontWeight={800}>
-          ชำระเงิน
+          Payment
         </Typography>
 
         {/* Package Summary */}
@@ -365,7 +365,7 @@ export default function PaymentPage() {
 
             <Grid container spacing={1} sx={{ fontSize: '0.875rem' }}>
               <Grid size={{ xs: 5 }}>
-                <Typography variant="caption" color="text.secondary">ประเภท:</Typography>
+                <Typography variant="caption" color="text.secondary">Type:</Typography>
               </Grid>
               <Grid size={{ xs: 7 }}>
                 <Typography variant="caption" fontWeight={600}>{paymentInfo.productCategory}</Typography>
@@ -374,10 +374,10 @@ export default function PaymentPage() {
               {paymentInfo.durationDays && (
                 <>
                   <Grid size={{ xs: 5 }}>
-                    <Typography variant="caption" color="text.secondary">ระยะเวลา:</Typography>
+                    <Typography variant="caption" color="text.secondary">Duration:</Typography>
                   </Grid>
                   <Grid size={{ xs: 7 }}>
-                    <Typography variant="caption" fontWeight={600}>{paymentInfo.durationDays} วัน</Typography>
+                    <Typography variant="caption" fontWeight={600}>{paymentInfo.durationDays} Days</Typography>
                   </Grid>
                 </>
               )}
@@ -385,16 +385,16 @@ export default function PaymentPage() {
               {paymentInfo.sessionAmount && (
                 <>
                   <Grid size={{ xs: 5 }}>
-                    <Typography variant="caption" color="text.secondary">จำนวนครั้ง:</Typography>
+                    <Typography variant="caption" color="text.secondary">Number of Sessions:</Typography>
                   </Grid>
                   <Grid size={{ xs: 7 }}>
-                    <Typography variant="caption" fontWeight={600}>{paymentInfo.sessionAmount} ครั้ง</Typography>
+                    <Typography variant="caption" fontWeight={600}>{paymentInfo.sessionAmount} Sessions</Typography>
                   </Grid>
                 </>
               )}
 
               <Grid size={{ xs: 5 }}>
-                <Typography variant="caption" color="text.secondary">ราคาปกติ:</Typography>
+                <Typography variant="caption" color="text.secondary">Regular Price:</Typography>
               </Grid>
               <Grid size={{ xs: 7 }}>
                 <Typography variant="caption">{money(paymentInfo.listPrice)}</Typography>
@@ -403,7 +403,7 @@ export default function PaymentPage() {
               {paymentInfo.discountAmount > 0 && (
                 <>
                   <Grid size={{ xs: 5 }}>
-                    <Typography variant="caption" color="text.secondary">ส่วนลด:</Typography>
+                    <Typography variant="caption" color="text.secondary">Discount:</Typography>
                   </Grid>
                   <Grid size={{ xs: 7 }}>
                     <Typography variant="caption" color="error">-{money(paymentInfo.discountAmount)}</Typography>
@@ -415,7 +415,7 @@ export default function PaymentPage() {
             <Divider sx={{ my: 0.5 }} />
 
             <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="body2" fontWeight={700}>ยอดชำระ:</Typography>
+              <Typography variant="body2" fontWeight={700}>Amount to Pay:</Typography>
               <Typography variant="h6" fontWeight={800} color="primary">
                 {money(paymentInfo.payableAmount)}
               </Typography>
@@ -427,7 +427,7 @@ export default function PaymentPage() {
         <Paper elevation={1} sx={{ p: 2, borderRadius: 2, bgcolor: 'grey.50' }}>
           <Stack spacing={2} alignItems="center">
             <Typography variant="subtitle1" fontWeight={700}>
-              สแกน QR Code
+              Scan QR Code
             </Typography>
 
             <Box
@@ -462,13 +462,13 @@ export default function PaymentPage() {
             <Paper sx={{ p: 1.5, width: '100%', bgcolor: 'white', border: '1px solid', borderColor: 'divider' }}>
               <Stack spacing={1}>
                 <Typography variant="caption" fontWeight={700} color="primary" textAlign="center">
-                  ข้อมูลบัญชี
+                  Account Information
                 </Typography>
 
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
                   <Stack spacing={0} sx={{ flex: 1, minWidth: 0 }}>
                     <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                      ธนาคาร
+                      Bank
                     </Typography>
                     <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.85rem' }}>
                       {paymentInfo.bankCode}
@@ -476,7 +476,7 @@ export default function PaymentPage() {
                   </Stack>
                   <IconButton 
                     size="small" 
-                    onClick={() => copyToClipboard(paymentInfo.bankCode, 'ธนาคาร')}
+                    onClick={() => copyToClipboard(paymentInfo.bankCode, 'Bank')}
                     sx={{ color: 'primary.main', p: 0.5 }}
                   >
                     <ContentCopyIcon sx={{ fontSize: 16 }} />
@@ -488,7 +488,7 @@ export default function PaymentPage() {
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
                   <Stack spacing={0} sx={{ flex: 1, minWidth: 0 }}>
                     <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                      ชื่อบัญชี
+                      Account Name
                     </Typography>
                     <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.85rem' }}>
                       {paymentInfo.accountName}
@@ -496,7 +496,7 @@ export default function PaymentPage() {
                   </Stack>
                   <IconButton 
                     size="small" 
-                    onClick={() => copyToClipboard(paymentInfo.accountName, 'ชื่อบัญชี')}
+                    onClick={() => copyToClipboard(paymentInfo.accountName, 'Account Name')}
                     sx={{ color: 'primary.main', p: 0.5 }}
                   >
                     <ContentCopyIcon sx={{ fontSize: 16 }} />
@@ -508,7 +508,7 @@ export default function PaymentPage() {
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
                   <Stack spacing={0} sx={{ flex: 1, minWidth: 0 }}>
                     <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                      เลขบัญชี
+                      Account Number
                     </Typography>
                     <Typography 
                       variant="body1" 
@@ -520,7 +520,7 @@ export default function PaymentPage() {
                   </Stack>
                   <IconButton 
                     size="small" 
-                    onClick={() => copyToClipboard(paymentInfo.accountNumber, 'เลขบัญชี')}
+                    onClick={() => copyToClipboard(paymentInfo.accountNumber, 'Account Number')}
                     sx={{ color: 'primary.main', p: 0.5 }}
                   >
                     <ContentCopyIcon sx={{ fontSize: 16 }} />
@@ -538,12 +538,12 @@ export default function PaymentPage() {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <CheckCircleIcon sx={{ color: 'primary.main', fontSize: 20 }} />
                 <Typography variant="subtitle1" fontWeight={700} color="primary.main">
-                  ยืนยันการชำระเงิน
+                  Confirm Payment
                 </Typography>
               </Box>
 
               <Typography variant="caption" color="text.secondary">
-                เจ้าหน้าที่: ตรวจสอบการโอนเงินของลูกค้าแล้วกดยืนยัน
+                Staff: Verify customer payment transfer and click confirm
               </Typography>
 
               <Button
@@ -566,7 +566,7 @@ export default function PaymentPage() {
           <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
             <Stack spacing={1.5}>
               <Typography variant="subtitle1" fontWeight={700}>
-                อัปโหลดสลิป
+                Upload Slip
               </Typography>
 
               {uploadError && (
@@ -593,7 +593,7 @@ export default function PaymentPage() {
                     sx={{ py: 1 }}
                     size="small"
                   >
-                    {selectedFile ? 'เปลี่ยนไฟล์' : 'เลือกไฟล์สลิป'}
+                    {selectedFile ? 'Change File' : 'Select Slip File'}
                   </Button>
                 </label>
                 {selectedFile && (
@@ -642,7 +642,7 @@ export default function PaymentPage() {
                 {uploading ? (
                   <>
                     <CircularProgress size={16} sx={{ mr: 1, color: 'grey.600' }} />
-                    <Typography variant="body2">กำลังตรวจสอบ...</Typography>
+                    <Typography variant="body2">Verifying...</Typography>
                   </>
                 ) : (
                   '📤 Upload Slip'
@@ -657,7 +657,7 @@ export default function PaymentPage() {
         )}
 
         <Button variant="outlined" onClick={() => router.back()} size="small">
-          ย้อนกลับ
+          Go Back
         </Button>
 
         {/* Copy Success Snackbar */}
@@ -668,7 +668,7 @@ export default function PaymentPage() {
           anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         >
           <Alert severity="success" sx={{ width: '100%' }}>
-            คัดลอก{copiedText}แล้ว ✓
+            Copied {copiedText} ✓
           </Alert>
         </Snackbar>
       </Stack>

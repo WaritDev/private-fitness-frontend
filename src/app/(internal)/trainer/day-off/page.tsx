@@ -121,7 +121,7 @@ export default function TrainerDayOffsPage(): React.JSX.Element {
       setError(errorMessage);
       setSnackbar({
         open: true,
-        message: "เกิดข้อผิดพลาดในการโหลดข้อมูล",
+        message: "Failed to load day-offs data",
         severity: "error",
       });
     } finally {
@@ -151,7 +151,7 @@ export default function TrainerDayOffsPage(): React.JSX.Element {
     if (!selectedDate) {
       setSnackbar({
         open: true,
-        message: "กรุณาเลือกวันที่",
+        message: "Please select a date",
         severity: "error",
       });
       return;
@@ -174,7 +174,7 @@ export default function TrainerDayOffsPage(): React.JSX.Element {
       if (response.ok && data.status === "success") {
         setSnackbar({
           open: true,
-          message: "เพิ่มวันหยุดสำเร็จ",
+          message: "Day-off added successfully",
           severity: "success",
         });
 
@@ -188,14 +188,14 @@ export default function TrainerDayOffsPage(): React.JSX.Element {
         const errorData = data as ErrorResponse;
         setSnackbar({
           open: true,
-          message: errorData.message || "เกิดข้อผิดพลาดในการเพิ่มวันหยุด",
+          message: errorData.message || "Failed to add day-off",
           severity: "error",
         });
       }
     } catch (err) {
       setSnackbar({
         open: true,
-        message: "เกิดข้อผิดพลาดในการเพิ่มวันหยุด",
+        message: "Failed to add day-off",
         severity: "error",
       });
     }
@@ -230,7 +230,7 @@ export default function TrainerDayOffsPage(): React.JSX.Element {
       if (response.ok && data.status === "success") {
         setSnackbar({
           open: true,
-          message: "ลบวันหยุดสำเร็จ",
+          message: "Day-off deleted successfully",
           severity: "success",
         });
 
@@ -242,14 +242,14 @@ export default function TrainerDayOffsPage(): React.JSX.Element {
         const errorData = data as ErrorResponse;
         setSnackbar({
           open: true,
-          message: errorData.message || "เกิดข้อผิดพลาดในการลบวันหยุด",
+          message: errorData.message || "Failed to delete day-off",
           severity: "error",
         });
       }
     } catch (err) {
       setSnackbar({
         open: true,
-        message: "เกิดข้อผิดพลาดในการลบวันหยุด",
+        message: "Failed to delete day-off",
         severity: "error",
       });
     } finally {
@@ -279,7 +279,7 @@ export default function TrainerDayOffsPage(): React.JSX.Element {
           {/* Header */}
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Typography variant="h5" fontWeight={500}>
-              📅 จัดการวันหยุดของฉัน
+              📅 Manage Day-Offs
             </Typography>
             <Button
               variant="contained"
@@ -291,7 +291,7 @@ export default function TrainerDayOffsPage(): React.JSX.Element {
                 color: "#000",
               }}
             >
-              เพิ่มวันหยุด
+              Add Day-Off
             </Button>
           </Box>
 
@@ -319,16 +319,16 @@ export default function TrainerDayOffsPage(): React.JSX.Element {
                       #
                     </TableCell>
                     <TableCell sx={{ fontWeight: 600, width: "30%" }}>
-                      วันที่
+                      Date
                     </TableCell>
                     <TableCell sx={{ fontWeight: 600, width: "30%" }}>
-                      เวลาเริ่มต้น
+                      Start Time
                     </TableCell>
                     <TableCell sx={{ fontWeight: 600, width: "30%" }}>
-                      เวลาสิ้นสุด
+                      End Time
                     </TableCell>
                     <TableCell sx={{ fontWeight: 600, width: "20%", textAlign: "center" }}>
-                      จัดการ
+                      Action
                     </TableCell>
                   </TableRow>
                 </TableHead>
@@ -336,7 +336,7 @@ export default function TrainerDayOffsPage(): React.JSX.Element {
                   {dayOffs.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} sx={{ textAlign: "center", py: 4, color: "text.secondary" }}>
-                        ยังไม่มีวันหยุด
+                        No day-offs
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -366,20 +366,20 @@ export default function TrainerDayOffsPage(): React.JSX.Element {
           {/* Empty State */}
           {!loading && !error && dayOffs.length === 0 && (
             <Box sx={{ py: 6, textAlign: "center", color: "text.secondary" }}>
-              <Typography variant="body1">ยังไม่มีวันหยุด</Typography>
+              <Typography variant="body1">No day-offs</Typography>
               <Typography variant="body2" sx={{ mt: 1 }}>
-                คลิกปุ่ม "เพิ่มวันหยุด" เพื่อเริ่มต้น
+                Click "Add Day-Off" button to get started
               </Typography>
             </Box>
           )}
 
           {/* Add Day-Off Dialog */}
           <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-            <DialogTitle>เพิ่มวันหยุด</DialogTitle>
+            <DialogTitle>Add Day-Off</DialogTitle>
             <DialogContent>
               <Stack spacing={3} sx={{ mt: 1 }}>
                 <DatePicker
-                  label="เลือกวันหยุด"
+                  label="Select Day-Off Date"
                   value={selectedDate}
                   onChange={(newDate) => setSelectedDate(newDate)}
                   disablePast
@@ -393,7 +393,7 @@ export default function TrainerDayOffsPage(): React.JSX.Element {
               </Stack>
             </DialogContent>
             <DialogActions>
-              <Button onClick={handleCloseDialog}>ยกเลิก</Button>
+              <Button onClick={handleCloseDialog}>Cancel</Button>
               <Button
                 variant="contained"
                 onClick={handleAddDayOff}
@@ -404,7 +404,7 @@ export default function TrainerDayOffsPage(): React.JSX.Element {
                   color: "#000",
                 }}
               >
-                บันทึก
+                Save
               </Button>
             </DialogActions>
           </Dialog>
@@ -412,10 +412,10 @@ export default function TrainerDayOffsPage(): React.JSX.Element {
           {/* Confirm Delete Dialog */}
           <ConfirmPopUpUI
             open={confirmDelete.open}
-            title="ยืนยันการลบวันหยุด"
-            message="คุณต้องการลบวันหยุดนี้หรือไม่?"
-            confirmText="ลบ"
-            cancelText="ยกเลิก"
+            title="Confirm Delete Day-Off"
+            message="Do you want to delete this day-off?"
+            confirmText="Delete"
+            cancelText="Cancel"
             onConfirm={performDelete}
             onClose={() =>
               setConfirmDelete({

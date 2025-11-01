@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthProvider';
+import { useAlertPopUp } from '@/components/pop-up/AlertPopUpUI';
 import {
   AppBar,
   Toolbar,
@@ -58,8 +59,11 @@ function roleTabs(role: Role): NavItem[] {
   return [{ href: '/', label: 'Home', tab: true }];
 }
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+
 export default function InternalNavbar(): React.JSX.Element {
   const { user } = useAuth();
+  const { setAlert } = useAlertPopUp();
   const role = user?.role as Role;
   const pathname = usePathname();
   const router = useRouter();
@@ -123,10 +127,41 @@ export default function InternalNavbar(): React.JSX.Element {
 
   const onLogout = async (): Promise<void> => {
     try {
-      let res = await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-      if (!res.ok) res = await fetch('/api/auth/logout', { method: 'GET', credentials: 'include' });
-    } catch {}
-    router.replace('/login');
+      // Call logout API
+      let res = await fetch(`${API_BASE_URL}/api/auth/logout`, { 
+        method: 'POST', 
+        credentials: 'include' 
+      });
+      if (!res.ok) {
+        res = await fetch(`${API_BASE_URL}/api/auth/logout`, { 
+          method: 'GET', 
+          credentials: 'include' 
+        });
+      }
+      
+      // Show success message
+      setAlert({
+        open: true,
+        msg: '✅ Logged out successfully',
+        severity: 'success',
+      });
+      
+      // Wait 4 seconds before redirecting
+      setTimeout(() => {
+        router.replace('/login');
+      }, 4000);
+    } catch (error) {
+      // Even if API call fails, show message and redirect
+      setAlert({
+        open: true,
+        msg: '✅ Logged out successfully',
+        severity: 'success',
+      });
+      
+      setTimeout(() => {
+        router.replace('/login');
+      }, 4000);
+    }
   };
 
   return (

@@ -107,10 +107,10 @@ export default function TrainerCalendarPage(): React.JSX.Element {
       if (response.ok && data.status === "success" && "appointments" in data) {
         setAppointments(data.appointments);
       } else {
-        setError(data.message || "เกิดข้อผิดพลาดในการโหลดข้อมูล");
+        setError(data.message || "Failed to load calendar data");
       }
     } catch (err) {
-      setError("เกิดข้อผิดพลาดในการเชื่อมต่อกับ server");
+      setError("Failed to connect to server");
       console.error("Load calendar error:", err);
     } finally {
       setLoading(false);
@@ -154,7 +154,7 @@ export default function TrainerCalendarPage(): React.JSX.Element {
       if (response.ok && data.status === "success") {
         setSnackbar({
           open: true,
-          message: data.message || "ยืนยันการเข้าเรียนสำเร็จ",
+          message: data.message || "Check-in confirmed successfully",
           severity: "success",
         });
         // Refresh calendar after 2 seconds
@@ -164,14 +164,14 @@ export default function TrainerCalendarPage(): React.JSX.Element {
       } else {
         setSnackbar({
           open: true,
-          message: data.message || "เกิดข้อผิดพลาดในการยืนยันการเข้าเรียน",
+          message: data.message || "Failed to confirm check-in",
           severity: "error",
         });
       }
     } catch (err) {
       setSnackbar({
         open: true,
-        message: "เกิดข้อผิดพลาดในการยืนยันการเข้าเรียน",
+        message: "Failed to confirm check-in",
         severity: "error",
       });
       console.error("Confirm check-in error:", err);
@@ -199,7 +199,7 @@ export default function TrainerCalendarPage(): React.JSX.Element {
         return (
           <Chip
             icon={<PendingIcon />}
-            label="รอยืนยัน"
+            label="Pending"
             color="warning"
             size="small"
           />
@@ -208,14 +208,14 @@ export default function TrainerCalendarPage(): React.JSX.Element {
         return (
           <Chip
             icon={<CheckCircleIcon />}
-            label="ยืนยันแล้ว"
+            label="Confirmed"
             color="success"
             size="small"
           />
         );
       default:
         return (
-          <Chip label="ยังไม่เช็กอิน" color="default" size="small" />
+          <Chip label="Not Checked In" color="default" size="small" />
         );
     }
   };
@@ -226,7 +226,7 @@ export default function TrainerCalendarPage(): React.JSX.Element {
         {/* Header */}
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="h4" fontWeight={700}>
-            📅 ปฏิทินการนัดหมายของฉัน
+            📅 My Calendar
           </Typography>
           <Button
             variant="contained"
@@ -238,7 +238,7 @@ export default function TrainerCalendarPage(): React.JSX.Element {
               "&:hover": { bgcolor: "#2fbb65" },
             }}
           >
-            🔄 รีเฟรช
+            🔄 Refresh
           </Button>
         </Box>
 
@@ -262,12 +262,12 @@ export default function TrainerCalendarPage(): React.JSX.Element {
             <Table>
               <TableHead>
                 <TableRow sx={{ bgcolor: "#f5f5f5" }}>
-                  <TableCell sx={{ fontWeight: 700 }}>วันที่/เวลา</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>ลูกค้า</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Date/Time</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Customer</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Session</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>สถานะ Check-in</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>เวลา Check-in</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>การดำเนินการ</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Check-in Status</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Check-in Time</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Action</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -275,7 +275,7 @@ export default function TrainerCalendarPage(): React.JSX.Element {
                   <TableRow>
                     <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                       <Typography variant="body1" color="text.secondary">
-                        ไม่มีนัดหมาย
+                        No appointments
                       </Typography>
                     </TableCell>
                   </TableRow>
@@ -287,7 +287,7 @@ export default function TrainerCalendarPage(): React.JSX.Element {
                           {formatDateTime(apt.startTime)}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          ถึง {formatTime(apt.endTime)}
+                          until {formatTime(apt.endTime)}
                         </Typography>
                       </TableCell>
                       <TableCell>
@@ -303,7 +303,7 @@ export default function TrainerCalendarPage(): React.JSX.Element {
                           {apt.usedSessions} / {apt.totalSessions}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          ครั้งที่ใช้แล้ว / ทั้งหมด
+                          used / total
                         </Typography>
                       </TableCell>
                       <TableCell>{getStatusChip(apt.checkinStatus)}</TableCell>
@@ -330,15 +330,15 @@ export default function TrainerCalendarPage(): React.JSX.Element {
                               "&:hover": { bgcolor: "#2fbb65" },
                             }}
                           >
-                            ✅ ยืนยันการเข้าเรียน
+                            ✅ Confirm Check-in
                           </Button>
                         ) : apt.checkinStatus === "CONFIRMED" ? (
                           <Typography variant="body2" color="success.main">
-                            ✓ ยืนยันแล้ว
+                            ✓ Confirmed
                           </Typography>
                         ) : (
                           <Typography variant="body2" color="text.secondary">
-                            รอเช็กอิน
+                            Waiting for check-in
                           </Typography>
                         )}
                       </TableCell>
@@ -354,30 +354,30 @@ export default function TrainerCalendarPage(): React.JSX.Element {
       {/* Confirm Check-in Dialog */}
       <ConfirmPopUpUI
         open={confirmCheckIn.open}
-        title="ยืนยันการเข้าเรียน"
+        title="Confirm Check-in"
         message={
           confirmCheckIn.appointment ? (
             <Box>
               <Typography variant="body1" gutterBottom>
-                คุณต้องการยืนยันการเข้าเรียนของ
+                Do you want to confirm check-in for
               </Typography>
               <Typography variant="body1" fontWeight={600} gutterBottom>
                 {confirmCheckIn.appointment.customerFirstName}{" "}
                 {confirmCheckIn.appointment.customerLastName}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                วันที่: {formatDateTime(confirmCheckIn.appointment.startTime)}
+                Date: {formatDateTime(confirmCheckIn.appointment.startTime)}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                ระบบจะหัก session จำนวน 1 ครั้งให้อัตโนมัติ
+                The system will automatically deduct 1 session.
               </Typography>
             </Box>
           ) : (
             ""
           )
         }
-        confirmText="ยืนยัน"
-        cancelText="ยกเลิก"
+        confirmText="Confirm"
+        cancelText="Cancel"
         onConfirm={performConfirmCheckIn}
         onClose={() =>
           setConfirmCheckIn({ open: false, appointment: null })
