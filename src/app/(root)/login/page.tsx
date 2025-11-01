@@ -18,7 +18,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 
 const PRIMARY = { main: '#38E07A', dark: '#2fbb65' } as const;
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
 export default function LoginPage() {
   const [username, setUsername] = React.useState('');

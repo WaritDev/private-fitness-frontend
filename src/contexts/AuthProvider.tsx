@@ -3,7 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AuthContextValue, AuthUser, UserRole } from '../types/users';
 
 // Backend API Base URL
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
 
 const AuthContext = createContext<AuthContextValue>({
   user: null,

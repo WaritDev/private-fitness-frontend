@@ -32,7 +32,7 @@ import dayjs from "dayjs";
 import ConfirmPopUpUI from "@/components/pop-up/ConfirmPopUpUI";
 
 const PRIMARY = { main: "#38E07A", dark: "#2fbb65" } as const;
-const API_BASE_URL = "http://localhost:8000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
 
 // Day Off Type - ตรงตาม API Response
 type DayOff = {
