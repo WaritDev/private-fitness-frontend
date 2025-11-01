@@ -26,6 +26,12 @@ type ErrBody = { message?: string };
 
 const PRIMARY = { main: "#38E07A", dark: "#2fbb65" } as const;
 
+function toFixed2Num(s: string): number {
+  const n = Number(s);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.round(n * 100) / 100;
+}
+
 type FormState = {
   name: string;
   productType: ProductType | "";
@@ -70,14 +76,17 @@ export default function AddProductPage(): React.JSX.Element {
 
   const validate = (): boolean => {
     const e: Record<string, string> = {};
-
     if (!form.name.trim()) e.name = "Name is required.";
     if (!form.productType) e.productType = "Select a product type.";
     if (!form.productCategory) e.productCategory = "Select a product category.";
 
-    const priceNum = Number(form.listPrice);
-    if (form.listPrice.trim() === "") e.listPrice = "List price is required.";
-    else if (!Number.isFinite(priceNum) || priceNum < 0) e.listPrice = "Enter a number ≥ 0.";
+    if (form.listPrice.trim() === "") {
+      e.listPrice = "List price is required.";
+    } else if (!/^\d+(?:\.\d{1,2})?$/.test(form.listPrice)) {
+      e.listPrice = "Up to 2 decimal places allowed.";
+    } else if (Number(form.listPrice) < 0) {
+      e.listPrice = "Enter a number ≥ 0.";
+    }
 
     const payAcc = Number(form.paymentAccountId);
     if (form.paymentAccountId.trim() === "") e.paymentAccountId = "Payment Account ID is required.";
@@ -102,6 +111,8 @@ export default function AddProductPage(): React.JSX.Element {
   const onSave = async () => {
     if (!validate()) return;
 
+    const listPrice2 = toFixed2Num(form.listPrice);
+
     const payload: {
       name: string;
       productType: ProductType;
@@ -115,7 +126,7 @@ export default function AddProductPage(): React.JSX.Element {
       name: form.name.trim(),
       productType: form.productType as ProductType,
       productCategory: form.productCategory as ProductCategory,
-      listPrice: Math.round(Number(form.listPrice)),
+      listPrice: listPrice2,
       isActive: form.isActive,
       paymentAccountId: Number(form.paymentAccountId),
     };
@@ -156,8 +167,7 @@ export default function AddProductPage(): React.JSX.Element {
     <Container maxWidth="md" sx={{ py: 3 }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Typography variant="h5" fontWeight={400}>Add Product</Typography>
-        <Stack direction="row" spacing={1}>
-        </Stack>
+        <Stack direction="row" spacing={1}></Stack>
       </Stack>
 
       {globalErr && (
@@ -206,26 +216,33 @@ export default function AddProductPage(): React.JSX.Element {
             </TextField>
           </Stack>
 
-          <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-            <TextField
-              label="List Price (baht)"
-              value={form.listPrice}
-              onChange={(e) => setField("listPrice", e.target.value)}
-              error={!!errors.listPrice}
-              helperText={errors.listPrice || "Enter an amount ≥ 0"}
-              fullWidth
-              inputMode="numeric"
-            />
-            <TextField
-              label="Payment Account ID"
-              value={form.paymentAccountId}
-              onChange={(e) => setField("paymentAccountId", e.target.value)}
-              error={!!errors.paymentAccountId}
-              helperText={errors.paymentAccountId || "e.g. 1 or 2"}
-              fullWidth
-              inputMode="numeric"
-            />
-          </Stack>
+          <TextField
+            label="List Price (baht)"
+            value={form.listPrice}
+            onChange={(e) => {
+              const raw = e.target.value;
+              const pattern = /^(\d{0,15})(\.\d{0,2})?$/;
+              const altPattern = /^(\.\d{0,2})?$/;
+              if (pattern.test(raw) || altPattern.test(raw) || raw === "") {
+                setField("listPrice", raw);
+              }
+            }}
+            onBlur={() => {
+              if (form.listPrice.trim() === "") return;
+              const n = Number(form.listPrice);
+              if (Number.isFinite(n)) {
+                setField("listPrice", (Math.round(n * 100) / 100).toFixed(2));
+              }
+            }}
+            error={!!errors.listPrice}
+            helperText={errors.listPrice || "Enter an amount ≥ 0 (up to 2 decimals)."}
+            fullWidth
+            inputMode="decimal"
+            inputProps={{
+              inputMode: "decimal",
+              pattern: "\\d*(\\.\\d{0,2})?",
+            }}
+          />
 
           {form.productType === "DURATION" && (
             <TextField
@@ -251,16 +268,27 @@ export default function AddProductPage(): React.JSX.Element {
             />
           )}
 
-          <FormControlLabel
-            control={
-              <Switch
-                checked={form.isActive}
-                onChange={(_, c) => setField("isActive", c)}
-                color="success"
-              />
-            }
-            label={form.isActive ? "Active" : "Inactive"}
-          />
+          <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+            <TextField
+              label="Payment Account ID"
+              value={form.paymentAccountId}
+              onChange={(e) => setField("paymentAccountId", e.target.value)}
+              error={!!errors.paymentAccountId}
+              helperText={errors.paymentAccountId || "e.g. 1 or 2"}
+              fullWidth
+              inputMode="numeric"
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={form.isActive}
+                  onChange={(_, c) => setField("isActive", c)}
+                  color="success"
+                />
+              }
+              label={form.isActive ? "Active" : "Inactive"}
+            />
+          </Stack>
         </Stack>
       </Paper>
 

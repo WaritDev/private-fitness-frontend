@@ -40,17 +40,15 @@ type ErrBody = { message?: string };
 
 const PRIMARY = { main: "#38E07A", dark: "#2fbb65" } as const;
 
-// Guess unit from GET: if listPrice >= 10000 treat as satang, convert to baht for UI
-const toDisplayBaht = (n: number): string => {
+const toDisplayPrice = (n: number): string => {
   if (!Number.isFinite(n)) return "";
-  const asBaht = n >= 10000 ? n / 100 : n;
-  return String(asBaht);
+  return n.toFixed(2);
 };
 
-// Convert back to baht (integer) for POST payload
-const toPostBahtNumber = (s: string): number => {
-  const n = Number(s);
-  return Number.isFinite(n) ? Math.max(0, Math.round(n)) : 0;
+const toPostPrice = (s: string): number => {
+  const n = parseFloat(s);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return parseFloat(n.toFixed(2));
 };
 
 export default function EditProductPage(): React.JSX.Element {
@@ -102,7 +100,7 @@ export default function EditProductPage(): React.JSX.Element {
         setName(row.name);
         setType(row.type);
         setCategory(row.category);
-        setListPriceBaht(toDisplayBaht(row.listPrice));
+        setListPriceBaht(toDisplayPrice(row.listPrice)); // ✅ ใช้ฟังก์ชันใหม่
         setDurationDays(
           typeof row.durationDays === "number" && Number.isFinite(row.durationDays)
             ? String(row.durationDays)
@@ -143,9 +141,11 @@ export default function EditProductPage(): React.JSX.Element {
     if (!type) e.type = "Select product type.";
     if (!category) e.category = "Select product category.";
 
-    const price = Number(listPriceBaht);
+    const price = parseFloat(listPriceBaht);
     if (listPriceBaht.trim() === "") e.listPriceBaht = "List price is required.";
     else if (!Number.isFinite(price) || price < 0) e.listPriceBaht = "Enter a number ≥ 0.";
+    else if (!/^\d+(\.\d{1,2})?$/.test(listPriceBaht))
+      e.listPriceBaht = "Up to 2 decimal places allowed.";
 
     if (type === "DURATION") {
       const days = Number(durationDays);
@@ -174,7 +174,7 @@ export default function EditProductPage(): React.JSX.Element {
       name,
       type,
       category,
-      listPrice: toPostBahtNumber(listPriceBaht),
+      listPrice: toPostPrice(listPriceBaht), // ✅ ส่ง float64 ที่ fix 2 ตำแหน่ง
       durationDays: type === "DURATION" ? Number(durationDays) : undefined,
       sessionAmount: type === "SESSION" ? Number(sessionAmount) : undefined,
       isActive,
@@ -236,8 +236,6 @@ export default function EditProductPage(): React.JSX.Element {
         <Typography variant="h5" fontWeight={400}>
           Edit Product: {productId || "—"}
         </Typography>
-        <Stack direction="row" spacing={1}>
-        </Stack>
       </Stack>
 
       <Paper sx={{ p: 3, borderRadius: 3 }}>
@@ -281,14 +279,21 @@ export default function EditProductPage(): React.JSX.Element {
             fullWidth
           />
 
+          {/* ✅ ราคาทศนิยม 2 ตำแหน่ง จำกัดไม่ให้พิมพ์เกิน */}
           <TextField
             label="List Price (baht)"
             value={listPriceBaht}
-            onChange={(e) => setListPriceBaht(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (/^\d*\.?\d{0,2}$/.test(val)) { // ✅ regex จำกัดทศนิยมไม่เกิน 2
+                setListPriceBaht(val);
+              }
+            }}
+            onBlur={() => setListPriceBaht(toDisplayPrice(toPostPrice(listPriceBaht)))}
             error={!!errors.listPriceBaht}
-            helperText={errors.listPriceBaht || "Enter an amount ≥ 0 (baht)."}
+            helperText={errors.listPriceBaht || "Enter an amount ≥ 0 (up to 2 decimals)."}
             fullWidth
-            inputMode="numeric"
+            inputMode="decimal"
           />
 
           {type === "DURATION" && (

@@ -20,12 +20,23 @@ import { useAlertPopUp } from "@/components/pop-up/AlertPopUpUI";
 type Role = "ADMIN" | "MANAGER" | "TRAINER" | "SALES";
 type Gender = "MALE" | "FEMALE" | "OTHER";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-
 const RE_USERNAME = /^[A-Za-z][A-Za-z0-9]{3,29}$/;
-const RE_PASSWORD = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.])[A-Za-z\d@$!%*?&.]{8,}$/;
+const RE_PASSWORD = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 const RE_PHONE = /^[0-9]{10}$/;
 const RE_EMAIL = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/;
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+const ymdLocal = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const todayLocal = () => new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
+const addYears = (d: Date, years: number) => new Date(d.getFullYear() + years, d.getMonth(), d.getDate());
+const parseYMDStrict = (v: string): Date | null => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
+  const [Y, M, D] = v.split("-").map(Number);
+  const dt = new Date(Y, M - 1, D);
+  return (dt.getFullYear() === Y && dt.getMonth() === M - 1 && dt.getDate() === D) ? dt : null;
+};
 
 export default function AddStaffPage(): React.ReactElement {
   const router = useRouter();
@@ -45,7 +56,6 @@ export default function AddStaffPage(): React.ReactElement {
     specialty: "",
   });
 
-  // แยก state สำหรับ error, ช่องที่ถูกแตะ (touched), และสถานะกด submit
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [touched, setTouched] = React.useState<Record<string, boolean>>({});
   const [submitted, setSubmitted] = React.useState(false);
@@ -63,52 +73,66 @@ export default function AddStaffPage(): React.ReactElement {
   const helper = (k: keyof typeof form, fallback?: string) =>
     showError(k) ? errors[k] : (fallback ?? "");
 
-  const validateField = (key: keyof typeof form): string => {
+  const maxDob = React.useMemo(() => {
+    const t = todayLocal();
+    return ymdLocal(new Date(t.getFullYear() - 14, t.getMonth(), t.getDate()));
+  }, []);
+
+  const validateFormInputs = (key: keyof typeof form): string => {
     const v = (form[key] as string) ?? "";
+
     switch (key) {
       case "username":
         if (!v.trim()) return "Required";
-        if (!RE_USERNAME.test(v.trim())) return "Use 4–30 chars: start with A–Z, then letters/digits.";
+        if (!RE_USERNAME.test(v.trim())) return "Use 4–30 chars: start with A–Z, then a–z/0–9.";
         return "";
+
       case "password":
-        // ต้องการให้ “เริ่มต้นไม่ขึ้น Required”
-        // แต่เมื่อ blur หรือกด Save ค่อยตรวจครบถ้วน
         if (!v) return "Required";
-        if (!RE_PASSWORD.test(v)) return "Min 8 chars with a-z, A-Z, 0-9, and a special char.";
+        if (!RE_PASSWORD.test(v)) return "At least 8 chars incl. a–z, A–Z, 0–9, and one of @$!%*?&.";
         return "";
-      case "confirmPassword": {
-        const pass = form.password.trim();
-        const conf = v.trim();
-        if (!conf) return "Required";
-        if (conf !== pass) return "Passwords do not match.";
+
+      case "confirmPassword":
+        if (!v) return "Required";
+        if (v !== form.password) return "Passwords do not match.";
         return "";
-      }
+
       case "role":
         return form.role ? "" : "Required";
+
       case "firstName":
         return v.trim() ? "" : "Required";
+
       case "lastName":
         return v.trim() ? "" : "Required";
+
       case "gender":
         return form.gender ? "" : "Required";
+
       case "dateOfBirth": {
-        if (!v) return "Required";
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return "Use YYYY-MM-DD.";
-        const d = new Date(v);
-        if (Number.isNaN(d.getTime())) return "Invalid date.";
+        const raw = v.trim();
+        if (!raw) return "Required";
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return "Use YYYY-MM-DD.";
+        const dob = parseYMDStrict(raw);
+        if (!dob) return "Invalid date.";
+        if (addYears(dob, 14) > todayLocal()) return `Must be at least 14 years old (DOB ≤ ${maxDob}).`;
         return "";
       }
+
       case "phoneNumber":
         if (!v.trim()) return "Required";
         if (!RE_PHONE.test(v.trim())) return "10 digits only.";
         return "";
+
       case "gmail":
         if (!v.trim()) return "Required";
         if (!RE_EMAIL.test(v.trim().toLowerCase())) return "Invalid email.";
         return "";
+
       case "specialty":
         if (form.role === "TRAINER" && !v.trim()) return "Required for TRAINER.";
         return "";
+
       default:
         return "";
     }
@@ -118,12 +142,11 @@ export default function AddStaffPage(): React.ReactElement {
     const keys = Object.keys(form) as (keyof typeof form)[];
     const next: Record<string, string> = {};
     keys.forEach((k) => {
-      // specialty validate เฉพาะเมื่อเป็น TRAINER
       if (k === "specialty" && form.role !== "TRAINER") {
         next[k] = "";
         return;
       }
-      next[k] = validateField(k);
+      next[k] = validateFormInputs(k);
     });
     setErrors(next);
     return Object.values(next).every((m) => m === "");
@@ -133,20 +156,26 @@ export default function AddStaffPage(): React.ReactElement {
     setSubmitted(true);
     if (!validateAll()) return;
 
+    const dob = parseYMDStrict(form.dateOfBirth);
+    if (!dob) {
+      setErrors((s) => ({ ...s, dateOfBirth: "Invalid date." }));
+      return;
+    }
+
     setSaving(true);
     try {
       const payload = {
         username: form.username.trim(),
-        password: form.password.trim(),
-        confirmPassword: form.confirmPassword.trim(),
+        password: form.password,
+        confirmPassword: form.confirmPassword,
         role: form.role as Role,
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
         gender: form.gender as Gender,
-        dateOfBirth: form.dateOfBirth,
+        dateOfBirth: ymdLocal(dob),
         phoneNumber: form.phoneNumber.trim(),
         gmail: form.gmail.trim().toLowerCase(),
-        specialty: form.role === "TRAINER" ? (form.specialty || "").trim() || null : null,
+        specialty: form.role === "TRAINER" ? form.specialty.trim() || null : null,
         isActive: true,
       };
 
@@ -188,7 +217,7 @@ export default function AddStaffPage(): React.ReactElement {
                 onChange={(e) => setField("username", e.target.value)}
                 onBlur={() => {
                   touch("username");
-                  setErrors((s) => ({ ...s, username: validateField("username") }));
+                  setErrors((s) => ({ ...s, username: validateFormInputs("username") }));
                 }}
                 helperText={helper("username")}
                 error={showError("username")}
@@ -203,7 +232,7 @@ export default function AddStaffPage(): React.ReactElement {
                   onChange={(e) => setField("role", e.target.value as Role)}
                   onBlur={() => {
                     touch("role");
-                    setErrors((s) => ({ ...s, role: validateField("role") }));
+                    setErrors((s) => ({ ...s, role: validateFormInputs("role") }));
                   }}
                 >
                   <MenuItem value="TRAINER">TRAINER</MenuItem>
@@ -224,21 +253,20 @@ export default function AddStaffPage(): React.ReactElement {
                 onChange={(e) => setField("password", e.target.value)}
                 onBlur={() => {
                   touch("password");
-                  setErrors((s) => ({ ...s, password: validateField("password") }));
+                  setErrors((s) => ({ ...s, password: validateFormInputs("password") }));
                 }}
-                helperText={helper("password", "Min 8 chars with a-z, A-Z, 0-9, and a special char.")}
+                helperText={helper("password", "At least 8 chars incl. a–z, A–Z, 0–9, and @$!%*?&.")}
                 error={showError("password")}
                 fullWidth
               />
               <TextField
                 label="Confirm Password"
                 type="password"
-                autoComplete="new-password"
                 value={form.confirmPassword}
                 onChange={(e) => setField("confirmPassword", e.target.value)}
                 onBlur={() => {
                   touch("confirmPassword");
-                  setErrors((s) => ({ ...s, confirmPassword: validateField("confirmPassword") }));
+                  setErrors((s) => ({ ...s, confirmPassword: validateFormInputs("confirmPassword") }));
                 }}
                 helperText={helper("confirmPassword")}
                 error={showError("confirmPassword")}
@@ -246,6 +274,7 @@ export default function AddStaffPage(): React.ReactElement {
               />
             </Stack>
 
+            {/* Names */}
             <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
               <TextField
                 label="First Name"
@@ -253,7 +282,7 @@ export default function AddStaffPage(): React.ReactElement {
                 onChange={(e) => setField("firstName", e.target.value)}
                 onBlur={() => {
                   touch("firstName");
-                  setErrors((s) => ({ ...s, firstName: validateField("firstName") }));
+                  setErrors((s) => ({ ...s, firstName: validateFormInputs("firstName") }));
                 }}
                 helperText={helper("firstName")}
                 error={showError("firstName")}
@@ -265,7 +294,7 @@ export default function AddStaffPage(): React.ReactElement {
                 onChange={(e) => setField("lastName", e.target.value)}
                 onBlur={() => {
                   touch("lastName");
-                  setErrors((s) => ({ ...s, lastName: validateField("lastName") }));
+                  setErrors((s) => ({ ...s, lastName: validateFormInputs("lastName") }));
                 }}
                 helperText={helper("lastName")}
                 error={showError("lastName")}
@@ -273,6 +302,7 @@ export default function AddStaffPage(): React.ReactElement {
               />
             </Stack>
 
+            {/* Gender + DOB */}
             <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
               <FormControl fullWidth error={showError("gender")}>
                 <InputLabel id="gender-label">Gender</InputLabel>
@@ -283,7 +313,7 @@ export default function AddStaffPage(): React.ReactElement {
                   onChange={(e) => setField("gender", e.target.value as Gender)}
                   onBlur={() => {
                     touch("gender");
-                    setErrors((s) => ({ ...s, gender: validateField("gender") }));
+                    setErrors((s) => ({ ...s, gender: validateFormInputs("gender") }));
                   }}
                 >
                   <MenuItem value="MALE">Male</MenuItem>
@@ -295,16 +325,20 @@ export default function AddStaffPage(): React.ReactElement {
 
               <TextField
                 label="Date of Birth"
-                type="date"
+                type="text"
                 value={form.dateOfBirth}
                 onChange={(e) => setField("dateOfBirth", e.target.value)}
                 onBlur={() => {
                   touch("dateOfBirth");
-                  setErrors((s) => ({ ...s, dateOfBirth: validateField("dateOfBirth") }));
+                  setErrors((s) => ({ ...s, dateOfBirth: validateFormInputs("dateOfBirth") }));
                 }}
                 helperText={helper("dateOfBirth", "YYYY-MM-DD")}
                 error={showError("dateOfBirth")}
                 InputLabelProps={{ shrink: true }}
+                inputProps={{
+                  max: maxDob,
+                  pattern: "\\d{4}-\\d{2}-\\d{2}",
+                }}
                 fullWidth
               />
             </Stack>
@@ -316,7 +350,7 @@ export default function AddStaffPage(): React.ReactElement {
                 onChange={(e) => setField("phoneNumber", e.target.value)}
                 onBlur={() => {
                   touch("phoneNumber");
-                  setErrors((s) => ({ ...s, phoneNumber: validateField("phoneNumber") }));
+                  setErrors((s) => ({ ...s, phoneNumber: validateFormInputs("phoneNumber") }));
                 }}
                 helperText={helper("phoneNumber")}
                 error={showError("phoneNumber")}
@@ -328,7 +362,7 @@ export default function AddStaffPage(): React.ReactElement {
                 onChange={(e) => setField("gmail", e.target.value)}
                 onBlur={() => {
                   touch("gmail");
-                  setErrors((s) => ({ ...s, gmail: validateField("gmail") }));
+                  setErrors((s) => ({ ...s, gmail: validateFormInputs("gmail") }));
                 }}
                 helperText={helper("gmail")}
                 error={showError("gmail")}
@@ -343,7 +377,7 @@ export default function AddStaffPage(): React.ReactElement {
                 onChange={(e) => setField("specialty", e.target.value)}
                 onBlur={() => {
                   touch("specialty");
-                  setErrors((s) => ({ ...s, specialty: validateField("specialty") }));
+                  setErrors((s) => ({ ...s, specialty: validateFormInputs("specialty") }));
                 }}
                 helperText={helper("specialty")}
                 error={showError("specialty")}
@@ -351,7 +385,7 @@ export default function AddStaffPage(): React.ReactElement {
               />
             )}
 
-            <Stack direction="row" gap={2} justifyContent="flex-end" sx={{ pt: 1 }}>
+            <Stack direction="row" justifyContent="flex-end" spacing={2}>
               <Button variant="outlined" onClick={() => router.back()} disabled={saving}>
                 Cancel
               </Button>

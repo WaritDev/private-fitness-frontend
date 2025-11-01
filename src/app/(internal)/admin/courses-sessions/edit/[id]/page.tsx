@@ -17,20 +17,19 @@ type Status = "ACTIVE" | "EXPIRED" | "FROZEN" | "CANCELLED";
 type ApiItem = {
   id: string;
   customerUsername: string;
-  trainerUsername: string;
+  trainerUsername: string | null;
   productId: string;
-  salesUsername: string;
-  purchaseDate: string; // "YYYY-MM-DD"
+  salesUsername: string | null;
+  purchaseDate: string;
   totalSessions: number;
   usedSessions: number;
-  pricePaid: number;      // satang
-  discountAmount: number; // satang
+  pricePaid: number;
+  discountAmount: number;
   status: Status;
 };
 
 type ErrBody = { message?: string };
 
-// --- helpers ---
 const pad2 = (n: number) => String(n).padStart(2, "0");
 const toYMD = (s?: string) => {
   if (!s) return "";
@@ -39,11 +38,9 @@ const toYMD = (s?: string) => {
   if (Number.isNaN(d.getTime())) return "";
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 };
-const satangToBahtStr = (satang?: number) =>
-  typeof satang === "number" && Number.isFinite(satang) ? (satang / 100).toString() : "";
-const isNonNegNumberStr = (v: string) =>
-  v.trim() !== "" && /^\d+(\.\d+)?$/.test(v) && Number(v) >= 0;
-const bahtStrToIntBaht = (s: string) => Math.round(Number(s || "0"));
+
+// ✅ helper: ตรวจสอบรูปแบบตัวเลขทศนิยม ≤ 2 ตำแหน่ง
+const isNonNegMoneyStr = (v: string) => /^\d+(\.\d{1,2})?$/.test(v.trim()) && Number(v) >= 0;
 
 export default function EditCustomerSessionCoursePage(): React.JSX.Element {
   const router = useRouter();
@@ -51,29 +48,22 @@ export default function EditCustomerSessionCoursePage(): React.JSX.Element {
   const { setAlert } = useAlertPopUp();
 
   const id = params?.id || "";
-
-  // UI state
   const [loading, setLoading] = React.useState(true);
   const [notFound, setNotFound] = React.useState(false);
   const [globalErr, setGlobalErr] = React.useState("");
 
-  // read-only info
   const [customerUsername, setCustomerUsername] = React.useState("");
   const [productId, setProductId] = React.useState("");
   const [salesUsername, setSalesUsername] = React.useState("");
   const [purchaseDate, setPurchaseDate] = React.useState("");
   const [totalSessions, setTotalSessions] = React.useState(0);
   const [usedSessions, setUsedSessions] = React.useState(0);
-
-  // editable
   const [trainerUsername, setTrainerUsername] = React.useState("");
-  const [pricePaid, setPricePaid] = React.useState("");           // baht (string)
-  const [discountAmount, setDiscountAmount] = React.useState(""); // baht (string)
+  const [pricePaid, setPricePaid] = React.useState("");
+  const [discountAmount, setDiscountAmount] = React.useState("");
   const [status, setStatus] = React.useState<Status>("ACTIVE");
-
   const [errors, setErrors] = React.useState<Record<string, string>>({});
 
-  // fetch one
   React.useEffect(() => {
     let cancelled = false;
     const run = async () => {
@@ -100,10 +90,17 @@ export default function EditCustomerSessionCoursePage(): React.JSX.Element {
         setPurchaseDate(toYMD(row.purchaseDate));
         setTotalSessions(row.totalSessions ?? 0);
         setUsedSessions(row.usedSessions ?? 0);
-
         setTrainerUsername(row.trainerUsername || "");
-        setPricePaid(satangToBahtStr(row.pricePaid));
-        setDiscountAmount(satangToBahtStr(row.discountAmount));
+        setPricePaid(
+          typeof row.pricePaid === "number" && Number.isFinite(row.pricePaid)
+            ? row.pricePaid.toFixed(2)
+            : ""
+        );
+        setDiscountAmount(
+          typeof row.discountAmount === "number" && Number.isFinite(row.discountAmount)
+            ? row.discountAmount.toFixed(2)
+            : ""
+        );
         setStatus(row.status);
       } catch (e: unknown) {
         setGlobalErr(e instanceof Error ? e.message : String(e));
@@ -117,25 +114,23 @@ export default function EditCustomerSessionCoursePage(): React.JSX.Element {
 
   const goBack = () => router.push("/admin/courses-sessions");
 
-  // validate
   const validate = () => {
     const e: Record<string, string> = {};
     if (!trainerUsername.trim()) e.trainerUsername = "Required";
-    if (!isNonNegNumberStr(pricePaid)) e.pricePaid = "Must be a number ≥ 0";
-    if (!isNonNegNumberStr(discountAmount)) e.discountAmount = "Must be a number ≥ 0";
+    if (!isNonNegMoneyStr(pricePaid)) e.pricePaid = "Must be ≥ 0, up to 2 decimals";
+    if (!isNonNegMoneyStr(discountAmount)) e.discountAmount = "Must be ≥ 0, up to 2 decimals";
     if (!status) e.status = "Required";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  // save
   const onSave = async () => {
     if (!validate()) return;
 
     const payload = {
       trainerUsername: trainerUsername.trim(),
-      pricePaid: bahtStrToIntBaht(pricePaid),           // integer baht
-      discountAmount: bahtStrToIntBaht(discountAmount), // integer baht
+      pricePaid: parseFloat(pricePaid || "0"),
+      discountAmount: parseFloat(discountAmount || "0"),
       status,
     };
 
@@ -153,46 +148,62 @@ export default function EditCustomerSessionCoursePage(): React.JSX.Element {
         const b = (await res.json().catch(() => ({}))) as ErrBody;
         throw new Error(b?.message || `Update failed (HTTP ${res.status})`);
       }
-      setAlert({ open: true, msg: `Session Course ID: ${id} updated successfully`, severity: "success" });
+      setAlert({
+        open: true,
+        msg: `Session Course ID: ${id} updated successfully`,
+        severity: "success",
+      });
       router.push("/admin/courses-sessions");
     } catch (e: unknown) {
-      setAlert({ open: true, msg: e instanceof Error ? e.message : String(e), severity: "error" });
+      setAlert({
+        open: true,
+        msg: e instanceof Error ? e.message : String(e),
+        severity: "error",
+      });
     }
   };
 
-  // render
-  if (loading) {
+  if (loading)
     return (
       <Box sx={{ p: { xs: 3, md: 4 }, display: "flex", justifyContent: "center" }}>
         <CircularProgress />
       </Box>
     );
-  }
-  if (notFound) {
+  if (notFound)
     return (
       <Box sx={{ p: { xs: 2, md: 3 } }}>
-        <Typography variant="h6" sx={{ mb: 1 }}>Edit Customer Session Course</Typography>
-        <Alert severity="error" sx={{ mb: 2 }}>Record not found (ID: {id})</Alert>
-        <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>Back</Button>
+        <Typography variant="h6" sx={{ mb: 1 }}>
+          Edit Customer Session Course
+        </Typography>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          Record not found (ID: {id})
+        </Alert>
+        <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>
+          Back
+        </Button>
       </Box>
     );
-  }
 
   const remaining = Math.max(0, totalSessions - usedSessions);
 
   return (
     <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 820, mx: "auto" }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-        <Typography variant="h5" fontWeight={500}>Edit Customer Session Course</Typography>
+        <Typography variant="h5" fontWeight={500}>
+          Edit Customer Session Course
+        </Typography>
         <Stack direction="row" spacing={1}>
-          <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>Cancel</Button>
-          <Button variant="contained" startIcon={<SaveIcon />} onClick={onSave}>Save</Button>
+          <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>
+            Cancel
+          </Button>
+          <Button variant="contained" startIcon={<SaveIcon />} onClick={onSave}>
+            Save
+          </Button>
         </Stack>
       </Stack>
 
       {globalErr && <Alert severity="error" sx={{ mb: 2 }}>{globalErr}</Alert>}
 
-      {/* Read-only info */}
       <Paper sx={{ p: 2, borderRadius: 3, mb: 2 }}>
         <Typography variant="body2"><b>ID:</b> {id}</Typography>
         <Typography variant="body2"><b>Customer:</b> {customerUsername || "—"}</Typography>
@@ -204,7 +215,6 @@ export default function EditCustomerSessionCoursePage(): React.JSX.Element {
         </Typography>
       </Paper>
 
-      {/* Editable fields */}
       <Paper sx={{ p: 2, borderRadius: 3 }}>
         <Stack spacing={2}>
           <TextField
@@ -217,21 +227,48 @@ export default function EditCustomerSessionCoursePage(): React.JSX.Element {
           />
 
           <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+            {/* ✅ Price Paid */}
             <TextField
               label="Price Paid (THB)"
               value={pricePaid}
-              onChange={(e) => setPricePaid(e.target.value)}
+              onChange={(e) => {
+                let v = e.target.value;
+                if (!/^[0-9]*\.?[0-9]*$/.test(v)) return; // allow only digits & .
+                const parts = v.split(".");
+                if (parts.length === 2 && parts[1].length > 2) {
+                  v = parts[0] + "." + parts[1].slice(0, 2);
+                }
+                setPricePaid(v);
+              }}
+              onBlur={() => {
+                const n = Number(pricePaid);
+                if (Number.isFinite(n)) setPricePaid(n.toFixed(2));
+              }}
               error={!!errors.pricePaid}
-              helperText={errors.pricePaid}
+              helperText={errors.pricePaid || "Up to 2 decimals"}
               fullWidth
               inputMode="decimal"
             />
+
+            {/* ✅ Discount */}
             <TextField
               label="Discount Amount (THB)"
               value={discountAmount}
-              onChange={(e) => setDiscountAmount(e.target.value)}
+              onChange={(e) => {
+                let v = e.target.value;
+                if (!/^[0-9]*\.?[0-9]*$/.test(v)) return;
+                const parts = v.split(".");
+                if (parts.length === 2 && parts[1].length > 2) {
+                  v = parts[0] + "." + parts[1].slice(0, 2);
+                }
+                setDiscountAmount(v);
+              }}
+              onBlur={() => {
+                const n = Number(discountAmount);
+                if (Number.isFinite(n)) setDiscountAmount(n.toFixed(2));
+              }}
               error={!!errors.discountAmount}
-              helperText={errors.discountAmount}
+              helperText={errors.discountAmount || "Up to 2 decimals"}
               fullWidth
               inputMode="decimal"
             />

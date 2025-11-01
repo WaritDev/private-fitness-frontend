@@ -26,7 +26,6 @@ import { useRouter } from "next/navigation";
 import ConfirmDialog from "@/components/pop-up/ConfirmPopUpUI";
 import { useAlertPopUp } from "@/components/pop-up/AlertPopUpUI";
 
-// --- UI tokens ---
 const PRIMARY = { main: "#38E07A", dark: "#2fbb65" } as const;
 const TOKENS = {
   heading: { variant: "h5" as const, weight: 500 as const },
@@ -35,7 +34,6 @@ const TOKENS = {
   spacing: { sectionY: 3 },
 };
 
-// --- Types ---
 type Role = "ADMIN" | "MANAGER" | "TRAINER" | "SALES";
 type Gender = "MALE" | "FEMALE" | "OTHER";
 type Order = "asc" | "desc";
@@ -73,7 +71,6 @@ type Staff = {
 
 type ConfirmState = { open: boolean; target?: Staff };
 
-// --- Runtime guards (no any) ---
 function isApiNullString(v: unknown): v is ApiNullString {
   if (typeof v !== "object" || v === null) return false;
   const o = v as Record<string, unknown>;
@@ -108,7 +105,6 @@ function isEnvelope(v: unknown): v is Envelope {
   return o.data === undefined || isApiStaffArray(o.data);
 }
 
-// --- Helpers (no any) ---
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
 async function safeJson<T>(res: Response): Promise<T | null> {
@@ -120,7 +116,6 @@ async function safeJson<T>(res: Response): Promise<T | null> {
   }
 }
 
-/** support both pure array and envelope { data: [...] } */
 function pickStaffArray(body: unknown): ApiStaff[] {
   if (isApiStaffArray(body)) return body;
   if (isEnvelope(body)) return body.data ?? [];
@@ -150,14 +145,17 @@ function renderGender(g?: Gender | null): string {
   return g === "MALE" ? "Male" : g === "FEMALE" ? "Female" : g ? "Other" : "—";
 }
 
-function formatDOB(iso?: string | null): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
+function formatDOB(src?: string | null): string {
+  if (!src) return "—";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(src)) return src;
+  const d = new Date(src);
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toISOString().split("T")[0];
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
 }
 
-// --- Component ---
 export default function StaffAccounts(): React.JSX.Element {
   const router = useRouter();
   const { setAlert } = useAlertPopUp();

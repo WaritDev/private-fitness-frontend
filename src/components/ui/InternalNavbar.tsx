@@ -36,10 +36,10 @@ function roleTabs(role: Role): NavItem[] {
     return [
       { href: '/admin/user-management', label: 'Staff Accounts', tab: true },
       { href: '/admin/customer-management', label: 'Customer Accounts', tab: true },
-      { href: '/admin/customer-log', label: 'Customer Log', tab: true },
       { href: '/admin/packages-duration', label: 'Customer Duration Packages', tab: true },
       { href: '/admin/courses-sessions', label: 'Customer Session Courses', tab: true },
       { href: '/admin/products-management', label: 'Products', tab: true },
+      { href: '/admin/customer-log', label: 'Customer Log', tab: true },
       { href: '/admin/payments-management', label: 'Payment Accounts', tab: true },
     ];
   }
