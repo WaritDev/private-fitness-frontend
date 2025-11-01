@@ -28,21 +28,19 @@ type ApiItem = {
   customerUsername: string;
   productId: string;
   salesUsername: string;
-  purchaseDate: string; // "YYYY-MM-DD"
-  startDate: string;    // "YYYY-MM-DD"
-  endDate: string;      // "YYYY-MM-DD"
-  pricePaid: number;        // satang
-  discountAmount: number;   // satang
+  purchaseDate: string;
+  startDate: string;
+  endDate: string;
+  pricePaid: number;
+  discountAmount: number;
   status: Status;
 };
 
 type ErrBody = { message?: string };
 
-// ---------- Helpers ----------
 const pad2 = (n: number) => String(n).padStart(2, "0");
 const isYMD = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
 
-// Accepts "YYYY-MM-DD" or ISO → returns "YYYY-MM-DD"
 const toYMD = (s?: string) => {
   if (!s) return "";
   if (isYMD(s)) return s;
@@ -53,17 +51,13 @@ const toYMD = (s?: string) => {
 
 const toDMY = (s?: string) => {
   if (!s) return "";
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+  if (isYMD(s)) {
     const [y, m, d] = s.split("-");
     return `${d}/${m}/${y}`;
   }
   const d = new Date(s);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("th-TH", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  return d.toLocaleDateString("th-TH", { day: "2-digit", month: "2-digit", year: "numeric" });
 };
 
 const addDaysYMD = (ymd: string, days: number) => {
@@ -73,7 +67,6 @@ const addDaysYMD = (ymd: string, days: number) => {
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
 };
 
-// Inclusive day diff: e.g., 2025-10-11 → 2025-11-09 = 30 days
 const diffDaysInclusive = (startYMD: string, endYMD: string) => {
   if (!isYMD(startYMD) || !isYMD(endYMD)) return undefined;
   const [ys, ms, ds] = startYMD.split("-").map(Number);
@@ -86,16 +79,16 @@ const diffDaysInclusive = (startYMD: string, endYMD: string) => {
   return days > 0 ? days : undefined;
 };
 
-const isNonNegNumberStr = (v: string) => /^\d+(\.\d+)?$/.test(v) && Number(v) >= 0;
+// ---- money helpers ----
+const isNonNegMoneyStr = (v: string) => /^\d+(\.\d{1,2})?$/.test(v.trim()) && Number(v) >= 0;
+const moneyNumToStr2 = (n?: number) =>
+  typeof n === "number" && Number.isFinite(n) ? n.toFixed(2) : "";
+const toFixed2Number = (s: string) => {
+  const n = Number((s || "").trim());
+  if (!Number.isFinite(n) || n < 0) return NaN;
+  return Math.round(n * 100) / 100;
+};
 
-// satang -> baht (for inputs)
-const satangToBahtStr = (n?: number) =>
-  typeof n === "number" && Number.isFinite(n) ? (n / 100).toString() : "";
-
-// baht(string) -> integer baht (per POST spec)
-const bahtStrToIntBaht = (s: string) => Math.round(Number(s || "0"));
-
-// ---------- Tiny layout components ----------
 const Row2 = React.memo(function Row2({ children }: { children: React.ReactNode }) {
   return (
     <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mb: 2 }}>
@@ -103,40 +96,32 @@ const Row2 = React.memo(function Row2({ children }: { children: React.ReactNode 
     </Stack>
   );
 });
-
 const Col = React.memo(function Col(props: React.ComponentProps<typeof Box>) {
   return <Box sx={{ flex: 1, minWidth: { xs: "100%", md: 320 } }} {...props} />;
 });
 
-// ---------- Page ----------
 export default function EditCustomerDurationPackagePage(): React.JSX.Element {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const { setAlert } = useAlertPopUp();
-
   const id = params?.id || "";
 
-  // UI state
   const [loading, setLoading] = React.useState(true);
   const [notFound, setNotFound] = React.useState(false);
   const [globalErr, setGlobalErr] = React.useState("");
 
-  // read-only references
   const [customerUsername, setCustomerUsername] = React.useState("");
   const [productId, setProductId] = React.useState<string>("");
   const [purchaseDate, setPurchaseDate] = React.useState("");
-
-  // editable form state
   const [startDate, setStartDate] = React.useState("");
   const [initialEndDate, setInitialEndDate] = React.useState("");
   const [durationDays, setDurationDays] = React.useState<number | undefined>(undefined);
+
   const [pricePaid, setPricePaid] = React.useState("");
   const [discountAmount, setDiscountAmount] = React.useState("");
   const [status, setStatus] = React.useState<Status>("ACTIVE");
-
   const [errors, setErrors] = React.useState<Record<string, string>>({});
 
-  // ---------- Fetch one ----------
   React.useEffect(() => {
     let cancelled = false;
     const run = async () => {
@@ -159,16 +144,14 @@ export default function EditCustomerDurationPackagePage(): React.JSX.Element {
 
         const sY = toYMD(row.startDate);
         const eY = toYMD(row.endDate);
-
         setCustomerUsername(row.customerUsername || "");
         setProductId(row.productId || "");
         setPurchaseDate(toYMD(row.purchaseDate));
         setStartDate(sY || toYMD(row.purchaseDate));
         setInitialEndDate(eY);
-        setPricePaid(satangToBahtStr(row.pricePaid));
-        setDiscountAmount(satangToBahtStr(row.discountAmount));
+        setPricePaid(moneyNumToStr2(row.pricePaid));
+        setDiscountAmount(moneyNumToStr2(row.discountAmount));
         setStatus(row.status);
-
         const dd = sY && eY ? diffDaysInclusive(sY, eY) : undefined;
         setDurationDays(dd);
       } catch (e: unknown) {
@@ -182,52 +165,39 @@ export default function EditCustomerDurationPackagePage(): React.JSX.Element {
   }, [id]);
 
   const goBack = () => router.push("/admin/packages-duration");
-
-  // ---------- End_Date preview (recomputed from Start_Date with fixed durationDays) ----------
   const computedEndDate = React.useMemo(() => {
     if (!startDate || !isYMD(startDate) || !durationDays || durationDays <= 0) return "";
     return addDaysYMD(startDate, durationDays - 1);
   }, [startDate, durationDays]);
 
-  // ---------- Validate ----------
   const validate = () => {
     const e: Record<string, string> = {};
-
     if (!startDate.trim()) e.startDate = "Required";
     else if (!isYMD(startDate)) e.startDate = "Format must be YYYY-MM-DD";
-
     if (pricePaid.trim() === "") e.pricePaid = "Required";
-    else if (!isNonNegNumberStr(pricePaid)) e.pricePaid = "Must be a number ≥ 0";
-
+    else if (!isNonNegMoneyStr(pricePaid)) e.pricePaid = "Must be ≥ 0, up to 2 decimals";
     if (discountAmount.trim() === "") e.discountAmount = "Required";
-    else if (!isNonNegNumberStr(discountAmount)) e.discountAmount = "Must be a number ≥ 0";
-
+    else if (!isNonNegMoneyStr(discountAmount)) e.discountAmount = "Must be ≥ 0, up to 2 decimals";
     if (!status) e.status = "Required";
-
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  // ---------- Save ----------
   const onSave = async () => {
     if (!validate()) return;
-    const payload = {
-      startDate,                                     // "YYYY-MM-DD"
-      pricePaid: bahtStrToIntBaht(pricePaid),        // integer baht
-      discountAmount: bahtStrToIntBaht(discountAmount), // integer baht
-      status,
-    };
+    const priceNum = toFixed2Number(pricePaid);
+    const discNum = toFixed2Number(discountAmount);
+    if (!Number.isFinite(priceNum)) { setErrors((e) => ({ ...e, pricePaid: "Invalid number" })); return; }
+    if (!Number.isFinite(discNum)) { setErrors((e) => ({ ...e, discountAmount: "Invalid number" })); return; }
 
+    const payload = { startDate, pricePaid: priceNum, discountAmount: discNum, status };
     try {
-      const res = await fetch(
-        `${API_BASE}/api/customer-durations/${encodeURIComponent(id)}/update`,
-        {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }
-      );
+      const res = await fetch(`${API_BASE}/api/customer-durations/${encodeURIComponent(id)}/update`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
       if (!res.ok) {
         const b = (await res.json().catch(() => ({}))) as ErrBody;
         throw new Error(b?.message || `Update failed (HTTP ${res.status})`);
@@ -239,55 +209,35 @@ export default function EditCustomerDurationPackagePage(): React.JSX.Element {
     }
   };
 
-  // ---------- UI ----------
-  if (loading) {
-    return (
-      <Box sx={{ p: { xs: 3, md: 4 }, display: "flex", justifyContent: "center" }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
+  if (loading) return (
+    <Box sx={{ p: { xs: 3, md: 4 }, display: "flex", justifyContent: "center" }}>
+      <CircularProgress />
+    </Box>
+  );
+  if (notFound) return (
+    <Box sx={{ p: { xs: 2, md: 3 } }}>
+      <Typography variant="h6" sx={{ mb: 1 }}>Edit Customer Duration Package</Typography>
+      <Alert severity="error" sx={{ mb: 2 }}>Package not found (ID: {id})</Alert>
+      <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>
+        Back to Customer Duration Packages
+      </Button>
+    </Box>
+  );
 
-  if (notFound) {
-    return (
-      <Box sx={{ p: { xs: 2, md: 3 } }}>
-        <Typography variant="h6" sx={{ mb: 1 }}>Edit Customer Duration Package</Typography>
-        <Alert severity="error" sx={{ mb: 2 }}>Package not found (ID: {id})</Alert>
-        <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>
-          Back to Customer Duration Packages
-        </Button>
-      </Box>
-    );
-  }
-
-  const saveDisabled =
-    !startDate ||
-    !!errors.startDate ||
-    !pricePaid ||
-    !!errors.pricePaid ||
-    !discountAmount ||
-    !!errors.discountAmount ||
-    !status;
+  const saveDisabled = !startDate || !!errors.startDate || !pricePaid || !!errors.pricePaid ||
+                       !discountAmount || !!errors.discountAmount || !status;
 
   return (
     <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 900, mx: "auto" }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-        <Typography variant="h5" fontWeight={500}>
-          Edit Customer Duration Package
-        </Typography>
+        <Typography variant="h5" fontWeight={500}>Edit Customer Duration Package</Typography>
         <Stack direction="row" spacing={1}>
-          <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>
-            Cancel
-          </Button>
-          <Button variant="contained" startIcon={<SaveIcon />} onClick={onSave} disabled={saveDisabled}>
-            Save
-          </Button>
+          <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={goBack}>Cancel</Button>
+          <Button variant="contained" startIcon={<SaveIcon />} onClick={onSave} disabled={saveDisabled}>Save</Button>
         </Stack>
       </Stack>
-
       {globalErr && <Alert severity="error" sx={{ mb: 2 }}>{globalErr}</Alert>}
 
-      {/* read-only references */}
       <Paper sx={{ p: 2, borderRadius: 3, mb: 2 }}>
         <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
           <Typography variant="body2"><b>ID:</b> {id}</Typography>
@@ -311,12 +261,7 @@ export default function EditCustomerDurationPackagePage(): React.JSX.Element {
               fullWidth
               InputLabelProps={{ shrink: true }}
               error={!!errors.startDate}
-              helperText={
-                errors.startDate ||
-                (durationDays
-                  ? `When Start_Date changes, End_Date is recalculated automatically with Duration = ${durationDays} day(s).`
-                  : "Format: YYYY-MM-DD")
-              }
+              helperText={errors.startDate}
             />
           </Col>
           <Col>
@@ -324,42 +269,61 @@ export default function EditCustomerDurationPackagePage(): React.JSX.Element {
               label="End_Date (preview)"
               value={computedEndDate ? toDMY(computedEndDate) : toDMY(initialEndDate)}
               fullWidth
-              InputProps={{
-                readOnly: true,
-                sx: { bgcolor: "#f5f5f5", pointerEvents: "none" },
-              }}
-              helperText={
-                durationDays
-                  ? (computedEndDate ? `End = Start + (${durationDays} - 1)` : "—")
-                  : "—"
-              }
+              InputProps={{ readOnly: true, sx: { bgcolor: "#f5f5f5", pointerEvents: "none" } }}
             />
           </Col>
         </Row2>
 
+        {/* Price */}
         <Row2>
           <Col>
             <TextField
               label="Price_Paid"
               value={pricePaid}
-              onChange={(e) => setPricePaid(e.target.value)}
+              onChange={(e) => {
+                let v = e.target.value;
+                if (!/^[0-9]*\.?[0-9]*$/.test(v)) return; // only digits and dot
+                const parts = v.split(".");
+                if (parts.length === 2 && parts[1].length > 2) {
+                  v = parts[0] + "." + parts[1].slice(0, 2);
+                }
+                setPricePaid(v);
+              }}
+              onBlur={() => {
+                const n = Number(pricePaid);
+                if (Number.isFinite(n)) setPricePaid(n.toFixed(2));
+              }}
               fullWidth
               inputMode="decimal"
               InputProps={{ startAdornment: <InputAdornment position="start">THB</InputAdornment> }}
               error={!!errors.pricePaid}
-              helperText={errors.pricePaid || "Amount in baht (will be sent as an integer baht)."}
+              helperText={errors.pricePaid || "Up to 2 decimal places"}
             />
           </Col>
+
+          {/* Discount */}
           <Col>
             <TextField
               label="Discount_Amount"
               value={discountAmount}
-              onChange={(e) => setDiscountAmount(e.target.value)}
+              onChange={(e) => {
+                let v = e.target.value;
+                if (!/^[0-9]*\.?[0-9]*$/.test(v)) return;
+                const parts = v.split(".");
+                if (parts.length === 2 && parts[1].length > 2) {
+                  v = parts[0] + "." + parts[1].slice(0, 2);
+                }
+                setDiscountAmount(v);
+              }}
+              onBlur={() => {
+                const n = Number(discountAmount);
+                if (Number.isFinite(n)) setDiscountAmount(n.toFixed(2));
+              }}
               fullWidth
               inputMode="decimal"
               InputProps={{ startAdornment: <InputAdornment position="start">THB</InputAdornment> }}
               error={!!errors.discountAmount}
-              helperText={errors.discountAmount || "Discount in baht (sent as an integer baht)."}
+              helperText={errors.discountAmount || "Up to 2 decimal places"}
             />
           </Col>
         </Row2>

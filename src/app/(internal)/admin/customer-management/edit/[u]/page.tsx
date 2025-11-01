@@ -13,7 +13,6 @@ import { useAlertPopUp } from "@/components/pop-up/AlertPopUpUI";
 const PRIMARY = { main: "#38E07A", dark: "#2fbb65" } as const;
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
-// ---------- Types ----------
 type GenderUI  = "M" | "F" | "OTHER";
 type GenderAPI = "MALE" | "FEMALE" | "OTHER";
 type MaritalStatus = "SINGLE" | "MARRIED" | "DIVORCED" | "WIDOWED";
@@ -42,13 +41,11 @@ type ApiCustomer = {
   marketingSource: ApiNullString;
 };
 
-// ---------- Regex ----------
 const RE_PASSWORD = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 const RE_PHONE10 = /^[0-9]{10}$/;
 const RE_EMAIL   = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/;
 const RE_DATE    = /^\d{4}-\d{2}-\d{2}$/;
 
-// ---------- Helpers ----------
 const ns = (v?: ApiNullString | null) => (v && v.Valid ? v.String : "");
 const nb = (v?: ApiNullBool | null)   => (v && v.Valid ? v.Bool : false);
 const toYMD = (s: string) => {
@@ -64,13 +61,24 @@ const toUIgender  = (g: GenderAPI): GenderUI  => (g === "MALE" ? "M" : g === "FE
 const toAPIgender = (g: GenderUI): GenderAPI => (g === "M" ? "MALE" : g === "F" ? "FEMALE" : "OTHER");
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+const Row2: React.FC<{ children: React.ReactNode }> = React.memo(({ children }) => (
+  <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mb: 2 }}>
+    {children}
+  </Stack>
+));
+Row2.displayName = "Row2";
+
+const Col: React.FC<React.ComponentProps<typeof Box>> = React.memo((props) => (
+  <Box sx={{ flex: 1, minWidth: { xs: "100%", md: 320 } }} {...props} />
+));
+Col.displayName = "Col";
+
 export default function EditCustomerPage(): React.JSX.Element {
   const router = useRouter();
   const { setAlert } = useAlertPopUp();
   const params = useParams<{ u: string }>();
   const username = params?.u || "";
 
-  // state
   const [loading, setLoading] = React.useState(true);
   const [notFound, setNotFound] = React.useState(false);
   const [globalErr, setGlobalErr] = React.useState("");
@@ -84,7 +92,6 @@ export default function EditCustomerPage(): React.JSX.Element {
 
   const [isActive, setIsActive] = React.useState<boolean>(true);
 
-  // optional
   const [healthInfo, setHealthInfo] = React.useState("");
   const [address, setAddress] = React.useState("");
   const [companyName, setCompanyName] = React.useState("");
@@ -95,14 +102,11 @@ export default function EditCustomerPage(): React.JSX.Element {
   const [emergencyContactPhone, setEmergencyContactPhone] = React.useState("");
   const [marketingSource, setMarketingSource] = React.useState("");
 
-  // reset password (optional)
   const [newPassword, setNewPassword] = React.useState("");
   const [confirmNewPassword, setConfirmNewPassword] = React.useState("");
 
-  // errors
   const [errors, setErrors] = React.useState<Record<string, string>>({});
 
-  // age > 14
   const cutoff = React.useMemo(() => {
     const now = new Date();
     const d = new Date(now.getFullYear() - 14, now.getMonth(), now.getDate());
@@ -112,7 +116,6 @@ export default function EditCustomerPage(): React.JSX.Element {
     return { date: d, ymd: `${y}-${m}-${dd}`, en: d.toLocaleDateString("en-GB") };
   }, []);
 
-  // ---------- Fetch one customer ----------
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -160,10 +163,11 @@ export default function EditCustomerPage(): React.JSX.Element {
     return () => { cancelled = true; };
   }, [username]);
 
-  const goBack = () => router.push("/admin/customer-management");
+  const goBack = React.useCallback(() => {
+    router.push("/admin/customer-management");
+  }, [router]);
 
-  // ---------- Validate ----------
-  const validate = () => {
+  const validateFormInputs = React.useCallback(() => {
     const e: Record<string, string> = {};
     setGlobalErr("");
 
@@ -191,11 +195,10 @@ export default function EditCustomerPage(): React.JSX.Element {
 
     setErrors(e);
     return Object.keys(e).length === 0;
-  };
+  }, [newPassword, confirmNewPassword, firstName, lastName, phoneNumber, gmail, dateOfBirth, cutoff.en, cutoff.date]);
 
-  // ---------- Save ----------
-  const onSave = async () => {
-    if (!validate()) return;
+  const onSave = React.useCallback(async () => {
+    if (!validateFormInputs()) return;
 
     const payload: Record<string, unknown> = {
       ...(newPassword && { newPassword, confirmNewPassword }),
@@ -245,9 +248,13 @@ export default function EditCustomerPage(): React.JSX.Element {
     } catch (e) {
       setAlert({ open: true, msg: errMsg(e) || "Update failed", severity: "error" });
     }
-  };
+  }, [
+    validateFormInputs, newPassword, confirmNewPassword, firstName, lastName, gender, dateOfBirth,
+    phoneNumber, gmail, isActive, healthInfo, companyName, companyPosition, maritalStatus,
+    address, emergencyContactName, emergencyContactRelationship, emergencyContactPhone,
+    marketingSource, setAlert, router, username
+  ]);
 
-  // ---------- UI ----------
   if (loading) {
     return (
       <Container maxWidth="md" sx={{ py: 6, display: "flex", justifyContent: "center" }}>
@@ -265,15 +272,6 @@ export default function EditCustomerPage(): React.JSX.Element {
       </Container>
     );
   }
-
-  const Row2: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mb: 2 }}>
-      {children}
-    </Stack>
-  );
-  const Col = (props: React.ComponentProps<typeof Box>) => (
-    <Box sx={{ flex: 1, minWidth: { xs: "100%", md: 320 } }} {...props} />
-  );
 
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
@@ -354,11 +352,11 @@ export default function EditCustomerPage(): React.JSX.Element {
           </Col>
           <Col>
             <TextField
-              label="Date of Birth" type="date" value={dateOfBirth || ""}
+              label="Date of Birth" type="text" value={dateOfBirth || ""}
               onChange={(e) => setDateOfBirth(e.target.value)}
               fullWidth InputLabelProps={{ shrink: true }}
               inputProps={{ max: cutoff.ymd }}
-              helperText={errors.dateOfBirth || `Must be before ${cutoff.en}`}
+              helperText={errors.dateOfBirth || `YYYY-MM-DD`}
               error={!!errors.dateOfBirth}
             />
           </Col>

@@ -153,7 +153,7 @@ export default function EditStaffPage(): React.ReactElement | null {
       setErrors((prev) => ({ ...prev, [k]: "" }));
     };
 
-  const validate = (): boolean => {
+  const validateFormInputs = (): boolean => {
     const e: Record<string, string> = {};
 
     if (form.newPassword || form.confirmNewPassword) {
@@ -190,7 +190,7 @@ export default function EditStaffPage(): React.ReactElement | null {
   };
 
   const onSave = async () => {
-    if (!validate()) return;
+    if (!validateFormInputs()) return;
     setSaving(true);
     try {
       const payload = {
@@ -340,12 +340,12 @@ export default function EditStaffPage(): React.ReactElement | null {
 
           <TextField
             label="Date of Birth"
-            type="date"
+            type="text"
             size="small"
             value={form.dateOfBirth || ""}
             onChange={setField("dateOfBirth")}
             error={!!errors.dateOfBirth}
-            helperText={errors.dateOfBirth || `Use YYYY-MM-DD (must be before ${cutoff.th}).`}
+            helperText={errors.dateOfBirth || "YYYY-MM-DD"}
             InputLabelProps={{ shrink: true }}
             inputProps={{ max: cutoff.ymd }}
             fullWidth
