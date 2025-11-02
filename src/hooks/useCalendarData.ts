@@ -52,6 +52,7 @@ type BookingSlot = {
   slotType?: string;
   customerUsername?: string; // username ของคนที่จอง
   scheduleId?: number; // ID ของการจอง (สำหรับยกเลิก)
+  checkinStatus?: string; // "PENDING", "CONFIRMED", "NONE"
 };
 
 type WeeklyAvailability = {
@@ -128,6 +129,7 @@ export default function useCalendarData(
       const slotDate = new Date(slot.startTime).toISOString().split('T')[0];
       return slotDate === targetDateStr;
     });
+
     
     // สร้าง Set ของ (startTime, endTime) จาก customerBookings เพื่อหลีกเลี่ยง duplicate
     // ใช้ startTime + endTime เป็น key เพราะ Backend อาจส่ง slot เดียวกันมาทั้งใน availableSlots และ customerBookings
@@ -162,6 +164,7 @@ export default function useCalendarData(
         bookedBy: slot.bookedBy || undefined,
         isOwn: slot.isBooked ? isOwn : undefined,
         scheduleId: slot.scheduleId || (slot as any).id, // ใช้ scheduleId หรือ id
+        checkinStatus: slot.checkinStatus, // เพิ่ม checkinStatus
       };
     });
     
@@ -207,13 +210,11 @@ export default function useCalendarData(
           credentials: 'include',
         }
       );
-      
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
       }
       
       const data: BookingSlotsResponse = await response.json();
-      
       if (data.status === 'success' && data.result) {
         // แปลง API result เป็น TimeSlot[] สำหรับวันที่เลือก (Backend คำนวณมาแล้ว)
         const slots = convertApiSlotsToTimeSlots(data.result, dateIso, customerUsername);

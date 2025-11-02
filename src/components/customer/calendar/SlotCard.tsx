@@ -47,7 +47,17 @@ export default function SlotCard({ slot, onBook, onCancel }: Props) {
     btnVariant = 'contained';
     btnColor = 'error';
     btnText = 'Cancel';
-    btnDisabled = isPast; // ไม่ให้ยกเลิกถ้าผ่านเวลาไปแล้ว
+    
+    // Check if confirmed by trainer
+    if (slot.checkinStatus === 'CONFIRMED') {
+      btnText = 'Confirmed';
+      btnColor = 'inherit';
+      btnVariant = 'outlined';
+      bg = '#FAFAFA';
+    }
+    
+    // ปิดการยกเลิกถ้า: 1) ผ่านเวลาไปแล้ว หรือ 2) Trainer confirm check-in แล้ว
+    btnDisabled = isPast || slot.checkinStatus === 'CONFIRMED';
   } else if (isOthersBooking) {
     // คนอื่นจอง → สีเทา, ปุ่ม Booked (disabled)
     bg = '#F2F2F2';

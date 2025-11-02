@@ -205,14 +205,16 @@ export default function DurationRegisterPage() {
       const data = await res.json();
       console.log('Phone check response:', data);
       
-      if (data.status === 'success' && data.result?.exists) {
+      if (data.status === 'OK' && data.result?.exists) {
         setErrors2((e) => ({ ...e, phone: 'This phone number is already in use' }));
         return false; // พบข้อมูลซ้ำ
       }
       return true; // ไม่ซ้ำ
     } catch (err) {
       console.error('Error checking phone:', err);
-      return true; // เกิด error ให้ผ่านไปก่อน (ไม่บล็อก UX)
+      // ❌ เปลี่ยนจาก return true → return false เพื่อป้องกัน API error
+      setErrors2((e) => ({ ...e, phone: 'Unable to validate phone. Please try again.' }));
+      return false;
     } finally {
       setCheckingPhone(false);
     }
@@ -230,14 +232,16 @@ export default function DurationRegisterPage() {
       const data = await res.json();
       console.log('Email check response:', data);
       
-      if (data.status === 'success' && data.result?.exists) {
+      if (data.status === 'OK' && data.result?.exists) {
         setErrors2((e) => ({ ...e, email: 'This email is already in use' }));
         return false; // พบข้อมูลซ้ำ
       }
       return true; // ไม่ซ้ำ
     } catch (err) {
       console.error('Error checking email:', err);
-      return true; // เกิด error ให้ผ่านไปก่อน
+      // ❌ เปลี่ยนจาก return true → return false เพื่อป้องกัน API error
+      setErrors2((e) => ({ ...e, email: 'Unable to validate email. Please try again.' }));
+      return false;
     } finally {
       setCheckingEmail(false);
     }
@@ -258,7 +262,9 @@ export default function DurationRegisterPage() {
       return phoneOk && emailOk;
     } catch (err) {
       console.error('Error in checkDuplicateBeforeNext:', err);
-      return true; // เกิด error ให้ผ่านไปก่อน
+      // ❌ เปลี่ยนจาก return true → return false เพื่อไม่ให้ผ่านไป payment ถ้า API error
+      setSnack({ open: true, message: 'Unable to validate. Please try again.', color: 'error' });
+      return false;
     } finally {
       setValidating(false);
     }
@@ -296,16 +302,29 @@ export default function DurationRegisterPage() {
       e.emergencyContactPhone = 'Phone number must be 10 digits';
     }
 
-    // Date of birth validation (>= 14 years old)
+    // Date of birth validation (>= 14 years old AND valid date)
     if (s2.dateOfBirth) {
-      const age = calculateAge(s2.dateOfBirth);
-      if (age < 14) {
-        e.dateOfBirth = 'Age must be at least 14 years old';
+      const dob = new Date(s2.dateOfBirth);
+      const now = new Date();
+      
+      // Validate date range: 1900-01-01 to today
+      if (isNaN(dob.getTime()) || dob > now || dob.getFullYear() < 1900) {
+        e.dateOfBirth = 'Please enter a valid birth date';
+      } else {
+        const age = calculateAge(s2.dateOfBirth);
+        if (age < 14) {
+          e.dateOfBirth = 'Age must be at least 14 years old';
+        }
       }
     }
 
     setErrors2(e);
-    return Object.keys(e).length === 0;
+    if (Object.keys(e).length > 0) {
+      return false;
+    }
+
+    // ✅ ตรวจ duplicate เฉพาะหลังจาก format validation ผ่านแล้ว
+    return await checkDuplicateBeforeNext();
   }
 
   // ==================== NAVIGATION (2 Steps Only) ====================
@@ -317,15 +336,11 @@ export default function DurationRegisterPage() {
     } 
     else if (activeStep === 1) {
       // Step 2: Customer Info → Redirect to Payment
-      // 1️⃣ ตรวจ format และ required fields ก่อน
+      // ✅ validateStep2 จะตรวจ duplicate ในตัวแล้ว ไม่ต้องเรียกซ้ำ
       const valid = await validateStep2();
       if (!valid) return;
 
-      // 2️⃣ ตรวจ duplicate phone & email ผ่าน API
-      const notDuplicate = await checkDuplicateBeforeNext();
-      if (!notDuplicate) return;
-
-      // 3️⃣ ผ่านทั้งหมดแล้ว → Redirect ไปหน้า Payment (Use Case 6C)
+      // ✅ ผ่านทั้งหมดแล้ว → Redirect ไปหน้า Payment (Use Case 6C)
       redirectToPayment();
     }
   }
@@ -671,8 +686,12 @@ export default function DurationRegisterPage() {
 
             <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
               <Button onClick={onBack}>Back</Button>
-              <Button variant="contained" onClick={onNext} disabled={validating}>
-                {validating ? 'Validating data...' : 'Go to Payment'}
+              <Button 
+                variant="contained" 
+                onClick={onNext} 
+                disabled={validating || checkingPhone || checkingEmail}
+              >
+                {validating || checkingPhone || checkingEmail ? 'Validating data...' : 'Go to Payment'}
               </Button>
             </Box>
           </Box>

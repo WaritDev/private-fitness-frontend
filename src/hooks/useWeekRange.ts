@@ -13,11 +13,19 @@ function addDays(d: Date, n: number) {
   return x;
 }
 
-export function useWeekRange(base?: Date) {
+function getSundayOfWeek(d: Date) {
+  const x = new Date(d);
+  const dayOfWeek = x.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  const diff = dayOfWeek; // จำนวนวันที่ต้องย้อนกลับไปหา Sunday
+  x.setDate(x.getDate() - diff);
+  return startOfDay(x);
+}
+
+function useWeekRange(base?: Date) {
   const [baseDate, setBaseDate] = useState<Date>(base ? startOfDay(base) : startOfDay(new Date()));
 
-  // เริ่มสัปดาห์วันนี้ + 6 วัน (โชว์ 7 วันถัดไป)
-  const startDate = useMemo(() => startOfDay(baseDate), [baseDate]);
+  // เริ่มสัปดาห์จากวันอาทิตย์ (Sunday) ของสัปดาห์นั้น
+  const startDate = useMemo(() => getSundayOfWeek(baseDate), [baseDate]);
   const endDate = useMemo(() => addDays(startDate, 6), [startDate]);
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(startDate, i)), [startDate]);
 

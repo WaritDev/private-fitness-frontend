@@ -223,14 +223,17 @@ export default function SessionRegisterPage() {
         credentials: 'include',
       });
       const data = await res.json();
-      if (data.status === 'success' && data.result?.exists) {
+      console.log('Phone check response:', data);
+      if (data.status === 'OK' && data.result?.exists) {
         setErrors2((e) => ({ ...e, phone: 'This phone number is already in use' }));
         return false;
       }
       return true;
     } catch (err) {
       console.error('Error checking phone:', err);
-      return true;
+      // ❌ เปลี่ยนจาก return true → return false เพื่อป้องกัน API error
+      setErrors2((e) => ({ ...e, phone: 'Unable to validate phone. Please try again.' }));
+      return false;
     } finally {
       setCheckingPhone(false);
     }
@@ -244,14 +247,16 @@ export default function SessionRegisterPage() {
         credentials: 'include',
       });
       const data = await res.json();
-      if (data.status === 'success' && data.result?.exists) {
+      if (data.status === 'OK' && data.result?.exists) {
         setErrors2((e) => ({ ...e, email: 'This email is already in use' }));
         return false;
       }
       return true;
     } catch (err) {
       console.error('Error checking email:', err);
-      return true;
+      // ❌ เปลี่ยนจาก return true → return false เพื่อป้องกัน API error
+      setErrors2((e) => ({ ...e, email: 'Unable to validate email. Please try again.' }));
+      return false;
     } finally {
       setCheckingEmail(false);
     }
@@ -267,7 +272,9 @@ export default function SessionRegisterPage() {
       return phoneOk && emailOk;
     } catch (err) {
       console.error('Error in checkDuplicateBeforeNext:', err);
-      return true;
+      // ❌ เปลี่ยนจาก return true → return false เพื่อไม่ให้ผ่านไป payment ถ้า API error
+      setSnack({ open: true, message: 'Unable to validate. Please try again.', color: 'error' });
+      return false;
     } finally {
       setValidating(false);
     }
@@ -304,11 +311,19 @@ export default function SessionRegisterPage() {
       e.emergencyContactPhone = 'Phone number must be 10 digits';
     }
 
-    // Age validation (>= 14 years old)
+    // Age validation (>= 14 years old AND valid date)
     if (s2.dateOfBirth) {
-      const age = calculateAge(s2.dateOfBirth);
-      if (age < 14) {
-        e.dateOfBirth = 'Age must be at least 14 years old';
+      const dob = new Date(s2.dateOfBirth);
+      const now = new Date();
+      
+      // Validate date range: 1900-01-01 to today
+      if (isNaN(dob.getTime()) || dob > now || dob.getFullYear() < 1900) {
+        e.dateOfBirth = 'Please enter a valid birth date';
+      } else {
+        const age = calculateAge(s2.dateOfBirth);
+        if (age < 14) {
+          e.dateOfBirth = 'Age must be at least 14 years old';
+        }
       }
     }
 
@@ -317,9 +332,8 @@ export default function SessionRegisterPage() {
       return false;
     }
 
-    // Check duplicate
-    const duplicateOk = await checkDuplicateBeforeNext();
-    return duplicateOk;
+    // ✅ ตรวจ duplicate เฉพาะหลังจาก format validation ผ่านแล้ว
+    return await checkDuplicateBeforeNext();
   }
 
   // ==================== STEP 3: TRAINER MATCHING ====================
@@ -396,36 +410,61 @@ export default function SessionRegisterPage() {
     setMatching(true);
 
     try {
-      // ✅ Mock Data - จำลองการ match trainer
-      // ใช้ delay เพื่อจำลอง API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // ✅ เรียก Backend API สำหรับ Match Trainer
+      // API Endpoint: POST /api/trainers/match (ส่งทีละ schedule)
+      // Request Body: { dayOfWeek, startTime, endTime }
+      // Response: { status: "OK", result: { trainerUsername, trainerName } }
+      
+      // เรียก API สำหรับ schedule แรก (สมมติว่าทุก schedule ต้องการ trainer คนเดียวกัน)
+      const firstSchedule = s3.schedules[0];
+      
+      // แปลง time format จาก "HH:mm" เป็น ISO 8601 (สมมติวันที่เริ่มต้น)
+      const today = new Date();
+      const startDateTime = new Date(today);
+      const [startHour, startMin] = firstSchedule.startTime.split(':').map(Number);
+      startDateTime.setHours(startHour, startMin, 0, 0);
+      
+      const endDateTime = new Date(today);
+      const [endHour, endMin] = firstSchedule.endTime.split(':').map(Number);
+      endDateTime.setHours(endHour, endMin, 0, 0);
 
-      // Mock trainer data
-      const mockTrainer = {
-        trainerUsername: 'trainer001',
-        trainerName: 'John Doe',
-        dayOfWeek: s3.schedules[0].dayOfWeek,
-        startTime: s3.schedules[0].startTime,
-        endTime: s3.schedules[0].endTime,
-        appointments: 2,
-      };
-
-      console.log('✅ Mock trainer matched:', mockTrainer);
-
-      setS3((prev) => ({
-        ...prev,
-        matchedTrainerUsername: mockTrainer.trainerUsername,
-        matchedTrainerName: mockTrainer.trainerName,
-      }));
-
-      setSnack({
-        open: true,
-        message: `✅ Match successful! Trainer: ${mockTrainer.trainerName}`,
-        color: 'success',
+      const response = await fetch(`${API_BASE_URL}/api/trainers/match`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          dayOfWeek: firstSchedule.dayOfWeek,
+          startTime: startDateTime.toISOString(),
+          endTime: endDateTime.toISOString(),
+        }),
       });
+
+      const data = await response.json();
+      console.log('🔍 Match trainer response:', data);
+
+      if (data.status === 'OK' && data.result) {
+        const trainer = data.result;
+        setS3((prev) => ({
+          ...prev,
+          matchedTrainerUsername: trainer.trainerUsername,
+          matchedTrainerName: trainer.trainerName,
+        }));
+
+        setSnack({
+          open: true,
+          message: `✅ จับคู่สำเร็จ! Trainer: ${trainer.trainerName}`,
+          color: 'success',
+        });
+      } else if (data.status_code === 404) {
+        throw new Error('ไม่พบ Trainer ที่ว่างในช่วงเวลานี้');
+      } else {
+        throw new Error(data.message || 'No trainer found');
+      }
     } catch (err) {
       console.error('❌ Error matching trainer:', err);
-      const errorMsg = err instanceof Error ? err.message : 'No available trainer found';
+      const errorMsg = err instanceof Error ? err.message : 'ไม่พบ Trainer ที่ว่าง';
       setErrors3({ match: errorMsg });
       setSnack({
         open: true,
@@ -461,7 +500,7 @@ export default function SessionRegisterPage() {
       if (!validateStep1()) return;
       setActiveStep(1);
     } else if (activeStep === 1) {
-      // Step 2: Customer Info - validate and check duplicates
+      // Step 2: Customer Info - validate (includes duplicate check)
       const valid = await validateStep2();
       if (!valid) return;
       setActiveStep(2);
@@ -959,8 +998,12 @@ export default function SessionRegisterPage() {
         {activeStep > 0 && (
           <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
             <Button onClick={onBack}>Back</Button>
-            <Button variant="contained" onClick={onNext} disabled={validating || matching || submitting}>
-              {validating || matching ? 'Validating data...' : activeStep === steps.length - 1 ? 'Go to Payment' : 'Next'}
+            <Button 
+              variant="contained" 
+              onClick={onNext} 
+              disabled={validating || matching || submitting || checkingPhone || checkingEmail}
+            >
+              {validating || matching || checkingPhone || checkingEmail ? 'Validating data...' : activeStep === steps.length - 1 ? 'Go to Payment' : 'Next'}
             </Button>
           </Box>
         )}

@@ -35,6 +35,7 @@ export default function CalendarPage() {
     bookingDetails,
     setBookingDetails,
     fetchSlots,
+
   } = useCalendarData(startDate, endDate, user?.sub); // ส่ง customerUsername
 
   const selectedTrainerName =
@@ -61,7 +62,6 @@ export default function CalendarPage() {
         );
         
         const data = await response.json();
-        console.log('Permission check response:', data);
         
         if (data.status === 'success' && data.result) {
           setHasPermission(data.result.hasPermission);
@@ -137,11 +137,9 @@ export default function CalendarPage() {
         credentials: 'include',
         body: JSON.stringify(bookingData)
       });
-      console.log('Booking response1:', response);
       const data = await response.json();
-      console.log('Booking response2:', data);
 
-      if (data.status === 'success' && data.result?.success) {
+      if ((data.status === 'success' || data.status === 'OK') && data.result?.success) {
         setAlert({
           open: true,
           msg: `✅ Booking created successfully, has ${data.result.remainingSessions} sessions remaining`,
@@ -171,14 +169,22 @@ export default function CalendarPage() {
   }
 
   function handleCancel(slot: TimeSlot) {
+    // Prevent cancellation if the session is already confirmed by trainer
+    if (slot.checkinStatus === 'CONFIRMED') {
+      setAlert({
+        open: true,
+        msg: '❌ Cannot cancel a session that has already been confirmed by the trainer.',
+        severity: 'error'
+      });
+      return;
+    }
     // เปิด confirm dialog แทนการยกเลิกทันที
     setSlotToCancel(slot);
     setConfirmOpen(true);
   }
 
+
   async function confirmCancel() {
-    console.log('Confirming cancellation for slot:', slotToCancel);
-    console.log('User:', user);
     if (!user?.sub || !slotToCancel?.scheduleId) {
       setAlert({
         open: true,
@@ -204,12 +210,10 @@ export default function CalendarPage() {
           })
         }
       );
-      console.log('Cancel response1:', response);
       const data = await response.json();
-      console.log('Cancel response2:', data);
 
       // ตรวจสอบ response status ที่ถูกต้อง
-      if (data.status === 'success' && data.result?.success) {
+      if ((data.status === 'success' || data.status === 'OK') && data.result?.success) {
         setAlert({
           open: true,
           msg: `✅ Booking cancelled successfully. คงเหลือ ${data.result.remainingSessions} ครั้ง`,

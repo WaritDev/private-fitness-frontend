@@ -174,8 +174,9 @@ export default function CreateAccountPage() {
     try {
       const response = await fetch(`${API_BASE_URL}/api/users/check-username?username=${usernameToCheck}`);
       const data = await response.json();
-      
-      if (data.status === 'success' && data.result) {
+
+      console.log('Username check response:', data);
+      if (data.status === 'OK' && data.result) {
         if (data.result.exists) {
           setUsernameError('This username is already in use');
         }
@@ -396,6 +397,7 @@ export default function CreateAccountPage() {
               fullWidth
               required
               disabled={creating}
+              onBlur={(e) => checkUsernameDuplicate(e.target.value)}
               placeholder="Enter username"
               InputProps={{
                 endAdornment: checkingUsername && (

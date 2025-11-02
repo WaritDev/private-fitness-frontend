@@ -104,27 +104,8 @@ export default function PackagesPage() {
   }
 
   function buySession(product: Product) {
-    // TODO: In the future, this should navigate to trainer selection page first
-    // For now, we'll use a default trainer or show error
-    // Temporary: prompt user to select trainer (in real app, navigate to trainer selection page)
-    
-    const trainerUsername = prompt('Please enter Trainer Username (temporary):');
-    
-    if (!trainerUsername) {
-      alert('Please select a Trainer before purchasing Session package');
-      return;
-    }
-    
-    // Store order data with trainer info (use unified key 'pendingOrder')
-    const orderData = {
-      source: 'customer-purchase',
-      timestamp: new Date().toISOString(),
-      trainerUsername: trainerUsername.trim(),
-    };
-    sessionStorage.setItem('pendingOrder', JSON.stringify(orderData));
-    
-    // Redirect directly to payment page
-    router.push(`/customer/package/${product.productId}/payment`);
+    // Redirect to register page for trainer matching
+    router.push(`/customer/package/${product.productId}/register`);
   }
 
   // Loading state

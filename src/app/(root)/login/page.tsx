@@ -59,6 +59,16 @@ export default function LoginPage() {
           return;
         }
 
+        if (!user.isActive) {
+          setAlert({
+            open: true,
+            msg: `This account has been suspended.`,
+            severity: 'error',
+          });
+          setLoading(false);
+          return;
+        }
+
         const targetPath = defaultPathForRole(user.role);
 
         setAlert({

@@ -101,6 +101,7 @@ export interface TimeSlot {
   scheduleType?: ScheduleType;          // ประเภทการจอง
   bookedBy?: string;                    // username ของคนที่จอง (ถ้ามี)
   isOwn?: boolean;                      // true = จองโดยตัวเอง, false = คนอื่นจอง
+  checkinStatus?: string;               // "PENDING", "CONFIRMED", "NONE"
 }
 
 // Booking Request DTO

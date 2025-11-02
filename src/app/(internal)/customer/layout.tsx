@@ -1,3 +1,5 @@
+'use client';
+
 import CustomerMobileNav from '@/components/ui/CustomerMobileNav';
 import { Box } from '@mui/material';
 

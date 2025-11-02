@@ -50,9 +50,9 @@ function roleTabs(role: Role): NavItem[] {
   ];
   if (role === 'CUSTOMER') {
     return [
-      { href: '/', label: 'Home', tab: true },
       { href: '/customer/calendar', label: 'Calendar', tab: true },
-      { href: '/customer/member', label: 'My Membership', tab: true },
+      { href: '/customer/member', label: 'Member', tab: true },
+      { href: '/customer/package', label: 'Package', tab: true },
     ];
   }
   if (role === 'SALES') return [{ href: '/sales/products', label: 'Packages', tab: true }];
@@ -154,12 +154,12 @@ export default function InternalNavbar(): React.JSX.Element {
       // Even if API call fails, show message and redirect
       setAlert({
         open: true,
-        msg: '✅ Logged out successfully',
-        severity: 'success',
+        msg: "✅ Logged out successfully",
+        severity: "success",
       });
-      
+
       setTimeout(() => {
-        router.replace('/login');
+        router.replace("/login");
       }, 4000);
     }
   };
@@ -285,7 +285,7 @@ export default function InternalNavbar(): React.JSX.Element {
 
             {/* RIGHT: locked profile + logout/login */}
             <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flexShrink: 0 }}>
-              <IconButton component={Link} href={profileHref} aria-label="profile" sx={{ p: 0.5 }}>
+              <IconButton disabled={true} component={Link} href={profileHref} aria-label="profile" sx={{ p: 0.5 }}>
                 <Avatar
                   src="/profile-icon.png"
                   alt="profile avatar"

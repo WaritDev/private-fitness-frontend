@@ -33,9 +33,26 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import { DayOfWeek, DAY_NAMES } from "@/types/trainer-availability";
 import ConfirmPopUpUI from "@/components/pop-up/ConfirmPopUpUI";
+import useWeekRange from "@/hooks/useWeekRange";
 
 const PRIMARY = { main: "#38E07A", dark: "#2fbb65" } as const;
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
+
+// Helper function to map dayOfWeek to date
+function getDateForDayOfWeek(dayOfWeek: DayOfWeek, days: Date[]): Date | null {
+  const dayMap: { [key in DayOfWeek]: number } = {
+    SUNDAY: 0,
+    MONDAY: 1,
+    TUESDAY: 2,
+    WEDNESDAY: 3,
+    THURSDAY: 4,
+    FRIDAY: 5,
+    SATURDAY: 6,
+  };
+  
+  const dayIndex = dayMap[dayOfWeek];
+  return days[dayIndex] || null;
+}
 
 // Working Hour Type - ตรงตาม API Response
 type WorkingHour = {
@@ -47,7 +64,6 @@ type WorkingHour = {
 
 // Form Data Type
 type WorkingHoursFormData = {
-  date: string;      // YYYY-MM-DD format
   dayOfWeek: DayOfWeek;
   startTime: string; // HH:mm format
   endTime: string;   // HH:mm format
@@ -56,7 +72,7 @@ type WorkingHoursFormData = {
 // API Response Types
 type WorkingHoursResponse = {
   status: string;
-  message: string;
+  message: string; 
   workingHours: WorkingHour[];
 };
 
@@ -70,11 +86,27 @@ type ErrorResponse = {
   message: string;
 };
 
+type DayOff = {
+  scheduleId: number;
+  startTime: string;
+  endTime: string;
+};
+
 export default function TrainerWorkingHoursPage(): React.JSX.Element {
+  // Get current week dates starting from Sunday
+  const { days } = useWeekRange();
+  
   // State Management
   const [workingHours, setWorkingHours] = React.useState<WorkingHour[]>([]);
+  const [dayOffs, setDayOffs] = React.useState<Array<{dayOffDate: string}>>([]);
   const [loading, setLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
+  
+  // Check if a date has a day-off
+  const isDayOff = React.useCallback((date: Date): boolean => {
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    return dayOffs.some(doff => doff.dayOffDate === dateStr);
+  }, [dayOffs]);
 
   // Dialog State
   const [openDialog, setOpenDialog] = React.useState<boolean>(false);
@@ -90,16 +122,7 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
   });
 
   // Form State
-  const getTodayDate = () => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, "0");
-    const day = String(today.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-
   const [formData, setFormData] = React.useState<WorkingHoursFormData>({
-    date: getTodayDate(),
     dayOfWeek: "MONDAY",
     startTime: "09:00",
     endTime: "17:00",
@@ -107,7 +130,6 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
 
   // Form Validation Errors
   const [formErrors, setFormErrors] = React.useState<{
-    date?: string;
     dayOfWeek?: string;
     startTime?: string;
     endTime?: string;
@@ -130,34 +152,49 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/trainers/working-hours`, {
-        method: "GET",
-        credentials: "include", // ส่ง cookie pf_auth
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      // Load both working hours and day-offs
+      const [workingHoursRes, dayOffsRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/trainers/working-hours`, {
+          method: "GET",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }),
+        fetch(`${API_BASE_URL}/api/trainers/day-offs`, {
+          method: "GET",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }),
+      ]);
 
-      const data = (await response.json()) as WorkingHoursResponse | ErrorResponse;
+      const workingHoursData = (await workingHoursRes.json()) as WorkingHoursResponse | ErrorResponse;
+      const dayOffsData = (await dayOffsRes.json()) as { status: string; message: string; dayOffs: DayOff[] } | ErrorResponse;
 
-      if (response.ok && data.status === "success") {
-        const successData = data as WorkingHoursResponse;
+      if (workingHoursRes.ok && workingHoursData.status === "success") {
+        const successData = workingHoursData as WorkingHoursResponse;
         setWorkingHours(successData.workingHours || []);
       } else {
-        const errorData = data as ErrorResponse;
+        const errorData = workingHoursData as ErrorResponse;
         setError(errorData.message || "Failed to load working hours");
-        setSnackbar({
-          open: true,
-          message: errorData.message || "Failed to load working hours",
-          severity: "error",
-        });
+      }
+
+      if (dayOffsRes.ok && dayOffsData.status === "success") {
+        const successDayOffs = dayOffsData as { dayOffs: DayOff[] };
+        // Convert ISO timestamps to dates for comparison
+        const dayOffDates = successDayOffs.dayOffs.map(doff => ({
+          dayOffDate: new Date(doff.startTime).toISOString().split('T')[0]
+        }));
+        setDayOffs(dayOffDates);
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to load working hours";
+      const errorMessage = err instanceof Error ? err.message : "Failed to load data";
       setError(errorMessage);
       setSnackbar({
         open: true,
-        message: "Failed to load working hours data",
+        message: "Failed to load data",
         severity: "error",
       });
     } finally {
@@ -174,7 +211,6 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
   const handleOpenAddDialog = () => {
     setEditing(null);
     setFormData({
-      date: getTodayDate(),
       dayOfWeek: "MONDAY",
       startTime: "09:00",
       endTime: "17:00",
@@ -187,7 +223,6 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
   const handleOpenEditDialog = (workingHour: WorkingHour) => {
     setEditing(workingHour);
     setFormData({
-      date: getTodayDate(),
       dayOfWeek: workingHour.dayOfWeek,
       startTime: workingHour.startTime,
       endTime: workingHour.endTime,
@@ -201,7 +236,6 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
     setOpenDialog(false);
     setEditing(null);
     setFormData({
-      date: getTodayDate(),
       dayOfWeek: "MONDAY",
       startTime: "09:00",
       endTime: "17:00",
@@ -212,16 +246,6 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
   // Validate Form
   const validateForm = (): boolean => {
     const errors: typeof formErrors = {};
-
-    // Validate date
-    if (!formData.date) {
-      errors.date = "Please select a date";
-    } else {
-      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-      if (!dateRegex.test(formData.date)) {
-        errors.date = "Invalid date format (YYYY-MM-DD)";
-      }
-    }
 
     // Validate dayOfWeek
     if (!formData.dayOfWeek) {
@@ -447,13 +471,16 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 600, width: "20%" }}>
+                  <TableCell sx={{ fontWeight: 600, width: "15%" }}>
+                    Date
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 600, width: "15%" }}>
                     Day
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 600, width: "30%" }}>
+                  <TableCell sx={{ fontWeight: 600, width: "25%" }}>
                     Start Time
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 600, width: "30%" }}>
+                  <TableCell sx={{ fontWeight: 600, width: "25%" }}>
                     End Time
                   </TableCell>
                   <TableCell sx={{ fontWeight: 600, width: "20%", textAlign: "center" }}>
@@ -464,9 +491,16 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
               <TableBody>
                 {dayOrder.map((day) => {
                   const hours = groupedByDay[day];
-                  if (hours.length === 0) {
+                  const dateForDay = getDateForDayOfWeek(day, days);
+                  const dateStr = dateForDay 
+                    ? `${String(dateForDay.getDate()).padStart(2, '0')} ${DAY_NAMES[day].slice(0, 3)}` 
+                    : DAY_NAMES[day];
+                  const hasDayOff = dateForDay ? isDayOff(dateForDay) : false;
+                  
+                  if (hours.length === 0 && !hasDayOff) {
                     return (
                       <TableRow key={day}>
+                        <TableCell>{dateStr}</TableCell>
                         <TableCell>{DAY_NAMES[day]}</TableCell>
                         <TableCell colSpan={3} sx={{ color: "text.secondary", fontStyle: "italic" }}>
                           No working hours
@@ -475,10 +509,28 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
                     );
                   }
 
+                  // If there's a day-off but no working hours, show day-off indicator
+                  if (hours.length === 0 && hasDayOff) {
+                    return (
+                      <TableRow key={day}>
+                        <TableCell>{dateStr}</TableCell>
+                        <TableCell>{DAY_NAMES[day]}</TableCell>
+                        <TableCell colSpan={3} sx={{ color: "text.secondary", fontStyle: "italic" }}>
+                          Day Off
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+
                   return hours.map((hour, index) => (
                     <TableRow key={hour.availabilityId}>
                       {index === 0 && (
-                        <TableCell rowSpan={hours.length}>{DAY_NAMES[day]}</TableCell>
+                        <>
+                          <TableCell rowSpan={hours.length}>{dateStr}</TableCell>
+                          <TableCell rowSpan={hours.length}>
+                            {hasDayOff ? `⚠️ ${DAY_NAMES[day]}` : DAY_NAMES[day]}
+                          </TableCell>
+                        </>
                       )}
                       <TableCell>{hour.startTime}</TableCell>
                       <TableCell>{hour.endTime}</TableCell>
@@ -524,20 +576,6 @@ export default function TrainerWorkingHoursPage(): React.JSX.Element {
           </DialogTitle>
           <DialogContent>
             <Stack spacing={3} sx={{ mt: 1 }}>
-              {/* Date Input */}
-              <TextField
-                label="Date"
-                type="date"
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                error={!!formErrors.date}
-                helperText={formErrors.date}
-                fullWidth
-                InputLabelProps={{
-                  shrink: true,
-                }}
-              />
-
               {/* Day of Week Select */}
               <FormControl fullWidth error={!!formErrors.dayOfWeek}>
                 <InputLabel>Day</InputLabel>

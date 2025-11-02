@@ -151,7 +151,7 @@ export default function TrainerCalendarPage(): React.JSX.Element {
 
       const data = (await response.json()) as SuccessResponse | ErrorResponse;
 
-      if (response.ok && data.status === "success") {
+      if (response.ok && (data.status === "success" || data.status === "OK")) {
         setSnackbar({
           open: true,
           message: data.message || "Check-in confirmed successfully",
