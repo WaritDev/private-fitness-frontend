@@ -286,20 +286,47 @@ export default function InternalNavbar(): React.JSX.Element {
             {/* RIGHT: locked profile + logout/login */}
             <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flexShrink: 0 }}>
               {user ? (
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={onLogout}
-                  startIcon={<LogoutIcon />}
-                  sx={{
-                    borderColor: 'text.secondary',
-                    color: 'text.primary',
-                    '&:hover': { borderColor: PRIMARY.dark, color: PRIMARY.dark, backgroundColor: 'transparent' },
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  Logout
-                </Button>
+                <>
+                  {/* Desktop: Show Avatar + Name + Role */}
+                  {isDesktop && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Avatar 
+                        sx={{ 
+                          width: 32, 
+                          height: 32, 
+                          bgcolor: PRIMARY.main, 
+                          color: '#000',
+                          fontWeight: 600,
+                          fontSize: '0.875rem'
+                        }}
+                      >
+                        {user?.firstName ? user.firstName[0].toUpperCase() : 'G'}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="body2" fontWeight={500} sx={{ lineHeight: 1.2 }}>
+                          {user?.firstName ?? 'Guest'}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
+                          {role ?? 'GUEST'}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  )}
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={onLogout}
+                    startIcon={<LogoutIcon />}
+                    sx={{
+                      borderColor: 'text.secondary',
+                      color: 'text.primary',
+                      '&:hover': { borderColor: PRIMARY.dark, color: PRIMARY.dark, backgroundColor: 'transparent' },
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Logout
+                  </Button>
+                </>
               ) : (
                 <Button
                   component={Link}
@@ -319,7 +346,18 @@ export default function InternalNavbar(): React.JSX.Element {
       {/* Mobile drawer remains unchanged */}
       <Drawer open={open} onClose={() => setOpen(false)} PaperProps={{ sx: { width: 300 } }}>
         <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Avatar src="/profile-icon.png" alt="profile avatar" sx={{ width: 40, height: 40 }} />
+          <Avatar 
+            sx={{ 
+              width: 40, 
+              height: 40, 
+              bgcolor: PRIMARY.main, 
+              color: '#000',
+              fontWeight: 600,
+              fontSize: '1rem'
+            }}
+          >
+            {user?.firstName ? user.firstName[0].toUpperCase() : 'G'}
+          </Avatar>
           <Box>
             <Typography fontWeight={600}>{user?.firstName ?? 'Guest'}</Typography>
             <Typography variant="caption" color="text.secondary">
