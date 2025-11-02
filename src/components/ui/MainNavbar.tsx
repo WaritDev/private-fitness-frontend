@@ -51,7 +51,7 @@ export default function MainNavbar(): React.JSX.Element {
             component={Link}
             href="/login"
             variant="contained"
-            size="small"
+            size="large"
             sx={{
               backgroundColor: PRIMARY.main,
               '&:hover': { backgroundColor: PRIMARY.dark },

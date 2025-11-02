@@ -285,13 +285,6 @@ export default function InternalNavbar(): React.JSX.Element {
 
             {/* RIGHT: locked profile + logout/login */}
             <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flexShrink: 0 }}>
-              <IconButton disabled={true} component={Link} href={profileHref} aria-label="profile" sx={{ p: 0.5 }}>
-                <Avatar
-                  src="/profile-icon.png"
-                  alt="profile avatar"
-                  sx={{ width: 36, height: 36, border: (t) => `2px solid ${t.palette.divider}` }}
-                />
-              </IconButton>
               {user ? (
                 <Button
                   variant="outlined"

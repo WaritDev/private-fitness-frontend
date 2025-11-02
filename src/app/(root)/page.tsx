@@ -26,7 +26,6 @@ export default function HomePage() {
             img: "/hero-1.jpg",
             heading: "PRIVATE FITNESS\nMEMBERSHIPS",
             sub: "Personal trainers, tailored programs. Access anywhere, anytime.",
-            ctaSecondary: { href: "/plans", label: "View Plans" },
           },
           {
             img: "/hero-2.jpg",
@@ -37,8 +36,6 @@ export default function HomePage() {
             img: "/hero-3.jpg",
             heading: "CLASSES & PROGRAMS",
             sub: "Cardio, strength, and nutrition — everything in one place.",
-            ctaPrimary: { href: "/courses", label: "Browse Courses" },
-            ctaSecondary: { href: "/login", label: "Sign In" },
           },
         ]}
         interval={5500}
@@ -132,38 +129,6 @@ export default function HomePage() {
           flexWrap="wrap"
           mt={2}
         >
-          <Button
-            component={Link}
-            href="/signup"
-            variant="contained"
-            size="large"
-            sx={{
-              backgroundColor: primary.main,
-              "&:hover": { backgroundColor: primary.dark },
-              borderRadius: 2,
-              px: 4,
-            }}
-          >
-            Join Now
-          </Button>
-          <Button
-            component={Link}
-            href="/contact"
-            variant="outlined"
-            size="large"
-            sx={{
-              borderColor: primary.main,
-              color: primary.main,
-              borderRadius: 2,
-              px: 4,
-              "&:hover": {
-                backgroundColor: primary.main,
-                color: "#fff",
-              },
-            }}
-          >
-            Talk to Us
-          </Button>
         </Stack>
       </Box>
     </Box>
