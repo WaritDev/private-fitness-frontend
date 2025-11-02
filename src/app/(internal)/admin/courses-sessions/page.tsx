@@ -101,10 +101,10 @@ type UIRow = {
 const ns = (v?: ApiNullString | null) => (v && v.Valid ? v.String : "");
 const ni = (v?: ApiNullInt32 | null) => (v && v.Valid ? v.Int32 : undefined);
 
-const moneyStrToIntBaht = (s?: string) => {
+const moneyStrToFloatBaht = (s?: string) => {
   if (!s) return 0;
   const n = Number(s);
-  return Number.isFinite(n) ? Math.round(n) : 0;
+  return Number.isFinite(n) ? parseFloat(n.toFixed(2)) : 0;
 };
 
 const isoToYMD = (iso?: string) => {
@@ -121,7 +121,12 @@ const isoToYMD = (iso?: string) => {
 };
 
 const fmtBaht = (n: number) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", maximumFractionDigits: 0 }).format(n);
+  new Intl.NumberFormat("th-TH", {
+    style: "currency",
+    currency: "THB",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(n);
 
 const COLUMNS: ReadonlyArray<{ key: keyof UIRow; label: string }> = [
   { key: "Session_Id", label: "Session ID" },
@@ -169,12 +174,12 @@ export default function CustomerSessionCoursesPage(): React.JSX.Element {
     Total_Sessions: r.totalSessions ?? 0,
     Used_Sessions: ni(r.usedSessions) ?? 0,
     Remaining_Sessions: r.remainingSessions ?? Math.max(0, (r.totalSessions ?? 0) - (ni(r.usedSessions) ?? 0)),
-    Price_Paid_Baht: moneyStrToIntBaht(r.pricePaid),
-    Discount_Baht: moneyStrToIntBaht(ns(r.discountAmount)),
+    Price_Paid_Baht: moneyStrToFloatBaht(r.pricePaid),
+    Discount_Baht: moneyStrToFloatBaht(ns(r.discountAmount)),
     Status: r.status,
   });
 
-  const fetchPage = React.useCallback(async () => {
+  const loadAllCustomerSessions = React.useCallback(async () => {
     setLoading(true);
     setGlobalErr("");
     try {
@@ -204,8 +209,8 @@ export default function CustomerSessionCoursesPage(): React.JSX.Element {
   }, [page, rowsPerPage]);
 
   React.useEffect(() => {
-    void fetchPage();
-  }, [fetchPage]);
+    void loadAllCustomerSessions();
+  }, [loadAllCustomerSessions]);
 
 
   const goEdit = (r: UIRow) =>
@@ -233,7 +238,7 @@ export default function CustomerSessionCoursesPage(): React.JSX.Element {
       if (rows.length === 1 && page > 0) {
         setPage((p) => p - 1);
       } else {
-        await fetchPage();
+        await loadAllCustomerSessions();
       }
     } catch (e) {
       setAlert({ open: true, msg: e instanceof Error ? e.message : String(e), severity: "error" });

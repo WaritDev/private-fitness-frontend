@@ -17,43 +17,57 @@ type ApiGet = {
   customerUsername: string;
   customerFirstName: string;
   customerLastName: string;
-  createdAt: string;   // ISO e.g. "2025-10-30T16:34:12+07:00"
+  createdAt: string;
   logType: LogType;
 };
 
 type ApiUpdateBody = {
-  timestamp: string;   // "YYYY-MM-DD HH:MM:SS"
+  timestamp: string;
   logType: LogType;
 };
 
 type ApiError = { message?: string };
 
-function isoToDatetimeLocal(iso?: string): string {
+function toAscii(s: string): string {
+  const full = "０１２３４５６７８９－：．／　";
+  const half = "0123456789-:./ ";
+  let out = "";
+  for (const ch of s) {
+    const i = full.indexOf(ch);
+    out += i >= 0 ? half[i] : ch;
+  }
+  return out;
+}
+
+function isoToText(iso?: string): string {
   if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const yyyy = d.getFullYear();
-  const mm = pad(d.getMonth() + 1);
-  const dd = pad(d.getDate());
-  const hh = pad(d.getHours());
-  const mi = pad(d.getMinutes());
-  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+  const m = iso.match(/^(\d{4}-\d{2}-\d{2})[T\s](\d{2}:\d{2}:\d{2})/);
+  return m ? `${m[1]} ${m[2]}` : "";
 }
 
-// "YYYY-MM-DDTHH:MM" -> "YYYY-MM-DD HH:MM:SS"
-function datetimeLocalToUsecase(local: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(local)) return "";
-  const [d, t] = local.split("T");
-  return `${d} ${t}:00`;
+function normalizeTimestamp(raw: string): string {
+  let s = toAscii(raw).trim();
+  s = s.replace(/\s+/g, " ");
+  s = s.replace("T", " ");
+  s = s.replace(/[./]/g, "-");
+  s = s.replace(/([0-9])\.\d+$/, "$1");
+  s = s.replace(/\s*(Z|[+-]\d{2}:?\d{2})$/, "");
+  const mm = s.match(/^(\d{4}-\d{2}-\d{2}) (\d{2}):(\d{2})$/);
+  if (mm) return `${mm[1]} ${mm[2]}:${mm[3]}:00`;
+  return s;
 }
 
-// quick validator for "YYYY-MM-DD HH:MM:SS"
-function isValidUsecaseTimestamp(v: string): boolean {
-  const m = v.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/);
+function isValidTimestampStrict(s: string): boolean {
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/);
   if (!m) return false;
-  const d = new Date(v.replace(" ", "T"));
-  return !Number.isNaN(d.getTime());
+  const [_, ys, ms, ds, hs, mins, ss] = m;
+  const y = +ys, mo = +ms, d = +ds, h = +hs, mi = +mins, sec = +ss;
+  if (mo < 1 || mo > 12) return false;
+  if (h < 0 || h > 23) return false;
+  if (mi < 0 || mi > 59) return false;
+  if (sec < 0 || sec > 59) return false;
+  const daysInMonth = new Date(y, mo, 0).getDate();
+  return d >= 1 && d <= daysInMonth;
 }
 
 export default function EditCustomerLogPage(): React.JSX.Element {
@@ -62,24 +76,21 @@ export default function EditCustomerLogPage(): React.JSX.Element {
   const params = useParams<{ id?: string }>();
   const { setAlert } = useAlertPopUp();
 
-  // Prefer path param, fallback to query (?id=...)
   const idParam = (params?.id ?? sp.get("id") ?? "").toString();
 
   const [loading, setLoading] = React.useState(true);
   const [notFound, setNotFound] = React.useState(false);
   const [globalErr, setGlobalErr] = React.useState("");
 
-  // form state
   const [logId, setLogId] = React.useState<string>("");
   const [custU, setCustU] = React.useState<string>("");
   const [custFN, setCustFN] = React.useState<string>("");
   const [custLN, setCustLN] = React.useState<string>("");
 
-  const [timestampLocal, setTimestampLocal] = React.useState<string>("");
+  const [timestampText, setTimestampText] = React.useState<string>("");
   const [logType, setLogType] = React.useState<LogType>("CHECK_IN");
   const [tsError, setTsError] = React.useState<string>("");
 
-  // fetch one
   React.useEffect(() => {
     let cancelled = false;
     const run = async () => {
@@ -109,7 +120,7 @@ export default function EditCustomerLogPage(): React.JSX.Element {
         setCustU(row.customerUsername);
         setCustFN(row.customerFirstName);
         setCustLN(row.customerLastName);
-        setTimestampLocal(isoToDatetimeLocal(row.createdAt)); // default from createdAt
+        setTimestampText(isoToText(row.createdAt));
         setLogType(row.logType);
 
       } catch (e: unknown) {
@@ -125,8 +136,8 @@ export default function EditCustomerLogPage(): React.JSX.Element {
   const goBack = () => router.push("/admin/customer-log");
 
   const onSave = async () => {
-    const ts = datetimeLocalToUsecase(timestampLocal);
-    if (!isValidUsecaseTimestamp(ts)) {
+    const ts = normalizeTimestamp(timestampText);
+    if (!isValidTimestampStrict(ts)) {
       setTsError("Invalid format. Use YYYY-MM-DD HH:MM:SS");
       return;
     }
@@ -211,13 +222,13 @@ export default function EditCustomerLogPage(): React.JSX.Element {
 
       <Stack spacing={2}>
         <TextField
-          label="Timestamp"
-          type="datetime-local"
-          value={timestampLocal}
-          onChange={(e) => setTimestampLocal(e.target.value)}
-          InputLabelProps={{ shrink: true }}
+          label="Timestamp (YYYY-MM-DD HH:MM:SS)"
+          value={timestampText}
+          onChange={(e) => setTimestampText(e.target.value)}
+          onBlur={(e) => setTimestampText(normalizeTimestamp(e.target.value))}
+          placeholder="2025-10-30 10:47:00"
           error={!!tsError}
-          helperText={tsError || "Will be saved as YYYY-MM-DD HH:MM:SS"}
+          helperText={tsError || "Use 24-hour format. No timezone conversion."}
           fullWidth
         />
 

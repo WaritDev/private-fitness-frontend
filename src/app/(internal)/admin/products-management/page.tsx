@@ -54,7 +54,7 @@ type ApiProduct = {
 
 type ApiResponse = {
   message?: string;
-  result: ApiProduct[]; // returns ALL products
+  result: ApiProduct[];
   status?: string;
   status_code?: number;
 };
@@ -99,18 +99,20 @@ const fmtDateTime = (iso: string) => {
   });
 };
 
-const fmtTHB = (n: number) =>
-  n.toLocaleString("en-TH", { style: "currency", currency: "THB", maximumFractionDigits: 0 });
+// ✅ แสดงราคา THB แบบ “สองตำแหน่งตายตัว”
+const fmtTHB2 = (n: number) =>
+  n.toLocaleString("en-TH", {
+    style: "currency",
+    currency: "THB",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
 export default function ProductsManagementPage(): React.JSX.Element {
   const router = useRouter();
   const { setAlert } = useAlertPopUp();
 
-  const [page, setPage] = React.useState(0);
-  const rowsPerPage = 10;
-
-  const [allRows, setAllRows] = React.useState<UIRow[]>([]); // keep ALL here
-
+  const [rows, setRows] = React.useState<UIRow[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [globalErr, setGlobalErr] = React.useState("");
 
@@ -118,19 +120,19 @@ export default function ProductsManagementPage(): React.JSX.Element {
   const [target, setTarget] = React.useState<UIRow | null>(null);
 
   const mapToUI = (p: ApiProduct): UIRow => ({
-    Product_Id: p.id,
-    Name: p.name,
+    Product_Id: Number(p.id),
+    Name: String(p.name ?? ""),
     Product_Type: p.type,
-    Product_Category: p.category,
-    List_Price: p.listPrice,
-    Duration_Days: p.type === "DURATION" ? p.durationDays ?? null : null,
-    Session_Amount: p.type === "SESSION" ? p.sessionAmount ?? null : null,
-    Is_Active: p.isActive,
-    Created_At: p.createdAt,
-    Updated_At: p.updatedAt,
+    Product_Category: String(p.category ?? ""),
+    List_Price: Number(p.listPrice ?? 0),
+    Duration_Days: p.type === "DURATION" ? (Number.isFinite(p.durationDays as number) ? (p.durationDays as number) : null) : null,
+    Session_Amount: p.type === "SESSION" ? (Number.isFinite(p.sessionAmount as number) ? (p.sessionAmount as number) : null) : null,
+    Is_Active: Boolean(p.isActive),
+    Created_At: String(p.createdAt ?? ""),
+    Updated_At: String(p.updatedAt ?? ""),
   });
 
-  const fetchAll = React.useCallback(async () => {
+  const load = React.useCallback(async () => {
     setLoading(true);
     setGlobalErr("");
     try {
@@ -146,33 +148,24 @@ export default function ProductsManagementPage(): React.JSX.Element {
       }
 
       const body: ApiResponse = await res.json();
-      const items = Array.isArray(body.result) ? body.result : [];
-      const mapped = items.map(mapToUI);
 
-      mapped.sort((a, b) => b.Product_Id - a.Product_Id);
+      if (!Array.isArray(body.result)) {
+        throw new Error("Invalid API shape: `result` must be an array.");
+      }
 
-      setAllRows(mapped);
-
-      const maxPage = Math.max(0, Math.ceil(mapped.length / rowsPerPage) - 1);
-      setPage((p) => (p > maxPage ? maxPage : p));
+      const mapped = body.result.map(mapToUI).sort((a, b) => b.Product_Id - a.Product_Id);
+      setRows(mapped);
     } catch (e) {
       setGlobalErr(e instanceof Error ? e.message : String(e));
-      setAllRows([]);
-      setPage(0);
+      setRows([]);
     } finally {
       setLoading(false);
     }
-  }, [rowsPerPage]);
+  }, []);
 
   React.useEffect(() => {
-    void fetchAll();
-  }, [fetchAll]);
-
-  const pagedRows = React.useMemo(() => {
-    const start = page * rowsPerPage;
-    const end = start + rowsPerPage;
-    return allRows.slice(start, end);
-  }, [allRows, page, rowsPerPage]);
+    void load();
+  }, [load]);
 
   const goAdd = () => router.push("/admin/products-management/add");
   const goEdit = (row: UIRow) =>
@@ -197,13 +190,7 @@ export default function ProductsManagementPage(): React.JSX.Element {
       }
 
       setAlert({ open: true, msg: `Product: ${target.Product_Id} deleted successfully`, severity: "success" });
-
-      setAllRows((prev) => {
-        const next = prev.filter((r) => r.Product_Id !== target.Product_Id);
-        const maxPage = Math.max(0, Math.ceil(next.length / rowsPerPage) - 1);
-        setPage((p) => (p > maxPage ? maxPage : p));
-        return next;
-      });
+      setRows((prev) => prev.filter((r) => r.Product_Id !== target.Product_Id));
     } catch (e) {
       setAlert({ open: true, msg: e instanceof Error ? e.message : String(e), severity: "error" });
     } finally {
@@ -266,7 +253,7 @@ export default function ProductsManagementPage(): React.JSX.Element {
             </TableHead>
 
             <TableBody>
-              {pagedRows.map((r) => (
+              {rows.map((r) => (
                 <TableRow key={r.Product_Id} hover>
                   <TableCell sx={{ py: TOKENS.table.cellY }}>{r.Product_Id}</TableCell>
                   <TableCell sx={{ py: TOKENS.table.cellY }}>{r.Name}</TableCell>
@@ -279,7 +266,8 @@ export default function ProductsManagementPage(): React.JSX.Element {
                     />
                   </TableCell>
                   <TableCell sx={{ py: TOKENS.table.cellY }}>{r.Product_Category}</TableCell>
-                  <TableCell sx={{ py: TOKENS.table.cellY }}>{fmtTHB(r.List_Price)}</TableCell>
+                  {/* ✅ ใช้ formatter สองตำแหน่ง */}
+                  <TableCell sx={{ py: TOKENS.table.cellY }}>{fmtTHB2(r.List_Price)}</TableCell>
                   <TableCell sx={{ py: TOKENS.table.cellY }}>
                     {r.Product_Type === "DURATION" ? r.Duration_Days ?? "—" : "—"}
                   </TableCell>
@@ -314,7 +302,7 @@ export default function ProductsManagementPage(): React.JSX.Element {
                 </TableRow>
               ))}
 
-              {!loading && pagedRows.length === 0 && (
+              {!loading && rows.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={COLUMNS.length + 1} align="center" sx={{ py: 6, color: "text.secondary" }}>
                     No data found
@@ -330,11 +318,7 @@ export default function ProductsManagementPage(): React.JSX.Element {
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
         title="Confirm Deletion"
-        message={
-          target
-            ? `Warning: Deleting this product may affect historical data. Are you sure?`
-            : ""
-        }
+        message={target ? `Warning: Deleting this product may affect historical data. Are you sure?` : ""}
         confirmText="Confirm"
         cancelText="Cancel"
         onConfirm={handleConfirmDelete}

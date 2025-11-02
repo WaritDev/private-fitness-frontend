@@ -156,10 +156,9 @@ export default function CustomersListPage(): React.JSX.Element {
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [targetUser, setTargetUser] = React.useState<Customer | null>(null);
 
-  const fetchAll = React.useCallback(async () => {
+  const loadAllCustomerAccounts = React.useCallback(async () => {
     setLoading(true);
     try {
-      // API ส่งเป็น "array" ตรงๆ
       const res = await fetch(`${API_BASE}/api/customers`, {
         method: "GET",
         credentials: "include",
@@ -184,8 +183,8 @@ export default function CustomersListPage(): React.JSX.Element {
   }, [setAlert]);
 
   React.useEffect(() => {
-    void fetchAll();
-  }, [fetchAll]);
+    void loadAllCustomerAccounts();
+  }, [loadAllCustomerAccounts]);
 
   const sorted = React.useMemo(() => {
     const arr = [...allRows];

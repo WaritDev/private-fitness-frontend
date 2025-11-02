@@ -120,7 +120,7 @@ export default function CustomerDurationPackagesPage(): React.JSX.Element {
     status: a.status,
   });
 
-  const fetchAll = React.useCallback(async () => {
+  const loadAllCustomerDurations = React.useCallback(async () => {
   setLoading(true);
   try {
     const res = await fetch(`${API_BASE}/api/customer-durations`, {
@@ -161,7 +161,7 @@ export default function CustomerDurationPackagesPage(): React.JSX.Element {
   }
 }, [rowsPerPage, setAlert]);
 
-  React.useEffect(() => { void fetchAll(); }, [fetchAll]);
+  React.useEffect(() => { void loadAllCustomerDurations(); }, [loadAllCustomerDurations]);
 
   const pagedRows = React.useMemo(() => {
     const start = page * rowsPerPage;

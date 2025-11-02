@@ -61,15 +61,6 @@ type PaymentAccount = {
   Is_Active: boolean;
 };
 
-function maskAcct(acct: string) {
-  if (!acct) return "—";
-  const digits = acct.replace(/\D/g, "");
-  if (digits.length < 5) return acct.replace(/\d/g, "*");
-  const head = digits.slice(0, 3);
-  const tail = digits.slice(-1);
-  return `${head}${"*".repeat(Math.max(1, digits.length - 4))}${tail}`;
-}
-
 function mapApiToUI(r: ApiWireItem): PaymentAccount {
   const active = typeof r.column6 === "boolean" ? r.column6 : !!r.isActive;
   const qr = r.qrCodeImageUrl ?? r.qrCodeUrl ?? null;
@@ -108,7 +99,7 @@ export default function PaymentsManagementPage(): React.JSX.Element {
     if (toast) setAlert({ open: true, msg: toast, severity: "success" });
   }, [sp, setAlert]);
 
-  const fetchAll = React.useCallback(async () => {
+  const loadAllPaymentAccounts = React.useCallback(async () => {
     setLoading(true);
     setGlobalErr("");
     try {
@@ -147,14 +138,13 @@ export default function PaymentsManagementPage(): React.JSX.Element {
   }, [rowsPerPage]);
 
   React.useEffect(() => {
-    void fetchAll();
-  }, [fetchAll]);
+    void loadAllPaymentAccounts();
+  }, [loadAllPaymentAccounts]);
 
   const pagedRows = React.useMemo(() => {
     const start = page * rowsPerPage;
     return allRows.slice(start, start + rowsPerPage);
   }, [allRows, page, rowsPerPage]);
-
 
   const goAdd = () => router.push("/admin/payments-management/add");
   const goEdit = (row: PaymentAccount) =>
@@ -256,10 +246,10 @@ export default function PaymentsManagementPage(): React.JSX.Element {
                 <TableRow key={r.Payment_Account_Id} hover>
                   <TableCell>{r.Payment_Account_Id}</TableCell>
                   <TableCell>{r.Account_Name}</TableCell>
-                  <TableCell>{maskAcct(r.Account_Number)}</TableCell>
+                  {/* ✅ แสดงเลขบัญชีจริง ไม่ mask */}
+                  <TableCell>{r.Account_Number || "—"}</TableCell>
                   <TableCell>{r.Bank_Name}</TableCell>
 
-                  {/* ✅ Show QR URL directly */}
                   <TableCell>
                     {r.QR_Code_URL ? (
                       <a

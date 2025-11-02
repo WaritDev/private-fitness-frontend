@@ -37,7 +37,6 @@ type LogType = "CHECK_IN" | "CHECK_OUT" | "BOOK_SESSION" | "CANCEL_SESSION";
 type ApiNullString = { String: string; Valid: boolean };
 type ApiNullTime = { Time: string; Valid: boolean };
 
-// ---- API row (ตามตัวอย่างที่ให้มา) ----
 type ApiRow = {
   logId: number;
   customerUsername?: ApiNullString;
@@ -47,16 +46,14 @@ type ApiRow = {
   logType: LogType;
 };
 
-// ---- API response: เป็น array ล้วน ๆ ----
 type ApiResp = ApiRow[];
 
-// ---- UI row หลัง map ----
 type UIRow = {
   logId: number;
   customerUsername: string;
   customerFirstName: string;
   customerLastName: string;
-  timestampISO: string; // เอา Time มาเก็บเป็น ISO string ถ้ามี
+  timestampISO: string;
   logType: LogType;
 };
 
@@ -72,8 +69,6 @@ const COLUMNS = [
 const ns = (v?: ApiNullString | null) => (v && v.Valid ? v.String : "");
 const nt = (v?: ApiNullTime | null) => (v && v.Valid ? v.Time : "");
 
-// แสดงวันที่/เวลาแบบไทย (02/11/2568 14:05:00)
-// ถ้าต้องการ “YYYY-MM-DD HH:mm:ss” ก็สามารถเปลี่ยนเป็น manual formatter ได้
 const formatDateTimeTH = (iso?: string) => {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -116,18 +111,16 @@ export default function CustomerLogPage(): React.JSX.Element {
     logType: r.logType,
   });
 
-  const fetchAll = React.useCallback(async () => {
+  const loadAllCustomerLogs = React.useCallback(async () => {
     setLoading(true);
     setGlobalErr("");
     try {
-      // <-- ดึงทั้งหมด ไม่มี page/limit ใน query string
       const res = await fetch(`${API_BASE}/api/customer-logs`, {
         method: "GET",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
       });
 
-      // พยายาม parse เป็น array
       const body = (await res.json().catch(() => null)) as ApiResp | null;
       if (!res.ok || !Array.isArray(body)) {
         throw new Error(`Failed to load data (HTTP ${res.status})`);
@@ -135,7 +128,6 @@ export default function CustomerLogPage(): React.JSX.Element {
 
       const mapped = body.map(mapRow);
 
-      // เรียงจากใหม่ไปเก่า: createdAt DESC, ถ้าเท่ากัน fallback logId DESC
       mapped.sort((a, b) => {
         const ta = a.timestampISO || "";
         const tb = b.timestampISO || "";
@@ -157,8 +149,8 @@ export default function CustomerLogPage(): React.JSX.Element {
   }, [setAlert]);
 
   React.useEffect(() => {
-    void fetchAll();
-  }, [fetchAll]);
+    void loadAllCustomerLogs();
+  }, [loadAllCustomerLogs]);
 
   const pagedRows = React.useMemo(() => {
     const start = page * rowsPerPage;
@@ -193,7 +185,6 @@ export default function CustomerLogPage(): React.JSX.Element {
 
       setAlert({ open: true, msg: `Log: ${target.logId} deleted successfully`, severity: "success" });
 
-      // อัปเดตฝั่ง client + จัดการ page ถ้าหน้าเกิน
       setAllRows((prev) => {
         const next = prev.filter((x) => x.logId !== target.logId);
         const maxPage = Math.max(0, Math.ceil(next.length / rowsPerPage) - 1);
