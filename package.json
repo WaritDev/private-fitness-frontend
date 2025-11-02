@@ -1,27 +1,55 @@
 {
   "name": "private-fitness-frontend",
   "version": "0.1.0",
+  "type": "module",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "dev": "next dev",
+    "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:migrate": "node --loader ts-node/esm db/migrate.ts",
+    "db:seed": "node --loader ts-node/esm db/seed.ts"
   },
   "dependencies": {
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "next": "15.5.4"
+    "@emotion/cache": "^11.14.0",
+    "@emotion/react": "11.13.3",
+    "@emotion/styled": "11.13.0",
+    "@fullcalendar/core": "^6.1.19",
+    "@fullcalendar/daygrid": "^6.1.19",
+    "@fullcalendar/interaction": "^6.1.19",
+    "@fullcalendar/react": "^6.1.19",
+    "@mui/icons-material": "6.1.6",
+    "@mui/material": "6.1.6",
+    "@mui/material-nextjs": "7.3.3",
+    "@mui/system": "6.1.6",
+    "@mui/x-charts": "^8.15.0",
+    "@mui/x-date-pickers": "^8.15.0",
+    "axios": "^1.12.2",
+    "bcryptjs": "^3.0.2",
+    "dayjs": "^1.11.18",
+    "framer-motion": "^12.23.24",
+    "jose": "^6.1.0",
+    "lucide-react": "^0.544.0",
+    "mysql2": "^3.15.2",
+    "next": "15.0.0",
+    "prisma": "^6.16.3",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-hook-form": "^7.65.0",
+    "react-qr-code": "^2.0.18",
+    "zod": "^4.1.11"
   },
   "devDependencies": {
-    "typescript": "^5",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^18.2.73",
+    "@types/react-dom": "^18.2.18",
     "eslint": "^9",
     "eslint-config-next": "15.5.4",
-    "@eslint/eslintrc": "^3"
+    "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5"
   }
 }
