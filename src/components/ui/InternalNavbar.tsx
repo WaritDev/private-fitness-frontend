@@ -319,7 +319,6 @@ export default function InternalNavbar(): React.JSX.Element {
       {/* Mobile drawer remains unchanged */}
       <Drawer open={open} onClose={() => setOpen(false)} PaperProps={{ sx: { width: 300 } }}>
         <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Avatar src="/profile-icon.png" alt="profile avatar" sx={{ width: 40, height: 40 }} />
           <Box>
             <Typography fontWeight={600}>{user?.firstName ?? 'Guest'}</Typography>
             <Typography variant="caption" color="text.secondary">
@@ -344,9 +343,6 @@ export default function InternalNavbar(): React.JSX.Element {
         <Divider sx={{ my: 1 }} />
         <Box sx={{ px: 2, pb: 2 }}>
           <Stack direction="row" spacing={1}>
-            <Button component={Link} href={profileHref} variant="outlined" fullWidth onClick={() => setOpen(false)}>
-              Profile
-            </Button>
             {user ? (
               <Button
                 variant="contained"
