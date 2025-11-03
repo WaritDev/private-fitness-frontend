@@ -382,9 +382,6 @@ export default function InternalNavbar(): React.JSX.Element {
         <Divider sx={{ my: 1 }} />
         <Box sx={{ px: 2, pb: 2 }}>
           <Stack direction="row" spacing={1}>
-            <Button component={Link} href={profileHref} variant="outlined" fullWidth onClick={() => setOpen(false)}>
-              Profile
-            </Button>
             {user ? (
               <Button
                 variant="contained"
